@@ -31,8 +31,9 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Domain tests | `./node_modules/.bin/vitest run` | **22 passed** |
 | TypeScript | `./node_modules/.bin/tsc --noEmit` | clean |
 | Product-rule lint | `npm run lint` | passed, 45 source files / 5 domain files |
-| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **19 checks passed** |
-| Playwright auth/role/privacy | `npm run test:e2e` | **4 passed** |
+| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **26 checks passed** |
+| Nurse self-registration | `POST /api/auth/register` | **201**; role forced to `nurse`, PIN hashed, duplicate username 409, client role injection 400 |
+| Playwright auth/role/privacy | `npm run test:e2e` | **5 passed** |
 | Web build | `npm run build` | success; all app routes + `ƒ /api/[[...route]]` |
 | Mobile build | `npm run build:mobile` | success; **17 static pages**, no API route; `src/app/api` restored |
 | Full nurse flow | `node scripts/flow-check.mjs` | emergency banner, 4 reschedule proposals confirmed, task timer/finish, quick add, handover finalized, shift ended, no active shift |
@@ -106,6 +107,7 @@ Final captures are in `evaluation/screenshots/`:
 - **No participants yet.** SUS/TLX values must come from the approved study, not the simulated dataset.
 - **Clinical content is illustrative.** Task tiers, intervals and expected durations need ICU expert review.
 - **Free-text bed nicknames can contain a name.** The UI warns and limits length, but rule-based detection is not reliable. This is an ethical/usability risk to test.
+- **Nurse self-registration is open.** Anyone who can reach the deployment can create a nurse account; head-nurse accounts remain controlled. There is no email verification, rate limit or PIN recovery. Account creation requires connectivity, and this is acceptable only for the thesis demo.
 - **Small single-centre sample.** Results will not generalise.
 - **Neon/network variability.** Transient DNS/timeouts were observed locally; nurse actions remain in Dexie, but login and head screens need connectivity.
 - **On-device APK behaviour is not measured.** The Vercel deployment and the GitHub Actions APK build were observed, but the APK was not installed or opened on a physical Android device in this workspace.

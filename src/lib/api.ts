@@ -65,6 +65,17 @@ export async function loginRequest(username: string, pin: string): Promise<Login
   });
 }
 
+export async function registerRequest(
+  username: string,
+  displayName: string,
+  pin: string,
+): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ username, displayName, pin }),
+  });
+}
+
 export async function pushEventsRequest(token: string, events: DomainEvent[]) {
   return apiFetch<{ accepted: string[]; inserted: number; duplicates: number }>("/sync/push", {
     method: "POST",

@@ -12,7 +12,7 @@ The production deployment serves the Next.js app and the Hono API from the same 
 
 ## What it does
 
-- **Nurse flow:** sign in, start a shift, see six demo beds, work a tier-sorted task queue, start/pause/finish tasks, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary.
+- **Nurse flow:** create an account or sign in, start a shift, see six demo beds, work a tier-sorted task queue, start/pause/finish tasks, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary.
 - **Head-nurse flow:** unit dashboard, shift list, shift detail with event timeline, five manual 1–5 ratings, CSV export.
 - **Offline-first nurse actions:** every action is written to Dexie first and pushed later through an outbox. Timers are computed from stored event timestamps, never from in-memory counters.
 - **Rule-based only:** no AI/ML, no computed nurse score, no ranking or leaderboard. Tier 1–2 tasks are never auto-deferred; only planned tier 3–4 tasks are deferred during an emergency, and a nurse confirms every new time.
@@ -28,6 +28,8 @@ The production deployment serves the Next.js app and the Hono API from the same 
 | `head` | `9999` | Head nurse |
 
 The shift-start screen has a demo option that backdates the shift by two hours, so overdue and tier-ordering states are visible immediately. Turn it off for a live practice shift.
+
+Nurses can also create their own account from the login screen. Self-registration creates **nurse accounts only**; head-nurse accounts are provisioned by the study team. There is no email recovery, and account creation requires a network connection. After the first sign-in, the normal offline nurse flow is available.
 
 ## Stack and layout
 

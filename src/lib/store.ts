@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { clearAuth, db, getAuth, setAuth, type AuthRecord, type SessionUser } from "./db";
-import { loginRequest } from "./api";
+import { loginRequest, registerRequest } from "./api";
 
 type Toast = { id: number; message: string; tone: "info" | "success" | "warning" | "error" };
 
@@ -19,6 +19,7 @@ type AppState = {
   toast: Toast | null;
   hydrate: () => Promise<void>;
   login: (username: string, pin: string) => Promise<void>;
+  register: (username: string, displayName: string, pin: string) => Promise<void>;
   resumeOffline: () => Promise<boolean>;
   logout: () => Promise<void>;
   setOnline: (online: boolean) => void;
@@ -68,6 +69,24 @@ export const useApp = create<AppState>((set, get) => ({
 
   login: async (username, pin) => {
     const response = await loginRequest(username, pin);
+    const previous = await getAuth();
+    if (previous && previous.user.id !== response.user.id) {
+      await db().events.clear();
+      await db().tasks.clear();
+      await db().outbox.clear();
+      await db().reviews.clear();
+      await db().handovers.clear();
+      await db().shifts.clear();
+      await db().beds.clear();
+    }
+    const record: AuthRecord = { user: response.user, token: response.token, savedAt: Date.now() };
+    await setAuth(record);
+    storeToken(response.token);
+    set({ user: response.user, token: response.token, sessionExpired: false, syncError: null });
+  },
+
+  register: async (username, displayName, pin) => {
+    const response = await registerRequest(username, displayName, pin);
     const previous = await getAuth();
     if (previous && previous.user.id !== response.user.id) {
       await db().events.clear();

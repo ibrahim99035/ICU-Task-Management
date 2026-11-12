@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { type MiddlewareHandler } from "hono";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getDb, hasDatabase, schema } from "@/db";
 import {
@@ -13,7 +14,7 @@ import {
   type DomainEvent,
   type ShiftSummary,
 } from "@/domain";
-import { verifyPin, verifyToken, signToken, type AuthUser } from "./auth";
+import { hashPin, verifyPin, verifyToken, signToken, type AuthUser } from "./auth";
 
 type AppEnv = { Variables: { auth: AuthUser } };
 
@@ -23,6 +24,11 @@ function dbOrThrow() {
   const db = getDb();
   if (!db) throw new HTTPException(503, { message: "Database is not configured" });
   return db;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  const value = error as { code?: string; cause?: { code?: string } } | null;
+  return value?.code === "23505" || value?.cause?.code === "23505";
 }
 
 function allowedOrigins(): string[] {
@@ -49,7 +55,13 @@ app.use(
 app.use("*", async (c, next) => {
   if (c.req.method === "OPTIONS") return next();
   const path = c.req.path.replace(/\/+$/, "") || "/";
-  if (path.endsWith("/health") || path.endsWith("/auth/login")) return next();
+  if (
+    path.endsWith("/health") ||
+    path.endsWith("/auth/login") ||
+    path.endsWith("/auth/register")
+  ) {
+    return next();
+  }
   const header = c.req.header("Authorization");
   if (!header?.startsWith("Bearer ")) {
     throw new HTTPException(401, { message: "Missing bearer token" });
@@ -108,6 +120,70 @@ app.post("/auth/login", async (c) => {
   };
   const token = await signToken(auth);
   return c.json({ token, user: auth, expiresInSec: 1800 });
+});
+
+app.post("/auth/register", async (c) => {
+  const body = z
+    .object({
+      username: z
+        .string()
+        .trim()
+        .min(3, "Username must be at least 3 characters")
+        .max(40, "Username is too long")
+        .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, "Use letters, numbers, dots, dashes or underscores"),
+      displayName: z
+        .string()
+        .trim()
+        .min(2, "Display name must be at least 2 characters")
+        .max(40, "Display name is too long"),
+      pin: z.string().regex(/^\d{4,8}$/, "PIN must be 4–8 digits"),
+    })
+    .strict()
+    .parse(await c.req.json());
+
+  const db = dbOrThrow();
+  const username = body.username.toLowerCase();
+  const [existing] = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(eq(schema.users.username, username))
+    .limit(1);
+  if (existing) {
+    return c.json({ error: "That username is already taken" }, 409);
+  }
+
+  const auth: AuthUser = {
+    id: `u-${randomUUID()}`,
+    username,
+    role: "nurse",
+    displayName: body.displayName,
+    participantCode: `N-${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`,
+  };
+  const pinHash = await hashPin(body.pin);
+
+  try {
+    await db.insert(schema.users).values({ ...auth, pinHash });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      const [duplicate] = await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.username, username))
+        .limit(1);
+      return c.json(
+        {
+          error: duplicate
+            ? "That username is already taken"
+            : "Could not create the account. Please try again.",
+        },
+        409,
+      );
+    }
+    throw error;
+  }
+
+  const token = await signToken(auth);
+  return c.json({ token, user: auth, expiresInSec: 1800 }, 201);
 });
 
 app.get("/me", (c) => c.json({ user: c.get("auth") }));

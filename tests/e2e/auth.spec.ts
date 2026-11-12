@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./helpers";
+import { signIn, waitForHydration } from "./helpers";
 
 test.describe("authentication and role routing", () => {
   test("nurse signs in and lands on the shift start screen", async ({ page }) => {
@@ -8,6 +8,19 @@ test.describe("authentication and role routing", () => {
     await expect(
       page.getByRole("heading", { name: /Start a shift|Bed board|Task queue/ }).first(),
     ).toBeVisible();
+  });
+
+  test("nurse can create an account and start a shift", async ({ page }) => {
+    await page.goto("/login");
+    await waitForHydration(page);
+    await page.getByRole("tab", { name: "Create account" }).click();
+    await page.fill("#username", `testnurse${Date.now()}`);
+    await page.fill("#display-name", "Test Nurse");
+    await page.fill("#pin", "2468");
+    await page.fill("#confirm-pin", "2468");
+    await page.getByRole("button", { name: "Create nurse account" }).click();
+    await expect(page).toHaveURL(/\/shift-start/);
+    await expect(page.getByRole("heading", { name: /Start a shift/ })).toBeVisible();
   });
 
   test("head nurse signs in and sees the unit dashboard", async ({ page }) => {

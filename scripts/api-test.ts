@@ -65,6 +65,87 @@ async function main() {
   check("health returns 200", health.status === 200, health.status);
   check("health reports database", healthBody.ok && healthBody.database, healthBody);
 
+  const newAccount = {
+    username: "api-new-nurse",
+    displayName: "API Test Nurse",
+    pin: "2468",
+  };
+  const weakRegister = await req("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...newAccount, pin: "12" }),
+  });
+  check("registration rejects a weak PIN", weakRegister.status === 400, weakRegister.status);
+
+  const roleRegister = await req("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...newAccount, role: "head_nurse" }),
+  });
+  check("registration rejects a client-supplied role", roleRegister.status === 400, roleRegister.status);
+
+  const register = await req("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(newAccount),
+  });
+  const created = await json<{
+    token: string;
+    user: { id: string; role: string; participantCode: string; displayName: string };
+  }>(register);
+  check(
+    "nurse registration returns a nurse token",
+    register.status === 201 &&
+      created.token.length > 20 &&
+      created.user.role === "nurse" &&
+      created.user.participantCode.startsWith("N-") &&
+      created.user.displayName === newAccount.displayName,
+    { status: register.status, user: created.user },
+  );
+
+  const stored = await pool.query<{ pin_hash: string; role: string }>(
+    "SELECT pin_hash, role FROM users WHERE username = $1",
+    [newAccount.username],
+  );
+  check(
+    "new account stores a hashed PIN",
+    stored.rows[0]?.pin_hash !== newAccount.pin &&
+      stored.rows[0]?.pin_hash.startsWith("$2") &&
+      stored.rows[0]?.role === "nurse",
+    stored.rows[0]?.role,
+  );
+
+  const duplicateRegister = await req("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(newAccount),
+  });
+  check("duplicate username is rejected", duplicateRegister.status === 409, duplicateRegister.status);
+
+  const newLogin = await req("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: newAccount.username, pin: newAccount.pin }),
+  });
+  const newSession = await json<{ token: string; user: { role: string } }>(newLogin);
+  check(
+    "new account can sign in",
+    newLogin.status === 200 && newSession.user.role === "nurse" && newSession.token.length > 20,
+    newLogin.status,
+  );
+
+  const newMe = await req("/api/me", {
+    headers: { Authorization: `Bearer ${newSession.token}` },
+  });
+  const newMeBody = await json<{ user: { role: string; username: string } }>(newMe);
+  check(
+    "new account token resolves to the nurse",
+    newMe.status === 200 &&
+      newMeBody.user.role === "nurse" &&
+      newMeBody.user.username === newAccount.username,
+    newMe.status,
+  );
+
   const badLogin = await req("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

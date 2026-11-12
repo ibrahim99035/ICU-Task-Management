@@ -7,20 +7,21 @@
 
 ## P2 — Offline nurse flow (done)
 - Dexie schema, Zustand app store, outbox sync, projection, actions.
-- Login, shift start (backdated demo option), bed board, task queue, task detail/correction, active timer bar, interruptions, quick add.
+- Login, self-registration for nurse accounts, shift start (backdated demo option), bed board, task queue, task detail/correction, active timer bar, interruptions, quick add.
 - Emergency start/end with tier 1–2 protection, tier 3–4 deferral, reschedule review, deferred queue filter.
 - Handover snapshot/finalize/copy/share/print, shift summary with SVG/CSS charts, manual review display, SUS/raw TLX forms, privacy screen.
 
 ## P3 — API and head nurse (done)
 - Hono at `src/app/api/[[...route]]/route.ts`, JWT auth, role guards, CORS/trailing-slash handling.
+- Nurse self-registration: `POST /api/auth/register`, nurse role enforced server-side, bcrypt PIN, unique username/participant code, duplicate handling.
 - Sync push/pull, server summary recomputation, shifts, reviews, analytics, surveys, CSV export.
 - Head dashboard, shift list, shift detail, review form, export page.
 - Neon schema applied and seeded: `amina/1111`, `yara/2222`, `omar/3333`, `head/9999`.
 
 ## P4 — Evaluation data and automation (done)
 - `scripts/simulate.ts` creates 14 deterministic finished shifts, 1,369 events, 28 handovers, 11 reviews and 9 surveys using bed labels and participant codes only.
-- `scripts/api-test.ts`: 19 checks against disposable Docker Postgres.
-- Playwright auth/role/privacy suite: `4` passing.
+- `scripts/api-test.ts`: 26 checks against disposable Docker Postgres, including self-registration, PIN hashing, duplicate username and role injection.
+- Playwright auth/role/privacy suite: `5` passing, including account creation.
 - `scripts/flow-check.mjs`: emergency → reschedule → timer → quick add → handover → shift end verified end to end.
 - Product-rule lint (`npm run lint`), typecheck, web build and mobile static export all pass.
 - Final web build: all app routes plus the API route. Mobile export: 17 static pages, no API route.
