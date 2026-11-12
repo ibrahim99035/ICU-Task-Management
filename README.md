@@ -4,6 +4,12 @@ A thesis demo for ICU nurses: plan a shift by task priority, time care from stor
 
 > **Not a medical device.** This is a planning and logging aid for practice data. It does not replace bedside monitors, alarms, official orders or the clinical handover process. Do not enter patient names, MRNs, dates of birth or other identifiers.
 
+## Live demo
+
+<https://icu-tasklog.vercel.app>
+
+The production deployment serves the Next.js app and the Hono API from the same domain. Use the demo accounts below. The APK is built from the same source and points at this URL.
+
 ## What it does
 
 - **Nurse flow:** sign in, start a shift, see six demo beds, work a tier-sorted task queue, start/pause/finish tasks, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary.
@@ -125,6 +131,8 @@ The APK is built by `.github/workflows/android.yml`:
 3. Download the `icu-tasklog-debug-apk` artifact.
 
 The workflow installs dependencies, runs `npm run build:mobile`, adds the Android platform with Capacitor, generates icons/splash, and runs `./gradlew assembleDebug`.
+
+The workflow has produced the debug artifact successfully. Run `43297872952` built `app-debug.apk` (5,598,974 bytes, SHA-256 `5a3526110693912b8c19b64b93038f63cb605ee9185329ecbb48a07855de30b9`). The artifact was downloaded and inspected as a signed Android package; installation on a physical device is still unverified.
 
 Debug signing is automatic. The APK is for demonstration, not Play Store distribution. `NEXT_PUBLIC_API_URL` is compiled into the bundle, so rebuild after changing the deployment URL.
 

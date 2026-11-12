@@ -24,7 +24,7 @@ The prototype deliberately excludes AI, automatic clinical decisions and nurse r
 
 ## 3. Engineering evidence (observed)
 
-Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chromium via Playwright.
+Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chromium via Playwright, plus the production deployment at <https://icu-tasklog.vercel.app>.
 
 | Check | Command | Observed result |
 | --- | --- | --- |
@@ -38,6 +38,18 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Full nurse flow | `node scripts/flow-check.mjs` | emergency banner, 4 reschedule proposals confirmed, task timer/finish, quick add, handover finalized, shift ended, no active shift |
 | Demo data | `npm run simulate:reset` | 14 finished shifts, 1,369 events, 28 handovers, 11 reviews, 9 surveys |
 | Head analytics | `GET /api/analytics/unit?days=30` | 14 shifts, completion 79.4%, tier 1–2 on-time 59.1%, direct care 4h 18m, indirect 1h 6m, interruptions 44m, emergency 8m |
+| Live health | `GET https://icu-tasklog.vercel.app/api/health` | **200**; `{"ok":true,"database":true}` |
+| Live login | `POST /api/auth/login` on Vercel | **200** for `amina/1111` and `head/9999`; role returned in `user.role` |
+| Live head analytics | `GET /api/analytics/unit` on Vercel | **200**; 14 shifts |
+| Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
+| Android CI build | GitHub Actions run `43297872952` | **success**; `app-debug.apk`, 5,598,974 bytes, SHA-256 `5a3526110693912b8c19b64b93038f63cb605ee9185329ecbb48a07855de30b9` |
+
+### Production deployment
+
+- Web/API: <https://icu-tasklog.vercel.app> — one Vercel Next.js project; `/api/*` is served by the mounted Hono app.
+- Observed checks: health 200, nurse and head login 200, head analytics 200, CORS preflight 204.
+- Android artifact: GitHub Actions run `43297872952` succeeded. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,598,974 bytes, SHA-256 above).
+- **NOT VERIFIED:** installing and opening the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 The simulation is deterministic and uses only bed labels and participant codes. It is demonstration data, not a study result.
 
@@ -94,7 +106,7 @@ Final captures are in `evaluation/screenshots/`:
 - **Free-text bed nicknames can contain a name.** The UI warns and limits length, but rule-based detection is not reliable. This is an ethical/usability risk to test.
 - **Small single-centre sample.** Results will not generalise.
 - **Neon/network variability.** Transient DNS/timeouts were observed locally; nurse actions remain in Dexie, but login and head screens need connectivity.
-- **APK and Vercel are not verified in this workspace.** The workflow and static export are configured, but no live URL, APK artifact or device installation was observed.
+- **On-device APK behaviour is not measured.** The Vercel deployment and the GitHub Actions APK build were observed, but the APK was not installed or opened on a physical Android device in this workspace.
 - **Demo backdating** makes overdue states visible immediately; it is not a real shift timestamp and is labelled in the UI.
 
 ## 6. Reproduction commands

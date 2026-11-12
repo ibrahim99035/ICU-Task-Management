@@ -25,14 +25,16 @@
 - Product-rule lint (`npm run lint`), typecheck, web build and mobile static export all pass.
 - Final web build: all app routes plus the API route. Mobile export: 17 static pages, no API route.
 
-## P5 — APK packaging (configured, not executed locally)
+## P5 — Deployment and APK packaging (done)
+- Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.
+- Production checks observed: health `200`, nurse and head login `200`, head analytics `200`, CORS preflight `204`.
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
 - `npm run build:mobile` verified locally: static export succeeds and `src/app/api` is restored.
-- **NOT VERIFIED:** Android SDK/Gradle build, APK artifact, installation on device. No Android SDK is installed in this workspace.
+- GitHub Actions run `43297872952` succeeded: `app-debug.apk`, 5,598,974 bytes, SHA-256 `5a3526110693912b8c19b64b93038f63cb605ee9185329ecbb48a07855de30b9`.
+- **NOT VERIFIED:** installation and opening of the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 ## NOT VERIFIED
-- Live Vercel deployment and production URL (no account/token/manual import available).
-- APK built by GitHub Actions and installed/opened on a device.
+- APK installation/opening on a physical device.
 - Real ICU nurse usability sessions, SUS/TLX results and clinical review of demo task tiers.
 - Neon transient DNS failures observed locally are environmental; production reliability is not measured.
 
