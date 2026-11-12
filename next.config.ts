@@ -4,11 +4,11 @@ const isMobile = process.env.NEXT_BUILD_TARGET === "mobile";
 
 const nextConfig: NextConfig = {
   // The web deployment is a normal Next.js full-stack app.
-  // The APK build is a static export of the same project; API routes are
-  // excluded by accepting only .tsx pages in mobile builds.
+  // The APK build is a static export of the same project. The API route is
+  // moved aside by scripts/build-mobile.mjs because a static export cannot
+  // contain a server route handler.
   output: isMobile ? "export" : undefined,
-  pageExtensions: isMobile ? ["tsx"] : ["tsx", "ts"],
-  trailingSlash: true,
+  trailingSlash: isMobile,
   images: { unoptimized: true },
   reactStrictMode: true,
   poweredByHeader: false,

@@ -1,6 +1,8 @@
 node_modules/
 .next/
 out/
+.api-route-backup/
+tsconfig.tsbuildinfo
 .env
 .env.local
 .env.*.local

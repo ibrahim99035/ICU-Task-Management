@@ -77,6 +77,7 @@ export const taskCreatedPayload = z.object({
   expectedMin: z.number().int().min(0).max(720).default(5),
   intervalMin: z.number().int().min(0).max(1440).optional(),
   templateId: z.string().max(80).optional(),
+  bedLabel: z.string().max(60).optional(),
   note: z.string().max(300).optional(),
 });
 export const taskDeferredPayload = z.object({

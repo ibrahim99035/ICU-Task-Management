@@ -1,0 +1,11 @@
+{
+  "appId": "com.icutasklog.app",
+  "appName": "ICU TaskLog",
+  "webDir": "out",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

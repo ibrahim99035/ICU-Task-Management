@@ -5,19 +5,24 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:mobile": "NEXT_BUILD_TARGET=mobile next build",
+    "build": "next build --webpack",
+    "build:mobile": "node scripts/build-mobile.mjs",
     "start": "next start",
     "lint": "tsx scripts/lint.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:api": "tsx scripts/api-test.ts",
     "db:push": "tsx scripts/db-push.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "simulate": "tsx scripts/simulate.ts"
+    "simulate": "tsx scripts/simulate.ts",
+    "simulate:reset": "tsx scripts/simulate.ts --reset",
+    "db:reset-shifts": "tsx scripts/reset-shifts.ts"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
     "bcryptjs": "3.0.3",
     "clsx": "2.1.1",
     "dexie": "4.4.7",
@@ -34,6 +39,8 @@
     "dotenv": "17.4.2"
   },
   "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.0",
     "@playwright/test": "1.64.1",
     "@types/node": "22.20.1",
     "@types/pg": "8.23.1",

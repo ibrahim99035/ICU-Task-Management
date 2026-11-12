@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">
+  <rect width="2732" height="2732" fill="#f1f5f9"/>
+  <g transform="translate(1110 860)">
+    <rect width="512" height="512" rx="110" fill="#0f172a"/>
+    <rect x="211" y="116" width="90" height="280" rx="26" fill="#2dd4bf"/>
+    <rect x="116" y="211" width="280" height="90" rx="26" fill="#2dd4bf"/>
+  </g>
+  <text x="1366" y="1560" text-anchor="middle" font-family="Inter, DejaVu Sans, sans-serif" font-size="132" font-weight="700" fill="#0f172a">ICU TaskLog</text>
+  <text x="1366" y="1668" text-anchor="middle" font-family="Inter, DejaVu Sans, sans-serif" font-size="54" font-weight="500" fill="#64748b">Planning, timing &amp; handover aid</text>
+  <text x="1366" y="1846" text-anchor="middle" font-family="Inter, DejaVu Sans, sans-serif" font-size="38" font-weight="600" letter-spacing="3" fill="#94a3b8">THESIS DEMO · PRACTICE DATA ONLY</text>
+</svg>
