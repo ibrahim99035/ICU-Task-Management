@@ -27,7 +27,7 @@
 
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.
-- Production checks observed: health `200`, nurse and head login `200`, head analytics `200`, CORS preflight `204`.
+- Production checks observed: health `200`, nurse and head login `200`, head analytics `200`, CORS preflight `204`; Playwright logins reached `/shift-start` and `/head` with no page errors.
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
 - `npm run build:mobile` verified locally: static export succeeds and `src/app/api` is restored.
 - GitHub Actions run `43297872952` succeeded: `app-debug.apk`, 5,598,974 bytes, SHA-256 `5a3526110693912b8c19b64b93038f63cb605ee9185329ecbb48a07855de30b9`.

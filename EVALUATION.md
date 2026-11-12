@@ -42,13 +42,15 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live login | `POST /api/auth/login` on Vercel | **200** for `amina/1111` and `head/9999`; role returned in `user.role` |
 | Live head analytics | `GET /api/analytics/unit` on Vercel | **200**; 14 shifts |
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
+| Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
 | Android CI build | GitHub Actions run `43297872952` | **success**; `app-debug.apk`, 5,598,974 bytes, SHA-256 `5a3526110693912b8c19b64b93038f63cb605ee9185329ecbb48a07855de30b9` |
 
 ### Production deployment
 
 - Web/API: <https://icu-tasklog.vercel.app> — one Vercel Next.js project; `/api/*` is served by the mounted Hono app.
 - Observed checks: health 200, nurse and head login 200, head analytics 200, CORS preflight 204.
-- Android artifact: GitHub Actions run `43297872952` succeeded. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,598,974 bytes, SHA-256 above).
+- Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors.
+- Android artifact: GitHub Actions run `43297872952` succeeded. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,598,974 bytes, SHA-256 above), and its bundled JavaScript contains `https://icu-tasklog.vercel.app`.
 - **NOT VERIFIED:** installing and opening the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 The simulation is deterministic and uses only bed labels and participant codes. It is demonstration data, not a study result.

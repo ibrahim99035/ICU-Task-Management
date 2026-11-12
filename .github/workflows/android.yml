@@ -8,6 +8,9 @@ on:
         required: false
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "evaluation/**"
 
 concurrency:
   group: android-apk-${{ github.ref }}
