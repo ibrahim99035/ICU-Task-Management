@@ -12,8 +12,31 @@ const apiDir = "src/app/api";
 const backup = ".api-route-backup";
 const nextBin = process.platform === "win32" ? "next.cmd" : "./node_modules/.bin/next";
 
-if (existsSync(backup)) rmSync(backup, { recursive: true, force: true });
+if (existsSync(backup)) {
+  if (!existsSync(apiDir)) {
+    // Recover from a previous build that was killed before it could restore.
+    renameSync(backup, apiDir);
+  } else {
+    rmSync(backup, { recursive: true, force: true });
+  }
+}
 if (existsSync(apiDir)) renameSync(apiDir, backup);
+
+let restored = false;
+function restore() {
+  if (restored) return;
+  restored = true;
+  if (existsSync(backup)) renameSync(backup, apiDir);
+}
+process.on("SIGINT", () => {
+  restore();
+  process.exit(130);
+});
+process.on("SIGTERM", () => {
+  restore();
+  process.exit(143);
+});
+process.on("exit", restore);
 
 rmSync(".next", { recursive: true, force: true });
 rmSync("out", { recursive: true, force: true });
@@ -27,7 +50,7 @@ try {
   });
   status = result.status ?? 1;
 } finally {
-  if (existsSync(backup)) renameSync(backup, apiDir);
+  restore();
 }
 
 process.exit(status);
