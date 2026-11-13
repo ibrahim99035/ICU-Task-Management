@@ -19,3 +19,4 @@ ios/
 *.apk
 *.keystore
 *.jks
+.code-graph/
