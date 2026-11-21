@@ -43,6 +43,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live login | `POST /api/auth/login` on Vercel | **200** for `amina/1111` and `head/9999`; role returned in `user.role` |
 | Live nurse registration | `POST /api/auth/register` on Vercel | **201**; nurse role, unique `N-...` code, login **200**; duplicate username **409**; role injection **400** |
 | Live head analytics | `GET /api/analytics/unit` on Vercel | **200**; 14 shifts |
+| Live planned windows | `GET /api/shifts/sim-20261120-u-nurse-2` on Vercel | **200**; 36 `TASK_CREATED` events carry `plannedFrom`/`plannedTo`; no `dueAt` |
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
 | Android CI build | GitHub Actions run `44904871255` | **success**; `app-debug.apk`, 5,600,714 bytes, SHA-256 `3d5be57d18a28de0daae062bffc382c8fea00866186ff44aa7b903148614f284` |
