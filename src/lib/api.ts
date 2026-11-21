@@ -1,6 +1,6 @@
 "use client";
 
-import type { DomainEvent, ShiftSummary } from "@/domain";
+import type { DomainEvent, ShiftSummary, Unit } from "@/domain";
 import type { HandoverSnapshot } from "@/domain";
 
 export class ApiError extends Error {
@@ -76,6 +76,65 @@ export async function registerRequest(
   });
 }
 
+export type NurseOption = {
+  id: string;
+  username: string;
+  displayName: string;
+  participantCode: string;
+};
+
+export type UnitDetail = { unit: Unit; nurses: NurseOption[] };
+
+export async function fetchUnits(token: string): Promise<{ units: Unit[] }> {
+  return apiFetch("/units", { token });
+}
+
+export async function createUnit(
+  token: string,
+  input: { name: string; description?: string },
+): Promise<{ unit: Unit }> {
+  return apiFetch("/units", { method: "POST", token, body: JSON.stringify(input) });
+}
+
+export async function fetchUnit(token: string, id: string): Promise<UnitDetail> {
+  return apiFetch(`/units/${encodeURIComponent(id)}`, { token });
+}
+
+export async function updateUnit(
+  token: string,
+  id: string,
+  input: { name?: string; description?: string; status?: "active" | "inactive" },
+): Promise<{ unit: Unit }> {
+  return apiFetch(`/units/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteUnit(token: string, id: string): Promise<{ deleted: string }> {
+  return apiFetch(`/units/${encodeURIComponent(id)}`, { method: "DELETE", token });
+}
+
+export async function fetchNurses(token: string): Promise<{ nurses: NurseOption[] }> {
+  return apiFetch("/nurses", { token });
+}
+
+export async function assignNurses(token: string, id: string, nurseIds: string[]): Promise<{ assigned: number }> {
+  return apiFetch(`/units/${encodeURIComponent(id)}/nurses`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ nurseIds }),
+  });
+}
+
+export async function removeNurse(token: string, id: string, nurseId: string): Promise<{ removed: string }> {
+  return apiFetch(`/units/${encodeURIComponent(id)}/nurses/${encodeURIComponent(nurseId)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function pushEventsRequest(token: string, events: DomainEvent[]) {
   return apiFetch<{ accepted: string[]; inserted: number; duplicates: number }>("/sync/push", {
     method: "POST",
@@ -97,10 +156,13 @@ export type PullResponse = {
     active: boolean;
   }[];
   config: Record<string, unknown> | null;
+  units: Unit[];
   shifts: {
     id: string;
     userId: string;
     type: string;
+    unitId: string | null;
+    unitName: string | null;
     startedAt: number;
     endedAt: number | null;
     summary: unknown;
@@ -182,6 +244,8 @@ export type HeadShift = {
   id: string;
   userId: string;
   type: string;
+  unitId: string | null;
+  unitName: string | null;
   startedAt: number;
   endedAt: number | null;
   summary: ShiftSummary | null;
@@ -193,12 +257,13 @@ export type HeadShift = {
 
 export async function fetchShifts(
   token: string,
-  filters: { nurseId?: string; from?: string; to?: string } = {},
+  filters: { nurseId?: string; from?: string; to?: string; unitId?: string } = {},
 ): Promise<{ shifts: HeadShift[] }> {
   const params = new URLSearchParams();
   if (filters.nurseId) params.set("nurseId", filters.nurseId);
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
+  if (filters.unitId) params.set("unitId", filters.unitId);
   return apiFetch(`/shifts?${params.toString()}`, { token });
 }
 
@@ -234,8 +299,10 @@ export type UnitAnalytics = {
   topInterruptions: { reason: string; label: string; count: number; minutes: number }[];
 };
 
-export async function fetchAnalytics(token: string, days = 30): Promise<UnitAnalytics> {
-  return apiFetch(`/analytics/unit?days=${days}`, { token });
+export async function fetchAnalytics(token: string, days = 30, unitId?: string): Promise<UnitAnalytics> {
+  const params = new URLSearchParams({ days: String(days) });
+  if (unitId) params.set("unitId", unitId);
+  return apiFetch(`/analytics/unit?${params.toString()}`, { token });
 }
 
 export async function fetchMyReviews(token: string): Promise<{
@@ -256,8 +323,11 @@ export async function fetchMyReviews(token: string): Promise<{
 export async function downloadExport(
   token: string,
   type: "events" | "summaries" | "surveys" | "reviews",
+  unitId?: string,
 ): Promise<Blob> {
-  const response = await fetch(`${apiBase()}/export?type=${type}`, {
+  const params = new URLSearchParams({ type });
+  if (unitId) params.set("unitId", unitId);
+  const response = await fetch(`${apiBase()}/export?${params.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new ApiError(response.status, "Export failed");

@@ -14,6 +14,8 @@ export type ShiftRow = {
   id: string;
   actorId: string;
   type: ShiftType;
+  unitId?: string;
+  unitName?: string;
   startedAt: number;
   endedAt?: number;
   summary?: unknown;
@@ -128,6 +130,18 @@ class IcuDatabase extends Dexie {
       shifts: "id, actorId, startedAt, endedAt",
       beds: "id, shiftId",
     });
+    this.version(2).stores({
+      events: "id, shiftId, taskId, serverSeq, clientTs",
+      tasks: "id, shiftId, bedId, status, tier, plannedFrom, unitId",
+      units: "id, name, status, updatedAt",
+      outbox: "id, kind, createdAt",
+      templates: "id, tier, category",
+      session: "key",
+      reviews: "id, shiftId",
+      handovers: "id, shiftId, bedId",
+      shifts: "id, actorId, startedAt, endedAt, unitId",
+      beds: "id, shiftId",
+    });
   }
 }
 
@@ -175,4 +189,19 @@ export async function getConfig(): Promise<AppConfig> {
 export async function activeShift(actorId: string): Promise<ShiftRow | undefined> {
   const rows = await db().shifts.where("actorId").equals(actorId).toArray();
   return rows.filter((s) => !s.endedAt).sort((a, b) => b.startedAt - a.startedAt)[0];
+}
+
+export async function cachedUnits(): Promise<UnitRow[]> {
+  return db().units.orderBy("name").toArray();
+}
+
+export async function setCachedUnits(units: UnitRow[]): Promise<void> {
+  await db().transaction("rw", db().units, async () => {
+    await db().units.clear();
+    if (units.length) await db().units.bulkPut(units);
+  });
+}
+
+export async function clearCachedUnits(): Promise<void> {
+  await db().units.clear();
 }

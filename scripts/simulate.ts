@@ -12,7 +12,7 @@ import {
   type Tier,
 } from "../src/domain";
 import { getDb, getPool, schema } from "../src/db";
-import { DEMO_BEDS, DEMO_TEMPLATES } from "../src/lib/demo-data";
+import { DEMO_BEDS, DEMO_TEMPLATES, DEMO_UNIT_MEMBERSHIPS, DEMO_UNITS } from "../src/lib/demo-data";
 
 const db = getDb();
 if (!db) throw new Error("DATABASE_URL is not configured");
@@ -68,6 +68,7 @@ type DraftShift = {
   userId: string;
   nurseName: string;
   participantCode: string;
+  unitId: string;
   type: "day" | "night";
   startedAt: number;
   endedAt: number;
@@ -93,6 +94,7 @@ async function main() {
       userId: nurse.id,
       nurseName: nurse.name,
       participantCode: nurse.code,
+      unitId: dayOffset % 2 === 0 ? "unit-a" : "unit-b",
       type: night ? "night" : "day",
       startedAt,
       endedAt,
@@ -101,6 +103,31 @@ async function main() {
   }
 
   if (RESET) await cleanupSimulated();
+
+  const now = Date.now();
+  for (const unit of DEMO_UNITS) {
+    await db!
+      .insert(schema.units)
+      .values({
+        id: unit.id,
+        name: unit.name,
+        description: unit.description,
+        status: "active",
+        createdBy: "u-head-1",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: schema.units.id,
+        set: { name: unit.name, description: unit.description, status: "active", updatedAt: now },
+      });
+  }
+  for (const membership of DEMO_UNIT_MEMBERSHIPS) {
+    await db!
+      .insert(schema.unitNurses)
+      .values({ ...membership, assignedBy: "u-head-1", assignedAt: now })
+      .onConflictDoNothing();
+  }
 
   const allEvents: (DomainEvent & { serverTs: number })[] = [];
   const allBeds: { id: string; shiftId: string; label: string; alias: string }[] = [];
@@ -118,6 +145,7 @@ async function main() {
   const shiftRows: {
     id: string;
     userId: string;
+    unitId: string;
     type: string;
     startedAt: number;
     endedAt: number;
@@ -159,7 +187,13 @@ async function main() {
 
     events.push(
       makeEvent("SHIFT_STARTED", draft.startedAt, {
-        payload: { shiftType: draft.type, bedLabels: beds.map((bed) => bed.alias), note: "Simulated teaching shift" },
+        payload: {
+          shiftType: draft.type,
+          unitId: draft.unitId,
+          unitName: DEMO_UNITS.find((unit) => unit.id === draft.unitId)?.name,
+          bedLabels: beds.map((bed) => bed.alias),
+          note: "Simulated teaching shift",
+        },
       }),
     );
 
@@ -204,6 +238,7 @@ async function main() {
               plannedTo,
               expectedMin: template.expectedMin,
               intervalMin: template.intervalMin,
+              unitId: draft.unitId,
               templateId: template.id,
               bedLabel: bed.label,
             },
@@ -338,6 +373,7 @@ async function main() {
     shiftRows.push({
       id: shiftId,
       userId: draft.userId,
+      unitId: draft.unitId,
       type: draft.type,
       startedAt: draft.startedAt,
       endedAt: draft.endedAt,
@@ -370,7 +406,7 @@ async function main() {
       .values(shift)
       .onConflictDoUpdate({
         target: schema.shifts.id,
-        set: { endedAt: shift.endedAt, summary: shift.summary },
+        set: { unitId: shift.unitId, endedAt: shift.endedAt, summary: shift.summary },
       });
   }
   for (const bed of allBeds) {

@@ -145,7 +145,7 @@ export default function BedsPage() {
   return (
     <AppShell
       title="Bed overview"
-      subtitle={`${shift.type} shift · started ${formatTime(shift.startedAt)} · ${beds.length} beds`}
+      subtitle={`${shift.type} shift${shift.unitName ? ` · ${shift.unitName}` : ""} · started ${formatTime(shift.startedAt)} · ${beds.length} beds`}
       actions={
         <Link href="/handover" className="btn-ghost hidden h-9 px-2 text-xs sm:inline-flex">
           <ClipboardCheck className="h-4 w-4" /> Handover

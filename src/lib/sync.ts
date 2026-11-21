@@ -52,7 +52,7 @@ async function runSync(): Promise<void> {
     const pull = await pullRequest(token, cursor);
     await db().transaction(
       "rw",
-      [db().events, db().tasks, db().reviews, db().handovers, db().templates, db().shifts, db().beds, db().session],
+      [db().events, db().tasks, db().reviews, db().handovers, db().templates, db().shifts, db().beds, db().session, db().units],
       async () => {
         if (pull.templates?.length) {
           await db().templates.bulkPut(
@@ -71,12 +71,30 @@ async function runSync(): Promise<void> {
         if (pull.config) {
           await db().session.put({ key: "config", value: pull.config });
         }
+        if (pull.units) {
+          await db().units.clear();
+          if (pull.units.length) {
+            await db().units.bulkPut(
+              pull.units
+                .filter((unit) => unit.status === "active")
+                .map((unit) => ({
+                  id: unit.id,
+                  name: unit.name,
+                  description: unit.description,
+                  status: unit.status,
+                  updatedAt: unit.updatedAt,
+                })),
+            );
+          }
+        }
         for (const shift of pull.shifts ?? []) {
           const existing = await db().shifts.get(shift.id);
           await db().shifts.put({
             id: shift.id,
             actorId: shift.userId,
             type: shift.type as "day" | "night" | "custom",
+            unitId: shift.unitId ?? existing?.unitId,
+            unitName: shift.unitName ?? existing?.unitName,
             startedAt: shift.startedAt,
             endedAt: shift.endedAt ?? undefined,
             summary: shift.summary ?? existing?.summary,

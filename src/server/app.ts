@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lte } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -47,7 +47,7 @@ app.use(
       return allowed.includes(origin) ? origin : allowed[0] ?? "http://localhost:3000";
     },
     allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     maxAge: 600,
   }),
 );
@@ -189,6 +189,163 @@ app.post("/auth/register", async (c) => {
 app.get("/me", (c) => c.json({ user: c.get("auth") }));
 
 /* ------------------------------------------------------------------ */
+/* Units and nurse assignment                                          */
+/* ------------------------------------------------------------------ */
+
+const unitInput = z.object({
+  name: z.string().trim().min(1, "Unit name is required").max(80),
+  description: z.string().trim().max(240).optional().default(""),
+});
+
+app.get("/units", async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  if (auth.role === "head_nurse") {
+    const rows = await db.select().from(schema.units).orderBy(asc(schema.units.name));
+    return c.json({ units: rows });
+  }
+  const rows = await db
+    .select({
+      id: schema.units.id,
+      name: schema.units.name,
+      description: schema.units.description,
+      status: schema.units.status,
+      createdAt: schema.units.createdAt,
+      updatedAt: schema.units.updatedAt,
+    })
+    .from(schema.unitNurses)
+    .innerJoin(schema.units, eq(schema.units.id, schema.unitNurses.unitId))
+    .where(and(eq(schema.unitNurses.nurseId, auth.id), eq(schema.units.status, "active")))
+    .orderBy(asc(schema.units.name));
+  return c.json({ units: rows });
+});
+
+app.post("/units", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const body = unitInput.parse(await c.req.json());
+  const now = Date.now();
+  try {
+    const [unit] = await db
+      .insert(schema.units)
+      .values({
+        id: `unit-${randomUUID()}`,
+        name: body.name,
+        description: body.description,
+        status: "active",
+        createdBy: auth.id,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+    return c.json({ unit }, 201);
+  } catch (error) {
+    if (isUniqueViolation(error)) return c.json({ error: "A unit with that name already exists" }, 409);
+    throw error;
+  }
+});
+
+app.get("/units/:id", requireRole("head_nurse"), async (c) => {
+  const db = dbOrThrow();
+  const [unit] = await db.select().from(schema.units).where(eq(schema.units.id, c.req.param("id"))).limit(1);
+  if (!unit) return c.json({ error: "Unit not found" }, 404);
+  const nurses = await db
+    .select({
+      id: schema.users.id,
+      username: schema.users.username,
+      displayName: schema.users.displayName,
+      participantCode: schema.users.participantCode,
+    })
+    .from(schema.unitNurses)
+    .innerJoin(schema.users, eq(schema.users.id, schema.unitNurses.nurseId))
+    .where(eq(schema.unitNurses.unitId, unit.id))
+    .orderBy(asc(schema.users.displayName));
+  return c.json({ unit, nurses });
+});
+
+app.patch("/units/:id", requireRole("head_nurse"), async (c) => {
+  const db = dbOrThrow();
+  const body = z
+    .object({
+      name: z.string().trim().min(1).max(80).optional(),
+      description: z.string().trim().max(240).optional(),
+      status: z.enum(["active", "inactive"]).optional(),
+    })
+    .strict()
+    .refine((value) => Object.keys(value).length > 0, { message: "No unit changes supplied" })
+    .parse(await c.req.json());
+  try {
+    const [unit] = await db
+      .update(schema.units)
+      .set({ ...body, updatedAt: Date.now() })
+      .where(eq(schema.units.id, c.req.param("id")))
+      .returning();
+    if (!unit) return c.json({ error: "Unit not found" }, 404);
+    return c.json({ unit });
+  } catch (error) {
+    if (isUniqueViolation(error)) return c.json({ error: "A unit with that name already exists" }, 409);
+    throw error;
+  }
+});
+
+app.delete("/units/:id", requireRole("head_nurse"), async (c) => {
+  const db = dbOrThrow();
+  const id = c.req.param("id");
+  const [used] = await db.select({ id: schema.shifts.id }).from(schema.shifts).where(eq(schema.shifts.unitId, id)).limit(1);
+  if (used) return c.json({ error: "This unit has shifts. Archive it instead." }, 409);
+  const [deleted] = await db.delete(schema.units).where(eq(schema.units.id, id)).returning({ id: schema.units.id });
+  if (!deleted) return c.json({ error: "Unit not found" }, 404);
+  return c.json({ deleted: deleted.id });
+});
+
+app.get("/nurses", requireRole("head_nurse"), async (c) => {
+  const db = dbOrThrow();
+  const nurses = await db
+    .select({
+      id: schema.users.id,
+      username: schema.users.username,
+      displayName: schema.users.displayName,
+      participantCode: schema.users.participantCode,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.role, "nurse"))
+    .orderBy(asc(schema.users.displayName));
+  return c.json({ nurses });
+});
+
+app.post("/units/:id/nurses", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const unitId = c.req.param("id");
+  const body = z.object({ nurseIds: z.array(z.string().min(1)).min(1).max(200) }).parse(await c.req.json());
+  const [unit] = await db.select({ id: schema.units.id }).from(schema.units).where(eq(schema.units.id, unitId)).limit(1);
+  if (!unit) return c.json({ error: "Unit not found" }, 404);
+  const nurses = await db
+    .select({ id: schema.users.id, role: schema.users.role })
+    .from(schema.users)
+    .where(inArray(schema.users.id, body.nurseIds));
+  if (nurses.length !== new Set(body.nurseIds).size || nurses.some((nurse) => nurse.role !== "nurse")) {
+    return c.json({ error: "One or more nurses are not valid" }, 400);
+  }
+  const now = Date.now();
+  await db
+    .insert(schema.unitNurses)
+    .values(body.nurseIds.map((nurseId) => ({ unitId, nurseId, assignedBy: auth.id, assignedAt: now })))
+    .onConflictDoNothing();
+  return c.json({ assigned: body.nurseIds.length });
+});
+
+app.delete("/units/:id/nurses/:nurseId", requireRole("head_nurse"), async (c) => {
+  const db = dbOrThrow();
+  const unitId = c.req.param("id");
+  const nurseId = c.req.param("nurseId");
+  await db
+    .delete(schema.unitNurses)
+    .where(and(eq(schema.unitNurses.unitId, unitId), eq(schema.unitNurses.nurseId, nurseId)));
+  return c.json({ removed: nurseId });
+});
+
+/* ------------------------------------------------------------------ */
 /* Sync                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -219,6 +376,16 @@ app.post("/sync/push", requireRole("nurse"), async (c) => {
   const starts = events.filter(
     (e): e is Extract<DomainEvent, { type: "SHIFT_STARTED" }> => e.type === "SHIFT_STARTED",
   );
+  const startUnitIds = [...new Set(starts.map((start) => start.payload.unitId).filter(Boolean))] as string[];
+  if (startUnitIds.length) {
+    const knownUnits = await db
+      .select({ id: schema.units.id })
+      .from(schema.units)
+      .where(inArray(schema.units.id, startUnitIds));
+    if (knownUnits.length !== startUnitIds.length) {
+      return c.json({ error: "This shift refers to a unit that no longer exists" }, 400);
+    }
+  }
   for (const start of starts) {
     if (!knownShifts.has(start.shiftId)) {
       await db
@@ -226,6 +393,7 @@ app.post("/sync/push", requireRole("nurse"), async (c) => {
         .values({
           id: start.shiftId,
           userId: auth.id,
+          unitId: start.payload.unitId ?? null,
           type: start.payload.shiftType,
           startedAt: start.clientTs,
         })
@@ -319,8 +487,18 @@ app.get("/sync/pull", async (c) => {
 
   if (auth.role === "nurse") {
     const myShifts = await db
-      .select()
+      .select({
+        id: schema.shifts.id,
+        userId: schema.shifts.userId,
+        type: schema.shifts.type,
+        unitId: schema.shifts.unitId,
+        unitName: schema.units.name,
+        startedAt: schema.shifts.startedAt,
+        endedAt: schema.shifts.endedAt,
+        summary: schema.shifts.summary,
+      })
       .from(schema.shifts)
+      .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
       .where(eq(schema.shifts.userId, auth.id));
     const shiftIds = myShifts.map((s) => s.id);
     const eventRows = shiftIds.length
@@ -354,11 +532,25 @@ app.get("/sync/pull", async (c) => {
     const handovers = shiftIds.length
       ? await db.select().from(schema.handoverReports).where(inArray(schema.handoverReports.shiftId, shiftIds))
       : [];
+    const units = await db
+      .select({
+        id: schema.units.id,
+        name: schema.units.name,
+        description: schema.units.description,
+        status: schema.units.status,
+        createdAt: schema.units.createdAt,
+        updatedAt: schema.units.updatedAt,
+      })
+      .from(schema.unitNurses)
+      .innerJoin(schema.units, eq(schema.units.id, schema.unitNurses.unitId))
+      .where(and(eq(schema.unitNurses.nurseId, auth.id), eq(schema.units.status, "active")))
+      .orderBy(asc(schema.units.name));
     const nextCursor = events.length ? Math.max(...events.map((e) => e.serverSeq ?? 0)) : cursor;
     return c.json({
       cursor: nextCursor,
       templates,
       config: configRow?.value ?? null,
+      units,
       shifts: myShifts,
       beds,
       events,
@@ -370,10 +562,12 @@ app.get("/sync/pull", async (c) => {
   // Head nurse gets unit-level context. The detail screens use /shifts.
   const shifts = await db.select().from(schema.shifts).orderBy(desc(schema.shifts.startedAt)).limit(200);
   const reviews = await db.select().from(schema.shiftReviews).orderBy(desc(schema.shiftReviews.createdAt));
+  const units = await db.select().from(schema.units).orderBy(asc(schema.units.name));
   return c.json({
     cursor,
     templates,
     config: configRow?.value ?? null,
+    units,
     shifts,
     reviews,
     events: [],
@@ -391,15 +585,20 @@ app.get("/shifts", requireRole("head_nurse"), async (c) => {
   const nurseId = c.req.query("nurseId");
   const from = c.req.query("from");
   const to = c.req.query("to");
+  const unitId = c.req.query("unitId");
   const conditions = [];
   if (nurseId) conditions.push(eq(schema.shifts.userId, nurseId));
   if (from) conditions.push(gte(schema.shifts.startedAt, new Date(`${from}T00:00:00`).getTime()));
   if (to) conditions.push(lte(schema.shifts.startedAt, new Date(`${to}T23:59:59`).getTime()));
+  if (unitId === "unassigned") conditions.push(isNull(schema.shifts.unitId));
+  else if (unitId) conditions.push(eq(schema.shifts.unitId, unitId));
   const rows = await db
     .select({
       id: schema.shifts.id,
       userId: schema.shifts.userId,
       type: schema.shifts.type,
+      unitId: schema.shifts.unitId,
+      unitName: schema.units.name,
       startedAt: schema.shifts.startedAt,
       endedAt: schema.shifts.endedAt,
       summary: schema.shifts.summary,
@@ -410,6 +609,7 @@ app.get("/shifts", requireRole("head_nurse"), async (c) => {
     })
     .from(schema.shifts)
     .innerJoin(schema.users, eq(schema.users.id, schema.shifts.userId))
+    .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
     .leftJoin(schema.shiftReviews, eq(schema.shiftReviews.shiftId, schema.shifts.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(schema.shifts.startedAt))
@@ -425,6 +625,8 @@ app.get("/shifts/:id", requireRole("head_nurse"), async (c) => {
       id: schema.shifts.id,
       userId: schema.shifts.userId,
       type: schema.shifts.type,
+      unitId: schema.shifts.unitId,
+      unitName: schema.units.name,
       startedAt: schema.shifts.startedAt,
       endedAt: schema.shifts.endedAt,
       summary: schema.shifts.summary,
@@ -433,6 +635,7 @@ app.get("/shifts/:id", requireRole("head_nurse"), async (c) => {
     })
     .from(schema.shifts)
     .innerJoin(schema.users, eq(schema.users.id, schema.shifts.userId))
+    .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
     .where(eq(schema.shifts.id, id))
     .limit(1);
   if (!shift) return c.json({ error: "Shift not found" }, 404);
@@ -579,10 +782,14 @@ app.get("/analytics/unit", requireRole("head_nurse"), async (c) => {
   const db = dbOrThrow();
   const days = Math.min(90, Math.max(1, Number(c.req.query("days") ?? 30) || 30));
   const since = Date.now() - days * 86_400_000;
+  const unitId = c.req.query("unitId");
+  const conditions = [gte(schema.shifts.startedAt, since)];
+  if (unitId === "unassigned") conditions.push(isNull(schema.shifts.unitId));
+  else if (unitId) conditions.push(eq(schema.shifts.unitId, unitId));
   const rows = await db
     .select({ summary: schema.shifts.summary, startedAt: schema.shifts.startedAt, endedAt: schema.shifts.endedAt })
     .from(schema.shifts)
-    .where(gte(schema.shifts.startedAt, since));
+    .where(and(...conditions));
   const summaries = rows.map((r) => r.summary).filter(Boolean) as ShiftSummary[];
   const avg = (pick: (s: ShiftSummary) => number) =>
     summaries.length ? summaries.reduce((sum, s) => sum + pick(s), 0) / summaries.length : 0;
@@ -647,30 +854,74 @@ app.post("/surveys", async (c) => {
 app.get("/export", requireRole("head_nurse"), async (c) => {
   const db = dbOrThrow();
   const type = c.req.query("type") ?? "summaries";
+  const unitId = c.req.query("unitId");
+  const unitCondition =
+    unitId === "unassigned"
+      ? isNull(schema.shifts.unitId)
+      : unitId
+        ? eq(schema.shifts.unitId, unitId)
+        : undefined;
   let header: string[] = [];
   let rows: (string | number | boolean | null | undefined)[][] = [];
   if (type === "events") {
-    const data = await db.select().from(schema.events).orderBy(asc(schema.events.serverSeq));
-    header = ["id", "shift_id", "bed_id", "task_id", "actor_id", "type", "client_ts", "server_ts", "payload"];
-    rows = data.map((r) => [r.id, r.shiftId, r.bedId, r.taskId, r.actorId, r.type, r.clientTs, r.serverTs, JSON.stringify(r.payload)]);
+    const data = await db
+      .select({
+        id: schema.events.id,
+        shiftId: schema.events.shiftId,
+        bedId: schema.events.bedId,
+        taskId: schema.events.taskId,
+        actorId: schema.events.actorId,
+        type: schema.events.type,
+        clientTs: schema.events.clientTs,
+        serverTs: schema.events.serverTs,
+        payload: schema.events.payload,
+        unitId: schema.shifts.unitId,
+        unitName: schema.units.name,
+      })
+      .from(schema.events)
+      .innerJoin(schema.shifts, eq(schema.shifts.id, schema.events.shiftId))
+      .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
+      .where(unitCondition)
+      .orderBy(asc(schema.events.serverSeq));
+    header = ["id", "shift_id", "unit_id", "unit_name", "bed_id", "task_id", "actor_id", "type", "client_ts", "server_ts", "payload"];
+    rows = data.map((r) => [r.id, r.shiftId, r.unitId, r.unitName, r.bedId, r.taskId, r.actorId, r.type, r.clientTs, r.serverTs, JSON.stringify(r.payload)]);
   } else if (type === "summaries") {
     const data = await db
-      .select({ id: schema.shifts.id, userId: schema.shifts.userId, type: schema.shifts.type, startedAt: schema.shifts.startedAt, endedAt: schema.shifts.endedAt, summary: schema.shifts.summary })
+      .select({ id: schema.shifts.id, userId: schema.shifts.userId, type: schema.shifts.type, unitId: schema.shifts.unitId, unitName: schema.units.name, startedAt: schema.shifts.startedAt, endedAt: schema.shifts.endedAt, summary: schema.shifts.summary })
       .from(schema.shifts)
+      .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
+      .where(unitCondition)
       .orderBy(desc(schema.shifts.startedAt));
-    header = ["shift_id", "nurse_id", "shift_type", "started_at", "ended_at", "direct_care_min", "indirect_care_min", "interruption_min", "emergency_min", "completion_rate", "tier12_on_time_rate", "missed", "deferred"];
+    header = ["shift_id", "nurse_id", "unit_id", "unit_name", "shift_type", "started_at", "ended_at", "direct_care_min", "indirect_care_min", "interruption_min", "emergency_min", "completion_rate", "tier12_on_time_rate", "missed", "deferred"];
     rows = data.map((r) => {
       const s = r.summary as ShiftSummary | null;
-      return [r.id, r.userId, r.type, r.startedAt, r.endedAt, s?.directCareMin, s?.indirectCareMin, s?.interruptionMin, s?.emergencyMin, s?.completionRate, s?.tier12OnTimeRate, s?.missedCount, s?.deferredCount];
+      return [r.id, r.userId, r.unitId, r.unitName, r.type, r.startedAt, r.endedAt, s?.directCareMin, s?.indirectCareMin, s?.interruptionMin, s?.emergencyMin, s?.completionRate, s?.tier12OnTimeRate, s?.missedCount, s?.deferredCount];
     });
   } else if (type === "surveys") {
     const data = await db.select().from(schema.surveyResponses).orderBy(desc(schema.surveyResponses.takenAt));
     header = ["id", "participant_code", "instrument", "phase", "score", "taken_at", "answers"];
     rows = data.map((r) => [r.id, r.participantCode, r.instrument, r.phase, r.score, r.takenAt, JSON.stringify(r.answers)]);
   } else if (type === "reviews") {
-    const data = await db.select().from(schema.shiftReviews).orderBy(desc(schema.shiftReviews.createdAt));
-    header = ["id", "shift_id", "nurse_id", "reviewer_id", "scores", "comment", "needs_support", "created_at"];
-    rows = data.map((r) => [r.id, r.shiftId, r.nurseId, r.reviewerId, JSON.stringify(r.scores), r.comment, r.needsSupport, r.createdAt]);
+    const data = await db
+      .select({
+        id: schema.shiftReviews.id,
+        shiftId: schema.shiftReviews.shiftId,
+        nurseId: schema.shiftReviews.nurseId,
+        reviewerId: schema.shiftReviews.reviewerId,
+        scores: schema.shiftReviews.scores,
+        comment: schema.shiftReviews.comment,
+        needsSupport: schema.shiftReviews.needsSupport,
+        createdAt: schema.shiftReviews.createdAt,
+        unitId: schema.shifts.unitId,
+        unitName: schema.units.name,
+      })
+      .from(schema.shiftReviews)
+      .innerJoin(schema.shifts, eq(schema.shifts.id, schema.shiftReviews.shiftId))
+      .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
+      .where(unitCondition)
+      .orderBy(desc(schema.shiftReviews.createdAt));
+    header = ["id", "shift_id", "unit_id", "unit_name", "nurse_id", "reviewer_id", "scores", "comment", "needs_support", "created_at"];
+    rows = data.map((r) => [r.id, r.shiftId, r.unitId, r.unitName, r.nurseId, r.reviewerId, JSON.stringify(r.scores), r.comment, r.needsSupport, r.createdAt]);
   } else {
     return c.json({ error: "Unknown export type" }, 400);
   }

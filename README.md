@@ -1,6 +1,6 @@
 # TaskLog
 
-A thesis demo for ICU nurses: plan a shift by task priority, time care from stored timestamps, protect tier 1–2 work during emergencies, and build a handover from what actually happened.
+A thesis demo for nurses in dynamic care units: plan a shift by task priority, time care from stored timestamps, protect tier 1–2 work during emergencies, and build a handover from what actually happened. Units are not hard-coded to ICU; a head nurse creates them and assigns nurses.
 
 > **Not a medical device.** This is a planning and logging aid for practice data. It does not replace bedside monitors, alarms, official orders or the clinical handover process. Do not enter patient names, MRNs, dates of birth or other identifiers.
 
@@ -12,8 +12,10 @@ The production deployment serves the Next.js app and the Hono API from the same 
 
 ## What it does
 
-- **Nurse flow:** create an account or sign in, start a shift, see six demo beds, work a tier-sorted task queue, start/pause/finish tasks, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary.
-- **Head-nurse flow:** unit dashboard, shift list, shift detail with event timeline, five manual 1–5 ratings, CSV export.
+- **Dynamic units:** head nurses create or archive units, assign nurses, and filter the dashboard, shift list and exports by unit. A nurse can belong to multiple units; each shift belongs to one unit and tasks inherit it.
+- **Nurse flow:** create an account or sign in, choose an assigned unit at shift start, work a tier-sorted task queue, start/pause/finish tasks, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary.
+- **Head-nurse flow:** unit management, unit-filtered dashboard, shift list, shift detail with event timeline, five manual 1–5 ratings, CSV export.
+- **Offline unit cache:** the nurse's assigned units are cached in Dexie after sync, so shift start still works offline.
 - **Offline-first nurse actions:** every action is written to Dexie first and pushed later through an outbox. Timers are computed from stored event timestamps, never from in-memory counters.
 - **Rule-based only:** no AI/ML, no computed nurse score, no ranking or leaderboard. Tier 1–2 tasks are never auto-deferred; only planned tier 3–4 tasks are deferred during an emergency, and a nurse confirms every new time.
 - **Evaluation:** SUS and raw NASA-TLX forms, plus CSV exports for analysis.
@@ -53,7 +55,7 @@ Requirements: Node.js 22+, a PostgreSQL/Neon database, and (optional) Docker for
 npm install
 cp .env.example .env      # fill DATABASE_URL and JWT_SECRET
 npm run db:push           # apply scripts/schema.sql
-npm run db:seed           # users, templates, config
+npm run db:seed           # users, units, assignments, templates, config
 npm run dev
 ```
 
@@ -63,14 +65,14 @@ Useful commands:
 
 ```bash
 npm run typecheck         # tsc --noEmit
-npm test                  # 23 domain tests
+npm test                  # 25 domain tests
 npm run lint              # product-rule guard (no AI, no IDs, pure domain)
 npm run build             # web production build (webpack)
 npm run build:mobile      # static export for the APK
 npm run simulate:reset    # deterministic 14-shift demo dataset
 npm run db:reset-shifts -- --yes  # delete non-simulated UI-test shifts
 npm run test:api          # disposable Docker Postgres required
-npm run test:e2e          # Playwright auth/role/privacy smoke
+npm run test:e2e          # Playwright auth, role, privacy and unit-flow checks
 ```
 
 ### API tests

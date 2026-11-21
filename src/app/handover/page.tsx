@@ -154,7 +154,7 @@ function HandoverInner() {
   return (
     <AppShell
       title="Handover"
-      subtitle="Built from the stored event log. Nothing is invented."
+      subtitle={`${shift.unitName ?? "Unassigned"} · built from the stored event log. Nothing is invented.`}
       activeOverride="/handover"
     >
       {beds.length === 0 ? (

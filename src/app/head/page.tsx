@@ -21,7 +21,8 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { BarRow, DonutChart } from "@/components/charts";
 import { EmptyState, InlineAlert, Spinner, StatCard } from "@/components/ui";
-import { fetchAnalytics, fetchShifts, type HeadShift, type UnitAnalytics } from "@/lib/api";
+import { fetchAnalytics, fetchShifts, fetchUnits, type HeadShift, type UnitAnalytics } from "@/lib/api";
+import type { Unit } from "@/domain";
 import { formatDate, formatMinutes, formatPercent, formatTime } from "@/lib/format";
 import { useApp } from "@/lib/store";
 
@@ -31,6 +32,8 @@ export default function HeadDashboardPage() {
   const token = useApp((s) => s.token);
   const online = useApp((s) => s.online);
   const [days, setDays] = useState(30);
+  const [unitId, setUnitId] = useState("all");
+  const [units, setUnits] = useState<Unit[]>([]);
   const [data, setData] = useState<UnitAnalytics | null>(null);
   const [shifts, setShifts] = useState<HeadShift[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,12 +44,23 @@ export default function HeadDashboardPage() {
     if (!user) router.replace("/login");
   }, [user, router]);
 
+  useEffect(() => {
+    if (!token || user?.role !== "head_nurse") return;
+    fetchUnits(token)
+      .then((result) => setUnits(result.units))
+      .catch(() => undefined);
+  }, [token, user?.role]);
+
   const load = useCallback(async () => {
     if (!token || user?.role !== "head_nurse") return;
     setLoading(true);
     setError("");
+    const filter = unitId === "all" ? undefined : unitId;
     try {
-      const [analytics, list] = await Promise.all([fetchAnalytics(token, days), fetchShifts(token)]);
+      const [analytics, list] = await Promise.all([
+        fetchAnalytics(token, days, filter),
+        fetchShifts(token, { unitId: filter }),
+      ]);
       setData(analytics);
       setShifts(list.shifts);
     } catch (err) {
@@ -54,13 +68,19 @@ export default function HeadDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, user?.role, days]);
+  }, [token, user?.role, days, unitId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const reviewQueue = useMemo(() => shifts.filter((s) => s.endedAt && !s.reviewId).slice(0, 5), [shifts]);
+  const selectedUnitName =
+    unitId === "all"
+      ? "All units"
+      : unitId === "unassigned"
+        ? "Unassigned shifts"
+        : units.find((unit) => unit.id === unitId)?.name ?? "Selected unit";
   const timeSegments = data
     ? [
         { label: "Direct care", value: data.avgDirectCareMin, color: "#0d9488" },
@@ -75,7 +95,7 @@ export default function HeadDashboardPage() {
   return (
     <AppShell
       title="Unit dashboard"
-      subtitle={`Finished-shift averages · last ${days} days`}
+      subtitle={`${selectedUnitName} · finished-shift averages · last ${days} days`}
       activeOverride="/head"
       actions={
         <button className="btn-ghost hidden h-9 px-2 text-xs sm:inline-flex" onClick={() => void load()} disabled={loading}>
@@ -92,16 +112,32 @@ export default function HeadDashboardPage() {
       ) : null}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex rounded-xl border border-slate-200 bg-white p-1">
-          {[7, 30, 90].map((value) => (
-            <button
-              key={value}
-              onClick={() => setDays(value)}
-              className={`min-h-9 rounded-lg px-3 text-xs font-bold ${days === value ? "bg-ink text-white" : "text-slate-500"}`}
-            >
-              {value}d
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-xl border border-slate-200 bg-white p-1">
+            {[7, 30, 90].map((value) => (
+              <button
+                key={value}
+                onClick={() => setDays(value)}
+                className={`min-h-9 rounded-lg px-3 text-xs font-bold ${days === value ? "bg-ink text-white" : "text-slate-500"}`}
+              >
+                {value}d
+              </button>
+            ))}
+          </div>
+          <select
+            aria-label="Filter dashboard by unit"
+            className="input h-10 w-auto min-w-[10rem]"
+            value={unitId}
+            onChange={(event) => setUnitId(event.target.value)}
+          >
+            <option value="all">All units</option>
+            {units.map((unit) => (
+              <option key={unit.id} value={unit.id}>
+                {unit.name}{unit.status === "inactive" ? " (archived)" : ""}
+              </option>
+            ))}
+            <option value="unassigned">Unassigned</option>
+          </select>
         </div>
         <p className="text-[11px] text-slate-500">Averages are unit-level. No nurse ranking is computed.</p>
       </div>

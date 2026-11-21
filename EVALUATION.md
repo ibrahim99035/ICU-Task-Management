@@ -28,17 +28,20 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 
 | Check | Command | Observed result |
 | --- | --- | --- |
-| Domain tests | `./node_modules/.bin/vitest run` | **23 passed** |
+| Domain tests | `./node_modules/.bin/vitest run` | **25 passed** |
 | TypeScript | `./node_modules/.bin/tsc --noEmit` | clean |
-| Product-rule lint | `npm run lint` | passed, 45 source files / 5 domain files |
-| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **26 checks passed** |
+| Product-rule lint | `npm run lint` | passed, 46 source files / 5 domain files |
+| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **36 checks passed** |
+| Dynamic units | head `POST/PATCH/DELETE /api/units`, nurse assignment, `GET /api/units`, unit filters | observed: create 201, duplicate 409, nurse create 403, assignment 200, nurse sees assigned unit, shift carries `unitId` |
 | Nurse self-registration | `POST /api/auth/register` | **201**; role forced to `nurse`, PIN hashed, duplicate username 409, client role injection 400 |
-| Playwright auth/role/privacy | `npm run test:e2e` | **5 passed** |
-| Web build | `npm run build` | success; all app routes + `ƒ /api/[[...route]]` |
-| Mobile build | `npm run build:mobile` | success; **17 static pages**, no API route; `src/app/api` restored |
+| Playwright auth/role/privacy/units | `npm run test:e2e` | **7 passed** |
+| Web build | `npm run build` | success; all app routes + `ƒ /api/[[...route]]`, including `/head/units` |
+| Mobile build | `npm run build:mobile` | success; **19 static pages**, no API route; `src/app/api` restored |
 | Full nurse flow | `node scripts/flow-check.mjs` | emergency banner, 4 reschedule proposals confirmed, task timer/finish, quick add, handover finalized, shift ended, no active shift |
-| Demo data | `npm run simulate:reset` | 14 finished shifts, 1,369 events, 28 handovers, 11 reviews, 9 surveys |
+| Demo data | `npm run simulate:reset` | 14 finished shifts across 2 units, 1,369 events, 28 handovers, 11 reviews, 9 surveys |
 | Head analytics | `GET /api/analytics/unit?days=30` | 14 shifts, completion 79.4%, tier 1–2 on-time 59.1%, direct care 4h 18m, indirect 1h 6m, interruptions 44m, emergency 8m |
+| Unit analytics | `GET /api/analytics/unit?days=30&unitId=unit-a` | **200**; 7 shifts filtered to Unit A |
+| Unit shift filter | `GET /api/shifts?unitId=unit-a` | **200**; only Unit A shifts, each with `unitId`/`unitName` |
 | Live health | `GET https://icu-tasklog.vercel.app/api/health` | **200**; `{"ok":true,"database":true}` |
 | Live login | `POST /api/auth/login` on Vercel | **200** for `amina/1111` and `head/9999`; role returned in `user.role` |
 | Live nurse registration | `POST /api/auth/register` on Vercel | **201**; nurse role, unique `N-...` code, login **200**; duplicate username **409**; role injection **400** |
@@ -68,6 +71,8 @@ The simulation is deterministic and uses only bed labels and participant codes. 
 - Quick add placed a preset task in the queue.
 - Finalizing a handover created an immutable snapshot from the event log.
 - Ending the shift marked open work missed and froze the summary; returning to `/shift-start` showed no active-shift banner.
+- The same flow started from **Unit A**, and the resulting shift/summary carried `unitId=unit-a` and `unitName=Unit A`.
+- Playwright unit checks verified that an assigned nurse can choose Unit A at shift start and that the head nurse can create and delete an unused unit.
 
 ### Screenshots
 

@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState, InlineAlert, Spinner, StatCard } from "@/components/ui";
-import { fetchShifts, type HeadShift } from "@/lib/api";
+import { fetchShifts, fetchUnits, type HeadShift } from "@/lib/api";
+import type { Unit } from "@/domain";
 import { cn, formatDate, formatDateTime, formatMinutes, formatPercent, todayInput } from "@/lib/format";
 import { useApp } from "@/lib/store";
 
@@ -28,6 +29,8 @@ export default function HeadShiftsPage() {
   const [from, setFrom] = useState(todayInput(-30));
   const [to, setTo] = useState(todayInput(0));
   const [nurse, setNurse] = useState("all");
+  const [unitId, setUnitId] = useState("all");
+  const [units, setUnits] = useState<Unit[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,19 +40,30 @@ export default function HeadShiftsPage() {
     if (!user) router.replace("/login");
   }, [user, router]);
 
+  useEffect(() => {
+    if (!token || user?.role !== "head_nurse") return;
+    fetchUnits(token)
+      .then((result) => setUnits(result.units))
+      .catch(() => undefined);
+  }, [token, user?.role]);
+
   const load = useCallback(async () => {
     if (!token || user?.role !== "head_nurse") return;
     setLoading(true);
     setError("");
     try {
-      const result = await fetchShifts(token, { from, to });
+      const result = await fetchShifts(token, {
+        from,
+        to,
+        unitId: unitId === "all" ? undefined : unitId,
+      });
       setAll(result.shifts);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load shifts");
     } finally {
       setLoading(false);
     }
-  }, [token, user?.role, from, to]);
+  }, [token, user?.role, from, to, unitId]);
 
   useEffect(() => {
     void load();
@@ -65,7 +79,7 @@ export default function HeadShiftsPage() {
     const text = query.trim().toLowerCase();
     return all.filter((shift) => {
       if (nurse !== "all" && shift.userId !== nurse) return false;
-      if (text && !`${shift.nurseName} ${shift.participantCode} ${shift.type}`.toLowerCase().includes(text)) return false;
+      if (text && !`${shift.nurseName} ${shift.participantCode} ${shift.type} ${shift.unitName ?? "unassigned"}`.toLowerCase().includes(text)) return false;
       return true;
     });
   }, [all, nurse, query]);
@@ -103,7 +117,7 @@ export default function HeadShiftsPage() {
       </div>
 
       <div className="card mb-4 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label className="label" htmlFor="from">From</label>
             <input id="from" type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -111,6 +125,16 @@ export default function HeadShiftsPage() {
           <div>
             <label className="label" htmlFor="to">To</label>
             <input id="to" type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="unit">Unit</label>
+            <select id="unit" className="input" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
+              <option value="all">All units</option>
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>{unit.name}{unit.status === "inactive" ? " (archived)" : ""}</option>
+              ))}
+              <option value="unassigned">Unassigned</option>
+            </select>
           </div>
           <div>
             <label className="label" htmlFor="nurse">Nurse</label>
@@ -123,7 +147,7 @@ export default function HeadShiftsPage() {
           </div>
           <div>
             <label className="label" htmlFor="search">Search</label>
-            <input id="search" className="input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, code or shift" />
+            <input id="search" className="input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, code, unit or shift" />
           </div>
         </div>
       </div>
@@ -149,6 +173,7 @@ export default function HeadShiftsPage() {
               <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-bold">Nurse</th>
+                  <th className="px-3 py-3 font-bold">Unit</th>
                   <th className="px-3 py-3 font-bold">Shift</th>
                   <th className="px-3 py-3 font-bold">Completion</th>
                   <th className="px-3 py-3 font-bold">Direct</th>
@@ -163,6 +188,9 @@ export default function HeadShiftsPage() {
                     <td className="px-4 py-3">
                       <p className="font-semibold text-slate-800">{shift.nurseName}</p>
                       <p className="text-[11px] text-slate-500">{shift.participantCode}</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      <p className="font-medium text-slate-700">{shift.unitName ?? "Unassigned"}</p>
                     </td>
                     <td className="px-3 py-3">
                       <p className="font-medium capitalize text-slate-700">{shift.type}</p>
@@ -203,7 +231,7 @@ export default function HeadShiftsPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold text-slate-800">{shift.nurseName}</span>
-                  <span className="block text-[11px] text-slate-500">{formatDate(shift.startedAt)} · {shift.type} · {shift.summary ? formatPercent(shift.summary.completionRate) : "open"}</span>
+                  <span className="block text-[11px] text-slate-500">{formatDate(shift.startedAt)} · {shift.unitName ?? "Unassigned"} · {shift.type} · {shift.summary ? formatPercent(shift.summary.completionRate) : "open"}</span>
                 </span>
                 {shift.endedAt && !shift.reviewId ? <span className="pill bg-amber-50 text-amber-800">Review</span> : null}
                 <ArrowRight className="h-4 w-4 text-slate-300" />

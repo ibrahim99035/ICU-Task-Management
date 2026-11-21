@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   bigserial,
@@ -6,6 +7,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -26,6 +28,45 @@ export const users = pgTable(
   ],
 );
 
+export const units = pgTable(
+  "units",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status", { enum: ["active", "inactive"] }).notNull().default("active"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+    updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("units_name_lower_uq").on(sql`lower(${table.name})`),
+    index("units_status_idx").on(table.status),
+  ],
+);
+
+export const unitNurses = pgTable(
+  "unit_nurses",
+  {
+    unitId: text("unit_id")
+      .notNull()
+      .references(() => units.id, { onDelete: "cascade" }),
+    nurseId: text("nurse_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assignedBy: text("assigned_by")
+      .notNull()
+      .references(() => users.id),
+    assignedAt: bigint("assigned_at", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.unitId, table.nurseId] }),
+    index("unit_nurses_nurse_idx").on(table.nurseId),
+  ],
+);
+
 export const shifts = pgTable(
   "shifts",
   {
@@ -33,12 +74,17 @@ export const shifts = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
+    unitId: text("unit_id").references(() => units.id),
     type: text("type").notNull(),
     startedAt: bigint("started_at", { mode: "number" }).notNull(),
     endedAt: bigint("ended_at", { mode: "number" }),
     summary: jsonb("summary"),
   },
-  (table) => [index("shifts_user_idx").on(table.userId), index("shifts_started_idx").on(table.startedAt)],
+  (table) => [
+    index("shifts_user_idx").on(table.userId),
+    index("shifts_started_idx").on(table.startedAt),
+    index("shifts_unit_idx").on(table.unitId),
+  ],
 );
 
 export const beds = pgTable(

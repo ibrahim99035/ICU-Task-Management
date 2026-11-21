@@ -174,8 +174,8 @@ function TasksInner() {
       title="Task queue"
       subtitle={
         bed
-          ? `${bed.alias} · ${counts.open} open · ${counts.overdue} overdue`
-          : `${counts.open} open · ${counts.overdue} overdue · sorted by tier then due time`
+          ? `${bed.alias} · ${shift.unitName ?? "Unassigned"} · ${counts.open} open · ${counts.overdue} overdue`
+          : `${shift.unitName ?? "Unassigned"} · ${counts.open} open · ${counts.overdue} overdue · sorted by tier then due time`
       }
       activeOverride="/tasks"
       actions={

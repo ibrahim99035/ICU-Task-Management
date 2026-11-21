@@ -627,6 +627,39 @@ describe("legacy task payloads", () => {
   });
 });
 
+describe("dynamic units", () => {
+  it("carries the shift unit onto tasks, recurring tasks and the summary", () => {
+    const events = [
+      ev("SHIFT_STARTED", T0, {
+        payload: { shiftType: "day", unitId: "unit-a", unitName: "Unit A" },
+      }),
+      created("unit-task", 2, T0 + 5 * MIN, T0 + 15 * MIN, T0, {
+        unitId: "unit-a",
+        intervalMin: 60,
+      }),
+      started("unit-task", T0 + 5 * MIN),
+      completed("unit-task", T0 + 15 * MIN),
+      ev("SHIFT_ENDED", T0 + 60 * MIN, { payload: {} }),
+    ];
+    const state = reduce(events);
+    expect(state.shift?.unitId).toBe("unit-a");
+    expect(state.shift?.unitName).toBe("Unit A");
+    expect(state.tasks["unit-task"].unitId).toBe("unit-a");
+    const recurring = nextRecurringTask(state.tasks["unit-task"], T0 + 15 * MIN, actorId);
+    expect(recurring?.type).toBe("TASK_CREATED");
+    expect((recurring?.payload as { unitId?: string }).unitId).toBe("unit-a");
+    const summary = buildShiftSummary(events);
+    expect(summary.unitId).toBe("unit-a");
+    expect(summary.unitName).toBe("Unit A");
+  });
+
+  it("still reduces legacy shifts without a unit", () => {
+    const state = reduce(shiftEvents([created("legacy", 3, T0 + 5 * MIN, T0 + 10 * MIN)]));
+    expect(state.shift?.unitId).toBeUndefined();
+    expect(state.tasks.legacy.unitId).toBeUndefined();
+  });
+});
+
 describe("survey scoring", () => {
   it("scores SUS against known examples", () => {
     expect(scoreSUS([5, 1, 5, 1, 5, 1, 5, 1, 5, 1])).toBe(100);

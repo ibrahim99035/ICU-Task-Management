@@ -78,6 +78,7 @@ export const useApp = create<AppState>((set, get) => ({
       await db().handovers.clear();
       await db().shifts.clear();
       await db().beds.clear();
+      await db().units.clear();
     }
     const record: AuthRecord = { user: response.user, token: response.token, savedAt: Date.now() };
     await setAuth(record);
@@ -96,6 +97,7 @@ export const useApp = create<AppState>((set, get) => ({
       await db().handovers.clear();
       await db().shifts.clear();
       await db().beds.clear();
+      await db().units.clear();
     }
     const record: AuthRecord = { user: response.user, token: response.token, savedAt: Date.now() };
     await setAuth(record);

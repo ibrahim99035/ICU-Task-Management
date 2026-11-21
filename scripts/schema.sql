@@ -9,16 +9,40 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_uq ON users (username);
 CREATE UNIQUE INDEX IF NOT EXISTS users_participant_uq ON users (participant_code);
 
+CREATE TABLE IF NOT EXISTS units (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  description text NOT NULL DEFAULT '',
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_by text NOT NULL REFERENCES users(id),
+  created_at bigint NOT NULL,
+  updated_at bigint NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS units_name_lower_uq ON units (lower(name));
+CREATE INDEX IF NOT EXISTS units_status_idx ON units (status);
+
+CREATE TABLE IF NOT EXISTS unit_nurses (
+  unit_id text NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+  nurse_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  assigned_by text NOT NULL REFERENCES users(id),
+  assigned_at bigint NOT NULL,
+  PRIMARY KEY (unit_id, nurse_id)
+);
+CREATE INDEX IF NOT EXISTS unit_nurses_nurse_idx ON unit_nurses (nurse_id);
+
 CREATE TABLE IF NOT EXISTS shifts (
   id text PRIMARY KEY,
   user_id text NOT NULL REFERENCES users(id),
+  unit_id text REFERENCES units(id),
   type text NOT NULL,
   started_at bigint NOT NULL,
   ended_at bigint,
   summary jsonb
 );
+ALTER TABLE shifts ADD COLUMN IF NOT EXISTS unit_id text REFERENCES units(id);
 CREATE INDEX IF NOT EXISTS shifts_user_idx ON shifts (user_id);
 CREATE INDEX IF NOT EXISTS shifts_started_idx ON shifts (started_at);
+CREATE INDEX IF NOT EXISTS shifts_unit_idx ON shifts (unit_id);
 
 CREATE TABLE IF NOT EXISTS beds (
   id text PRIMARY KEY,

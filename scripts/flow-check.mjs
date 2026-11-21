@@ -37,6 +37,8 @@ async function signIn() {
 
 await signIn();
 if (page.url().includes("/shift-start")) {
+  const unitButton = page.getByRole("button", { name: /Unit [AB]/ }).first();
+  if (await unitButton.count()) await unitButton.click();
   const start = page.getByRole("button", { name: /Start day shift/ });
   await start.waitFor({ state: "visible" });
   await page.waitForTimeout(600);

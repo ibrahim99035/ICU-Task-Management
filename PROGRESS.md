@@ -2,7 +2,7 @@
 
 ## P1 — Domain core (done)
 - Pure TypeScript domain in `src/domain`: Zod event schema, reducer/state machine, emergency planning, rescheduling, timestamp durations, missed rule, recurring tasks, handover, shift summary, SUS/raw TLX.
-- `23` Vitest tests passing.
+- `25` Vitest tests passing, including unit propagation and legacy no-unit events.
 - TypeScript clean.
 
 ## P2 — Offline nurse flow (done)
@@ -14,17 +14,19 @@
 ## P3 — API and head nurse (done)
 - Hono at `src/app/api/[[...route]]/route.ts`, JWT auth, role guards, CORS/trailing-slash handling.
 - Nurse self-registration: `POST /api/auth/register`, nurse role enforced server-side, bcrypt PIN, unique username/participant code, duplicate handling.
+- Dynamic units: `units` and `unit_nurses` tables, shift `unit_id`, head-nurse CRUD/assignment routes, nurse-assigned-unit pull, unit filters on shifts/analytics/export.
 - Sync push/pull, server summary recomputation, shifts, reviews, analytics, surveys, CSV export.
-- Head dashboard, shift list, shift detail, review form, export page.
+- Head dashboard, unit management, shift list, shift detail, review form, export page.
+- Nurse shift start requires an assigned active unit; tasks inherit the unit; legacy shifts remain under “Unassigned”.
 - Neon schema applied and seeded: `amina/1111`, `yara/2222`, `omar/3333`, `head/9999`.
 
 ## P4 — Evaluation data and automation (done)
 - `scripts/simulate.ts` creates 14 deterministic finished shifts, 1,369 events, 28 handovers, 11 reviews and 9 surveys using bed labels and participant codes only.
-- `scripts/api-test.ts`: 26 checks against disposable Docker Postgres, including self-registration, PIN hashing, duplicate username and role injection.
-- Playwright auth/role/privacy suite: `5` passing, including account creation.
+- `scripts/api-test.ts`: 36 checks against disposable Docker Postgres, including self-registration, PIN hashing, duplicate username, role injection, unit CRUD, assignment, unit filters and CSV unit columns.
+- Playwright auth/role/privacy/unit suite: `7` passing, including account creation, assigned-unit selection and head-nurse unit management.
 - `scripts/flow-check.mjs`: emergency → reschedule → timer → quick add → handover → shift end verified end to end.
 - Product-rule lint (`npm run lint`), typecheck, web build and mobile static export all pass.
-- Final web build: all app routes plus the API route. Mobile export: 17 static pages, no API route.
+- Final web build: all app routes plus the API route. Mobile export: 19 static pages, no API route.
 
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.
@@ -39,7 +41,7 @@
 - APK installation/opening on a physical device.
 - Real ICU nurse usability sessions, SUS/TLX results and clinical review of demo task tiers.
 - Neon transient DNS failures observed locally are environmental; production reliability is not measured.
-- Unit grouping is currently type/Dexie scaffolding only; there is no unit CRUD, assignment UI, server table or sync path.
+- Physical-device APK installation remains unverified.
 
 ## Evidence
 - `EVALUATION.md` records commands, observed outputs and screenshot paths.

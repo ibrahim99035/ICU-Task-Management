@@ -109,7 +109,7 @@ function ShiftInner() {
   return (
     <AppShell
       title={shift.nurseName}
-      subtitle={`${shift.participantCode} · ${formatDateTime(shift.startedAt)}${shift.endedAt ? ` → ${formatTime(shift.endedAt)}` : " · open"}`}
+      subtitle={`${shift.participantCode} · ${shift.unitName ?? "Unassigned"} · ${formatDateTime(shift.startedAt)}${shift.endedAt ? ` → ${formatTime(shift.endedAt)}` : " · open"}`}
       backHref="/head/shifts"
       activeOverride="/head/shifts"
       actions={
@@ -215,6 +215,7 @@ function ShiftInner() {
             <h2 className="text-base font-bold text-ink">Shift facts</h2>
             {summary ? (
               <dl className="mt-3 space-y-2 text-sm">
+                <Row label="Unit" value={shift.unitName ?? "Unassigned"} />
                 <Row label="Tasks complete" value={`${summary.tasksDone}/${summary.tasksTotal}`} />
                 <Row label="Tier 1–2 on time" value={formatPercent(summary.tier12OnTimeRate)} />
                 <Row label="Missed" value={String(summary.missedCount)} />

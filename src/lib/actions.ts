@@ -78,10 +78,12 @@ export async function ensureTemplates(): Promise<void> {
 
 export async function startShift(
   user: SessionUser,
+  unit: { id: string; name: string },
   type: "day" | "night" | "custom",
   beds: { id: string; label: string; alias: string; templateIds: string[] }[],
   options: { backdateMin?: number } = {},
 ): Promise<ShiftRow> {
+  if (!unit.id) throw new Error("Choose an assigned unit before starting a shift");
   await ensureTemplates();
   const existing = await activeShift(user.id);
   if (existing) return existing;
@@ -91,7 +93,7 @@ export async function startShift(
   const templates = await db().templates.toArray();
   const templateMap = new Map(templates.map((t) => [t.id, t]));
   const events: DomainEvent[] = [];
-  const shift: ShiftRow = { id: shiftId, actorId: user.id, type, startedAt };
+  const shift: ShiftRow = { id: shiftId, actorId: user.id, type, unitId: unit.id, unitName: unit.name, startedAt };
   const bedRows: BedRow[] = [];
 
   events.push({
@@ -100,7 +102,7 @@ export async function startShift(
     actorId: user.id,
     type: "SHIFT_STARTED",
     clientTs: startedAt,
-    payload: { shiftType: type, bedLabels: beds.map((b) => b.alias) },
+    payload: { shiftType: type, unitId: unit.id, unitName: unit.name, bedLabels: beds.map((b) => b.alias) },
   });
 
   for (const bed of beds) {
@@ -126,6 +128,7 @@ export async function startShift(
           plannedTo: startedAt + template.offsetMin * MIN + template.expectedMin * MIN,
           expectedMin: template.expectedMin,
           intervalMin: template.intervalMin,
+          unitId: unit.id,
           templateId: template.id,
           bedLabel: bed.alias,
         },
@@ -398,6 +401,7 @@ export async function addQuickTask(input: {
         plannedFrom: input.plannedFrom,
         plannedTo: input.plannedTo,
         expectedMin: 10,
+        unitId: shift.unitId,
         bedLabel: bed?.alias,
       },
     },

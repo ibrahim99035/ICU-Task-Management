@@ -115,7 +115,7 @@ function SummaryInner() {
   return (
     <AppShell
       title="Shift summary"
-      subtitle={`${shift.type} shift · ${formatDateTime(shift.startedAt)}${shift.endedAt ? ` → ${formatTime(shift.endedAt)}` : " · still open"}`}
+      subtitle={`${shift.type} shift${shift.unitName ? ` · ${shift.unitName}` : ""} · ${formatDateTime(shift.startedAt)}${shift.endedAt ? ` → ${formatTime(shift.endedAt)}` : " · still open"}`}
       backHref={shift.endedAt ? "/me" : "/beds"}
       actions={
         <button className="btn-ghost hidden h-9 px-2 text-xs sm:inline-flex" onClick={() => window.print()}>

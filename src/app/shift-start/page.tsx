@@ -2,21 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BedDouble, Clock3, Loader2, Moon, Play, Sun, TriangleAlert } from "lucide-react";
+import { ArrowRight, BedDouble, Building2, Clock3, Loader2, Moon, Play, Sun, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { InlineAlert } from "@/components/ui";
-import { activeShift } from "@/lib/db";
+import { fetchUnits } from "@/lib/api";
+import { activeShift, cachedUnits, setCachedUnits, type ShiftRow } from "@/lib/db";
 import { DEMO_BEDS } from "@/lib/demo-data";
 import { cn } from "@/lib/format";
 import { useLive } from "@/lib/hooks";
 import { endShift, startShift } from "@/lib/actions";
 import { useApp } from "@/lib/store";
+import type { UnitRow } from "@/domain";
 
 export default function ShiftStartPage() {
   const router = useRouter();
   const user = useApp((s) => s.user);
+  const token = useApp((s) => s.token);
+  const online = useApp((s) => s.online);
   const notify = useApp((s) => s.notify);
-  const existing = useLive(
+  const existing = useLive<ShiftRow | null | undefined>(
     async () => (user ? ((await activeShift(user.id)) ?? null) : undefined),
     [user?.id],
   );
@@ -25,24 +29,70 @@ export default function ShiftStartPage() {
   const [backdate, setBackdate] = useState(true);
   const [busy, setBusy] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [units, setUnits] = useState<UnitRow[]>([]);
+  const [unitId, setUnitId] = useState("");
+  const [unitsReady, setUnitsReady] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     if (user.role === "head_nurse") router.replace("/head");
   }, [user, router]);
 
+  useEffect(() => {
+    if (!user || user.role !== "nurse") return;
+    let cancelled = false;
+    void (async () => {
+      const cached = await cachedUnits();
+      if (!cancelled) {
+        setUnits(cached);
+        setUnitId((current) => current || cached[0]?.id || "");
+      }
+      if (online && token) {
+        try {
+          const result = await fetchUnits(token);
+          const active = result.units
+            .filter((unit) => unit.status === "active")
+            .map((unit) => ({
+              id: unit.id,
+              name: unit.name,
+              description: unit.description,
+              status: unit.status,
+              updatedAt: unit.updatedAt,
+            }));
+          if (!cancelled) {
+            setUnits(active);
+            setUnitId((current) => (active.some((unit) => unit.id === current) ? current : active[0]?.id ?? ""));
+          }
+          await setCachedUnits(active);
+        } catch {
+          /* keep the offline cache */
+        }
+      }
+      if (!cancelled) setUnitsReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, online, token]);
+
   const selectedBeds = useMemo(
     () => DEMO_BEDS.filter((b) => selected.includes(b.id)),
     [selected],
   );
+  const selectedUnit = units.find((unit) => unit.id === unitId);
   const taskCount = selectedBeds.reduce((sum, bed) => sum + bed.templateIds.length, 0);
 
   async function begin() {
     if (!user) return;
+    if (!selectedUnit) {
+      notify("Choose an assigned unit before starting a shift.", "warning");
+      return;
+    }
     setBusy(true);
     try {
       await startShift(
         user,
+        { id: selectedUnit.id, name: selectedUnit.name },
         type,
         selectedBeds.map((b) => ({ id: b.id, label: b.label, alias: b.alias, templateIds: b.templateIds })),
         { backdateMin: backdate ? 120 : 0 },
@@ -81,7 +131,8 @@ export default function ShiftStartPage() {
           {existing ? (
             <InlineAlert tone="warning" title="A shift is already active">
               <p>
-                You started a {existing.type} shift at{" "}
+                You started a {existing.type} shift
+                {existing.unitName ? ` in ${existing.unitName}` : " without a unit"} at{" "}
                 {new Date(existing.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -95,6 +146,47 @@ export default function ShiftStartPage() {
               </div>
             </InlineAlert>
           ) : null}
+
+          <section className="card p-5">
+            <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+              <Building2 className="h-4 w-4 text-teal-600" /> Unit
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Your head nurse assigns you to units. Tasks created in this shift belong to the selected unit.
+            </p>
+            {!unitsReady ? (
+              <p className="mt-3 text-sm text-slate-500">Checking assigned units…</p>
+            ) : units.length ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {units.map((unit) => {
+                  const checked = unitId === unit.id;
+                  return (
+                    <button
+                      key={unit.id}
+                      onClick={() => setUnitId(unit.id)}
+                      className={cn(
+                        "min-h-[56px] rounded-xl border px-3 text-left",
+                        checked
+                          ? "border-teal-400 bg-teal-50/60 ring-1 ring-teal-500/20"
+                          : "border-slate-200 bg-white hover:bg-slate-50",
+                      )}
+                    >
+                      <span className="block text-sm font-semibold text-slate-800">{unit.name}</span>
+                      <span className="block truncate text-[11px] text-slate-500">
+                        {unit.description || "Assigned unit"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-3">
+                <InlineAlert tone="warning" title="No assigned unit">
+                  <p>Ask the head nurse to assign you to an active unit before starting a shift.</p>
+                </InlineAlert>
+              </div>
+            )}
+          </section>
 
           <section className="card p-5">
             <h2 className="text-base font-bold text-ink">Shift type</h2>
@@ -189,12 +281,12 @@ export default function ShiftStartPage() {
           <button
             className="btn-primary w-full text-base"
             onClick={begin}
-            disabled={busy || existing !== null || selectedBeds.length === 0}
+            disabled={busy || existing !== null || selectedBeds.length === 0 || !selectedUnit}
           >
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
             {existing === undefined
               ? "Checking active shift…"
-              : `Start ${type} shift · ${selectedBeds.length} beds · ${taskCount} tasks`}
+              : `Start ${type} shift · ${selectedUnit?.name ?? "choose a unit"} · ${selectedBeds.length} beds · ${taskCount} tasks`}
           </button>
         </div>
 

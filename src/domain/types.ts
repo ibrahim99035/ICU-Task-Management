@@ -5,37 +5,25 @@ export type Tier = 1 | 2 | 3 | 4;
 export type TaskCategory = "direct_care" | "indirect_care" | "interruption";
 export type TaskStatus = "planned" | "in_progress" | "paused" | "done" | "deferred" | "missed";
 
-// NEW: Unit entity - higher-level grouping covering nurses and tasks
+export type UnitStatus = "active" | "inactive";
+
+/** Dynamic unit configured by a head nurse. Covers nurses and their shifts/tasks. */
 export type Unit = {
   id: string;
-  label: string; // unit nickname/name
-  headNurseId: string; // who configured it
-  nurseIds: string[]; // assigned nurses
-  taskIds: string[]; // tasks in this unit
-  config: Record<string, unknown>; // unit configuration
-  status: "active" | "inactive";
+  name: string;
+  description: string;
+  status: UnitStatus;
   createdAt: number;
   updatedAt: number;
 };
 
+/** Offline cache row for a nurse's assigned active units. */
 export type UnitRow = {
   id: string;
-  label: string;
-  headNurseId: string;
-  nurseIds: string[];
-  taskIds: string[];
-  config: Record<string, unknown>;
-  status: "active" | "inactive";
-  createdAt: number;
+  name: string;
+  description: string;
+  status: UnitStatus;
   updatedAt: number;
-};
-
-// NEW: unitConfig for head nurse settings
-export type UnitConfig = {
-  allowTaskRescheduling: boolean;
-  maxConcurrentTasks: number;
-  autoMissedTimeoutMin: number;
-  defaultPlannedDurationMin: number;
 };
 
 export const INTERRUPTION_REASONS = [
@@ -98,6 +86,8 @@ const iso = z.number().int().nonnegative();
 
 export const shiftStartedPayload = z.object({
   shiftType: z.enum(SHIFT_TYPES),
+  unitId: z.string().min(1).max(80).optional(),
+  unitName: z.string().min(1).max(80).optional(),
   bedLabels: z.array(z.string().min(1).max(60)).max(12).optional(),
   note: z.string().max(500).optional(),
 });
@@ -111,6 +101,7 @@ export const taskCreatedPayload = z
     plannedTo: iso,
     expectedMin: z.number().int().min(0).max(720).default(5),
     intervalMin: z.number().int().min(0).max(1440).optional(),
+    unitId: z.string().min(1).max(80).optional(),
     templateId: z.string().max(80).optional(),
     bedLabel: z.string().max(60).optional(),
     note: z.string().max(300).optional(),
@@ -218,6 +209,8 @@ export type ShiftState = {
   id: string;
   actorId: string;
   type: ShiftType;
+  unitId?: string;
+  unitName?: string;
   startedAt: number;
   endedAt?: number;
   note?: string;
@@ -330,6 +323,8 @@ export type DurationSummary = {
 
 export type ShiftSummary = {
   shiftId: string;
+  unitId?: string;
+  unitName?: string;
   startedAt: number;
   endedAt?: number;
   totalMinutes: number;

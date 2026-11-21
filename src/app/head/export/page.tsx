@@ -6,7 +6,8 @@ import Link from "next/link";
 import { AlertTriangle, Download, FileSpreadsheet, FileText, Loader2, ShieldCheck, Star, WifiOff } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { InlineAlert } from "@/components/ui";
-import { downloadExport } from "@/lib/api";
+import { downloadExport, fetchUnits } from "@/lib/api";
+import type { Unit } from "@/domain";
 import { useApp } from "@/lib/store";
 
 const TYPES = [
@@ -14,14 +15,14 @@ const TYPES = [
     type: "summaries" as const,
     title: "Shift summaries",
     description: "One row per shift with timestamp-derived care minutes, completion and priority metrics.",
-    columns: "shift_id, nurse_id, shift_type, started_at, ended_at, direct_care_min, indirect_care_min, interruption_min, emergency_min, completion_rate, tier12_on_time_rate, missed, deferred",
+    columns: "shift_id, nurse_id, unit_id, unit_name, shift_type, started_at, ended_at, direct_care_min, indirect_care_min, interruption_min, emergency_min, completion_rate, tier12_on_time_rate, missed, deferred",
     icon: <FileSpreadsheet className="h-5 w-5" />,
   },
   {
     type: "events" as const,
     title: "Raw event log",
     description: "Append-only clinical-work events. This is the audit source for every summary and handover.",
-    columns: "id, shift_id, bed_id, task_id, actor_id, type, client_ts, server_ts, payload",
+    columns: "id, shift_id, unit_id, unit_name, bed_id, task_id, actor_id, type, client_ts, server_ts, payload",
     icon: <FileText className="h-5 w-5" />,
   },
   {
@@ -35,7 +36,7 @@ const TYPES = [
     type: "reviews" as const,
     title: "Manual reviews",
     description: "The five head-nurse ratings, comment and support flag. No computed overall score.",
-    columns: "id, shift_id, nurse_id, reviewer_id, scores, comment, needs_support, created_at",
+    columns: "id, shift_id, unit_id, unit_name, nurse_id, reviewer_id, scores, comment, needs_support, created_at",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
 ];
@@ -47,17 +48,26 @@ export default function ExportPage() {
   const online = useApp((s) => s.online);
   const notify = useApp((s) => s.notify);
   const [busy, setBusy] = useState<string | null>(null);
+  const [unitId, setUnitId] = useState("all");
+  const [units, setUnits] = useState<Unit[]>([]);
 
   useEffect(() => {
     if (user && user.role !== "head_nurse") router.replace("/beds");
     if (!user) router.replace("/login");
   }, [user, router]);
 
+  useEffect(() => {
+    if (!token || user?.role !== "head_nurse") return;
+    fetchUnits(token)
+      .then((result) => setUnits(result.units))
+      .catch(() => undefined);
+  }, [token, user?.role]);
+
   async function download(type: "events" | "summaries" | "surveys" | "reviews") {
     if (!token) return;
     setBusy(type);
     try {
-      const blob = await downloadExport(token, type);
+      const blob = await downloadExport(token, type, unitId === "all" ? undefined : unitId);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -92,6 +102,25 @@ export default function ExportPage() {
             before sharing.
           </p>
         </InlineAlert>
+
+        <section className="card flex flex-wrap items-center gap-3 p-4">
+          <label className="text-sm font-semibold text-slate-700" htmlFor="export-unit">
+            Unit filter
+          </label>
+          <select
+            id="export-unit"
+            className="input h-10 w-auto min-w-[12rem]"
+            value={unitId}
+            onChange={(event) => setUnitId(event.target.value)}
+          >
+            <option value="all">All units</option>
+            {units.map((unit) => (
+              <option key={unit.id} value={unit.id}>{unit.name}{unit.status === "inactive" ? " (archived)" : ""}</option>
+            ))}
+            <option value="unassigned">Unassigned</option>
+          </select>
+          <p className="text-[11px] text-slate-500">Applies to summaries, events and reviews.</p>
+        </section>
 
         <div className="grid gap-3 sm:grid-cols-2">
           {TYPES.map((item) => (

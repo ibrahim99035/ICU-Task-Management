@@ -37,7 +37,7 @@ async function main() {
   const schemaSql = readFileSync(resolve("scripts/schema.sql"), "utf8");
   await pool.query(schemaSql);
   await pool.query(`
-    TRUNCATE survey_responses, shift_reviews, handover_reports, events, beds, shifts, task_templates, config, users CASCADE
+    TRUNCATE survey_responses, shift_reviews, handover_reports, events, beds, shifts, unit_nurses, units, task_templates, config, users CASCADE
   `);
 
   for (const user of [
@@ -161,6 +161,52 @@ async function main() {
   const nurse = await json<{ token: string; user: { id: string } }>(login);
   check("nurse login returns a token", login.status === 200 && nurse.token.length > 20, login.status);
 
+  const headLogin = await req("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "head", pin: "9999" }),
+  });
+  const head = await json<{ token: string }>(headLogin);
+  check("head login returns a token", headLogin.status === 200 && head.token.length > 20, headLogin.status);
+
+  const createUnit = await req("/api/units", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({ name: "API Unit", description: "Disposable test unit" }),
+  });
+  const createdUnit = await json<{ unit: { id: string; name: string } }>(createUnit);
+  check("head creates a unit", createUnit.status === 201 && createdUnit.unit.name === "API Unit", createUnit.status);
+  const unitId = createdUnit.unit.id;
+
+  const duplicateUnit = await req("/api/units", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({ name: "API Unit" }),
+  });
+  check("duplicate unit name is rejected", duplicateUnit.status === 409, duplicateUnit.status);
+
+  const nurseCreateUnit = await req("/api/units", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nurse.token}` },
+    body: JSON.stringify({ name: "Nurse Unit" }),
+  });
+  check("nurse cannot create a unit", nurseCreateUnit.status === 403, nurseCreateUnit.status);
+
+  const assign = await req(`/api/units/${unitId}/nurses`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({ nurseIds: [nurse.user.id] }),
+  });
+  check("head assigns a nurse to a unit", assign.status === 200, assign.status);
+
+  const nurseUnits = await req("/api/units", { headers: { Authorization: `Bearer ${nurse.token}` } });
+  const nurseUnitsBody = await json<{ units: { id: string; name: string }[] }>(nurseUnits);
+  check(
+    "nurse sees the assigned active unit",
+    nurseUnits.status === 200 && nurseUnitsBody.units.some((unit) => unit.id === unitId),
+    nurseUnitsBody,
+  );
+
   const unauthPush = await req("/api/sync/push", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -176,7 +222,7 @@ async function main() {
       ...base,
       id: "api-test-e1",
       type: "SHIFT_STARTED",
-      payload: { shiftType: "day", bedLabels: ["Bed 1"] },
+      payload: { shiftType: "day", unitId, unitName: "API Unit", bedLabels: ["Bed 1"] },
       clientTs: start,
     },
     {
@@ -192,6 +238,7 @@ async function main() {
         plannedFrom: start + 5 * 60_000,
         plannedTo: start + 15 * 60_000,
         expectedMin: 10,
+        unitId,
         bedLabel: "Bed 1",
       },
       clientTs: start + 60_000,
@@ -251,17 +298,18 @@ async function main() {
     pulled.shifts[0]?.summary,
   );
 
-  const headLogin = await req("/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "head", pin: "9999" }),
-  });
-  const head = await json<{ token: string }>(headLogin);
-  check("head login returns a token", headLogin.status === 200 && head.token.length > 20, headLogin.status);
-
   const shifts = await req("/api/shifts", { headers: { Authorization: `Bearer ${head.token}` } });
-  const shiftList = await json<{ shifts: { id: string; nurseName: string; reviewId: string | null }[] }>(shifts);
+  const shiftList = await json<{ shifts: { id: string; nurseName: string; unitId: string | null; unitName: string | null; reviewId: string | null }[] }>(shifts);
   check("head can list shifts", shifts.status === 200 && shiftList.shifts.length === 1 && shiftList.shifts[0].nurseName === "Amina Hassan", shiftList);
+  check("head shift list includes the unit", shiftList.shifts[0]?.unitId === unitId && shiftList.shifts[0]?.unitName === "API Unit", shiftList.shifts[0]);
+
+  const unitShifts = await req(`/api/shifts?unitId=${encodeURIComponent(unitId)}`, { headers: { Authorization: `Bearer ${head.token}` } });
+  const unitShiftList = await json<{ shifts: { id: string }[] }>(unitShifts);
+  check("head can filter shifts by unit", unitShifts.status === 200 && unitShiftList.shifts.length === 1, unitShiftList);
+
+  const unassignedShifts = await req("/api/shifts?unitId=unassigned", { headers: { Authorization: `Bearer ${head.token}` } });
+  const unassignedList = await json<{ shifts: { id: string }[] }>(unassignedShifts);
+  check("unassigned filter is empty for this unit shift", unassignedShifts.status === 200 && unassignedList.shifts.length === 0, unassignedList);
 
   const detail = await req("/api/shifts/api-test-shift", { headers: { Authorization: `Bearer ${head.token}` } });
   const detailBody = await json<{ events: unknown[]; review: unknown }>(detail);
@@ -270,6 +318,12 @@ async function main() {
   const analytics = await req("/api/analytics/unit?days=30", { headers: { Authorization: `Bearer ${head.token}` } });
   const analyticsBody = await json<{ shifts: number; avgCompletionRate: number }>(analytics);
   check("analytics includes the finished shift", analytics.status === 200 && analyticsBody.shifts === 1 && analyticsBody.avgCompletionRate === 1, analyticsBody);
+
+  const unitAnalytics = await req(`/api/analytics/unit?days=30&unitId=${encodeURIComponent(unitId)}`, {
+    headers: { Authorization: `Bearer ${head.token}` },
+  });
+  const unitAnalyticsBody = await json<{ shifts: number }>(unitAnalytics);
+  check("analytics can filter by unit", unitAnalytics.status === 200 && unitAnalyticsBody.shifts === 1, unitAnalyticsBody);
 
   const review = await req("/api/reviews", {
     method: "POST",
@@ -299,7 +353,17 @@ async function main() {
 
   const csv = await req("/api/export?type=summaries", { headers: { Authorization: `Bearer ${head.token}` } });
   const text = await csv.text();
-  check("CSV export has a header and row", csv.status === 200 && text.includes("shift_id") && text.includes("api-test-shift"), text.slice(0, 200));
+  check(
+    "CSV export has unit columns and the shift row",
+    csv.status === 200 && text.includes("unit_id") && text.includes("unit_name") && text.includes("api-test-shift") && text.includes("API Unit"),
+    text.slice(0, 300),
+  );
+
+  const filteredCsv = await req(`/api/export?type=summaries&unitId=${encodeURIComponent(unitId)}`, {
+    headers: { Authorization: `Bearer ${head.token}` },
+  });
+  const filteredText = await filteredCsv.text();
+  check("CSV export can filter by unit", filteredCsv.status === 200 && filteredText.includes("API Unit"), filteredText.slice(0, 200));
 
   const headForbidden = await req("/api/analytics/unit", { headers: { Authorization: `Bearer ${nurse.token}` } });
   check("nurse cannot use head analytics", headForbidden.status === 403, headForbidden.status);

@@ -1,7 +1,7 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { getDb, getPool, schema } from "../src/db";
-import { DEMO_TEMPLATES } from "../src/lib/demo-data";
+import { DEMO_TEMPLATES, DEMO_UNIT_MEMBERSHIPS, DEMO_UNITS } from "../src/lib/demo-data";
 
 const DEMO_USERS = [
   { id: "u-nurse-1", username: "amina", pin: "1111", role: "nurse" as const, displayName: "Amina Hassan", participantCode: "N01" },
@@ -29,6 +29,32 @@ for (const user of DEMO_USERS) {
       target: schema.users.id,
       set: { username: user.username, pinHash, role: user.role, displayName: user.displayName, participantCode: user.participantCode },
     });
+}
+
+const now = Date.now();
+for (const unit of DEMO_UNITS) {
+  await db
+    .insert(schema.units)
+    .values({
+      id: unit.id,
+      name: unit.name,
+      description: unit.description,
+      status: "active",
+      createdBy: "u-head-1",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: schema.units.id,
+      set: { name: unit.name, description: unit.description, status: "active", updatedAt: now },
+    });
+}
+
+for (const membership of DEMO_UNIT_MEMBERSHIPS) {
+  await db
+    .insert(schema.unitNurses)
+    .values({ ...membership, assignedBy: "u-head-1", assignedAt: now })
+    .onConflictDoNothing();
 }
 
 for (const template of DEMO_TEMPLATES) {
@@ -61,6 +87,6 @@ await db
   .values({ key: "app", value: config })
   .onConflictDoUpdate({ target: schema.config.key, set: { value: config } });
 
-console.log(`Seeded ${DEMO_USERS.length} users and ${DEMO_TEMPLATES.length} templates.`);
+console.log(`Seeded ${DEMO_USERS.length} users, ${DEMO_UNITS.length} units, ${DEMO_UNIT_MEMBERSHIPS.length} assignments and ${DEMO_TEMPLATES.length} templates.`);
 console.log("Demo PINs: amina/1111, yara/2222, omar/3333, head/9999");
 await getPool().end();

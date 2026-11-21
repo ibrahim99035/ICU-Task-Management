@@ -192,6 +192,8 @@ export function reduce(input: DomainEvent[]): ReducedState {
           id: event.shiftId,
           actorId: event.actorId,
           type: event.payload.shiftType,
+          unitId: event.payload.unitId,
+          unitName: event.payload.unitName,
           startedAt: ts,
           note: event.payload.note,
         };
@@ -208,6 +210,7 @@ export function reduce(input: DomainEvent[]): ReducedState {
           id: event.taskId,
           shiftId: event.shiftId,
           bedId: event.bedId,
+          unitId: event.payload.unitId,
           title: event.payload.title,
           category: event.payload.category,
           tier: event.payload.tier,
@@ -387,6 +390,7 @@ export function nextRecurringTask(
         task.expectedMin * MINUTE,
       expectedMin: task.expectedMin,
       intervalMin: task.intervalMin,
+      unitId: task.unitId,
       templateId: task.templateId,
       note: task.note,
     },
@@ -737,6 +741,8 @@ export function buildShiftSummary(events: DomainEvent[], now = Date.now()): Shif
 
   return {
     shiftId: state.shift?.id ?? "",
+    unitId: state.shift?.unitId,
+    unitName: state.shift?.unitName,
     startedAt,
     endedAt,
     totalMinutes: Math.max(0, ((endedAt ?? now) - startedAt) / MINUTE),

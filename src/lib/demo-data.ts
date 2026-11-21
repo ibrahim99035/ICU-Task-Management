@@ -1,3 +1,15 @@
+export const DEMO_UNITS = [
+  { id: "unit-a", name: "Unit A", description: "Demo general care unit" },
+  { id: "unit-b", name: "Unit B", description: "Demo step-down care unit" },
+] as const;
+
+export const DEMO_UNIT_MEMBERSHIPS: { unitId: string; nurseId: string }[] = [
+  { unitId: "unit-a", nurseId: "u-nurse-1" },
+  { unitId: "unit-a", nurseId: "u-nurse-2" },
+  { unitId: "unit-b", nurseId: "u-nurse-2" },
+  { unitId: "unit-b", nurseId: "u-nurse-3" },
+];
+
 export type DemoTemplate = {
   id: string;
   name: string;

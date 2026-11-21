@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import {
   ArrowLeft,
   BarChart3,
+  Building2,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
@@ -31,6 +32,7 @@ const NURSE_NAV = [
 ];
 const HEAD_NAV = [
   { href: "/head", label: "Dashboard", Icon: BarChart3 },
+  { href: "/head/units", label: "Units", Icon: Building2 },
   { href: "/head/shifts", label: "Shifts", Icon: CalendarDays },
   { href: "/head/export", label: "Export", Icon: Download },
   { href: "/me", label: "Me", Icon: UserRound },
@@ -149,7 +151,9 @@ export function AppShell({
               {shift ? formatElapsed(now - shift.startedAt) : "No active shift"}
             </p>
             <p className="mt-0.5 text-[11px] text-slate-500">
-              {shift ? `${shift.type} shift · started ${new Date(shift.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Start a shift from Beds"}
+              {shift
+                ? `${shift.type} shift${shift.unitName ? ` · ${shift.unitName}` : ""} · started ${new Date(shift.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                : "Start a shift from Beds"}
             </p>
           </div>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
