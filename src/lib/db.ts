@@ -7,7 +7,6 @@ import type {
   HandoverSnapshot,
   Task,
   ShiftType,
-  Unit,
   UnitRow,
 } from "@/domain";
 

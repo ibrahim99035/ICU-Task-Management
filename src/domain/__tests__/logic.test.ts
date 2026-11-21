@@ -323,6 +323,10 @@ describe("priority protection and emergency", () => {
       T0 + 55 * MIN,
     );
 
+    expect(() =>
+      confirmReschedule(deferredTasks[0], end.proposals[0], T0 + 56 * MIN, actorId, T0 + 50 * MIN, T0 + 40 * MIN),
+    ).toThrow(DomainError);
+
     const fixed = proposeReschedule(deferredTasks, T0, T0 + 40 * MIN, {
       ...DEFAULT_CONFIG,
       rescheduleOffsetMode: "fixed",
@@ -596,6 +600,30 @@ describe("shift summary", () => {
     expect(s.tierBreakdown[2]).toEqual({ total: 2, done: 1 });
     expect(s.interruptionsByReason[0]).toMatchObject({ reason: "alarm_device", minutes: 5 });
     expect(s.totalMinutes).toBe(60);
+  });
+});
+
+describe("legacy task payloads", () => {
+  it("converts an old dueAt payload to a planned window", () => {
+    const legacy = {
+      id: "legacy-e1",
+      shiftId,
+      bedId,
+      taskId: "legacy-task",
+      actorId,
+      type: "TASK_CREATED",
+      clientTs: T0,
+      payload: {
+        title: "Legacy task",
+        category: "direct_care",
+        tier: 2,
+        dueAt: T0 + 30 * MIN,
+        expectedMin: 10,
+      },
+    } as unknown as DomainEvent;
+    const state = reduce([legacy]);
+    expect(state.tasks["legacy-task"].plannedFrom).toBe(T0 + 20 * MIN);
+    expect(state.tasks["legacy-task"].plannedTo).toBe(T0 + 30 * MIN);
   });
 });
 

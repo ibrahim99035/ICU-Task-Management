@@ -2,7 +2,7 @@
 
 ## P1 — Domain core (done)
 - Pure TypeScript domain in `src/domain`: Zod event schema, reducer/state machine, emergency planning, rescheduling, timestamp durations, missed rule, recurring tasks, handover, shift summary, SUS/raw TLX.
-- `22` Vitest tests passing.
+- `23` Vitest tests passing.
 - TypeScript clean.
 
 ## P2 — Offline nurse flow (done)

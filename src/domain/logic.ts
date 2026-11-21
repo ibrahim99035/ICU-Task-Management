@@ -34,6 +34,29 @@ export function newId(): string {
 }
 
 export function parseEvent(input: unknown): DomainEvent {
+  if (input && typeof input === "object") {
+    const candidate = input as { type?: unknown; payload?: unknown };
+    if (
+      (candidate.type === "TASK_CREATED" || candidate.type === "TASK_RESCHEDULED") &&
+      candidate.payload &&
+      typeof candidate.payload === "object"
+    ) {
+      const payload = { ...(candidate.payload as Record<string, unknown>) };
+      if (typeof payload.dueAt === "number") {
+        const dueAt = payload.dueAt;
+        const expectedMin = typeof payload.expectedMin === "number" ? payload.expectedMin : 10;
+        payload.plannedTo ??= dueAt;
+        payload.plannedFrom ??= Math.max(0, dueAt - expectedMin * 60_000);
+        if (typeof payload.previousDueAt === "number") {
+          payload.previousPlannedFrom ??= payload.previousDueAt;
+          payload.previousPlannedTo ??= dueAt;
+        }
+        delete payload.dueAt;
+        delete payload.previousDueAt;
+        return domainEventSchema.parse({ ...candidate, payload });
+      }
+    }
+  }
   return domainEventSchema.parse(input);
 }
 
@@ -495,6 +518,12 @@ export function confirmReschedule(
   }
   const plannedFrom = editedFrom ?? proposal.newFrom;
   const plannedTo = editedTo ?? proposal.newTo;
+  if (!Number.isFinite(plannedFrom) || !Number.isFinite(plannedTo)) {
+    throw new DomainError("Planned window needs valid start and end times");
+  }
+  if (plannedTo < plannedFrom) {
+    throw new DomainError("Planned end must be at or after planned start");
+  }
   return {
     id: newId(),
     shiftId: task.shiftId,

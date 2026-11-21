@@ -1,4 +1,4 @@
-# ICU TaskLog — APK distribution and installation
+# TaskLog — APK distribution and installation
 
 This guide explains how to get the latest debug APK, share it with the group, install it on Android, and create accounts.
 
@@ -59,7 +59,7 @@ Each person should:
 3. If Android blocks it, tap **Settings** and allow **Install unknown apps** for the app doing the install — usually **Chrome** or **Files**.
 4. Tap **Install**.
 5. If Play Protect warns about an unknown developer, choose **More details → Install anyway**.
-6. Open **ICU TaskLog**.
+6. Open **TaskLog**.
 
 This is a debug-signed thesis demo, not a Play Store app.
 

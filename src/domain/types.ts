@@ -124,14 +124,19 @@ export const taskDeferredPayload = z.object({
   emergencyId: z.string().optional(),
   note: z.string().max(300).optional(),
 });
-export const taskRescheduledPayload = z.object({
-  plannedFrom: iso,
-  plannedTo: iso,
-  previousPlannedFrom: iso.optional(),
-  previousPlannedTo: iso.optional(),
-  reason: z.enum(["emergency", "manual"]).default("emergency"),
-  emergencyId: z.string().optional(),
-});
+export const taskRescheduledPayload = z
+  .object({
+    plannedFrom: iso,
+    plannedTo: iso,
+    previousPlannedFrom: iso.optional(),
+    previousPlannedTo: iso.optional(),
+    reason: z.enum(["emergency", "manual"]).default("emergency"),
+    emergencyId: z.string().optional(),
+  })
+  .refine((d) => d.plannedTo >= d.plannedFrom, {
+    message: "plannedTo must be >= plannedFrom",
+    path: ["plannedTo"],
+  });
 export const taskMissedPayload = z.object({ reason: z.enum(["timeout", "shift_end"]) });
 export const timeCorrectedPayload = z.object({
   targetEventId: z.string().min(1),

@@ -1,4 +1,4 @@
-# ICU TaskLog
+# TaskLog
 
 A thesis demo for ICU nurses: plan a shift by task priority, time care from stored timestamps, protect tier 1–2 work during emergencies, and build a handover from what actually happened.
 
@@ -63,7 +63,7 @@ Useful commands:
 
 ```bash
 npm run typecheck         # tsc --noEmit
-npm test                  # 22 domain tests
+npm test                  # 23 domain tests
 npm run lint              # product-rule guard (no AI, no IDs, pure domain)
 npm run build             # web production build (webpack)
 npm run build:mobile      # static export for the APK

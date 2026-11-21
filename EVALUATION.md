@@ -11,7 +11,7 @@ The prototype deliberately excludes AI, automatic clinical decisions and nurse r
 ## 2. Planned study design (not yet run)
 
 - **Participants:** 6–10 ICU nurses for formative usability, plus 1–2 head nurses for review/export feedback. Convenience sample; thesis demo.
-- **Design:** within-subject, paper/shift-board baseline versus ICU TaskLog, counterbalanced order if the sample allows.
+- **Design:** within-subject, paper/shift-board baseline versus TaskLog, counterbalanced order if the sample allows.
 - **Tasks:** start a shift for six beds; identify the most critical open task; start and finish a task; log an interruption; handle an emergency on one bed; confirm deferred-task times; finalize a handover; end the shift; read the summary. Head nurse: find a shift, inspect the timeline, submit five manual ratings, export CSV.
 - **Measures:**
   - SUS after the app session (paper version may be collected for comparison only if the protocol is approved).
@@ -28,7 +28,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 
 | Check | Command | Observed result |
 | --- | --- | --- |
-| Domain tests | `./node_modules/.bin/vitest run` | **22 passed** |
+| Domain tests | `./node_modules/.bin/vitest run` | **23 passed** |
 | TypeScript | `./node_modules/.bin/tsc --noEmit` | clean |
 | Product-rule lint | `npm run lint` | passed, 45 source files / 5 domain files |
 | API integration | `npm run test:api` against Docker `postgres:16-alpine` | **26 checks passed** |

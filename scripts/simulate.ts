@@ -190,7 +190,8 @@ async function main() {
 
       for (const template of templates) {
         const taskId = `${shiftId}-${bed.id}-${template.id}`;
-        const dueAt = roundMinute(draft.startedAt + (template.offsetMin + 20) * MINUTE);
+        const plannedTo = roundMinute(draft.startedAt + (template.offsetMin + 20) * MINUTE);
+        const plannedFrom = roundMinute(plannedTo - template.expectedMin * MINUTE);
         events.push(
           makeEvent("TASK_CREATED", draft.startedAt + 2 * MINUTE, {
             bedId: bed.id,
@@ -199,7 +200,8 @@ async function main() {
               title: template.name,
               category: template.category,
               tier: template.tier,
-              dueAt,
+              plannedFrom,
+              plannedTo,
               expectedMin: template.expectedMin,
               intervalMin: template.intervalMin,
               templateId: template.id,
@@ -214,7 +216,7 @@ async function main() {
 
         if (roll < 0.07) {
           events.push(
-            makeEvent("TASK_COMPLETED", roundMinute(dueAt + rng() * 4 * MINUTE), {
+            makeEvent("TASK_COMPLETED", roundMinute(plannedTo + rng() * 4 * MINUTE), {
               bedId: bed.id,
               taskId,
               payload: { tickOnly: true },
@@ -224,7 +226,7 @@ async function main() {
         }
 
         if (roll < 0.16 && tier >= 3) {
-          const at = emergencyStart ?? dueAt + 10 * MINUTE;
+          const at = emergencyStart ?? plannedTo + 10 * MINUTE;
           events.push(
             makeEvent("TASK_DEFERRED", roundMinute(at), {
               bedId: bed.id,
@@ -248,8 +250,8 @@ async function main() {
 
         const onTime = rng() < (tier <= 2 ? 0.78 : 0.56);
         let completedAt = onTime
-          ? roundMinute(dueAt - rng() * 6 * MINUTE)
-          : roundMinute(dueAt + (2 + rng() * 16) * MINUTE);
+          ? roundMinute(plannedTo - rng() * 6 * MINUTE)
+          : roundMinute(plannedTo + (2 + rng() * 16) * MINUTE);
         completedAt = Math.max(draft.startedAt + 10 * MINUTE, Math.min(draft.endedAt - 25 * MINUTE, completedAt));
         let startedAt = roundMinute(completedAt - duration * MINUTE);
         startedAt = Math.max(draft.startedAt + 5 * MINUTE, startedAt);

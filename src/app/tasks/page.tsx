@@ -54,14 +54,15 @@ const PRESETS: {
   tier: Tier;
   category: TaskCategory;
   offsetMin: number;
+  expectedMin: number;
   hint: string;
 }[] = [
-  { title: "Reposition / pressure care", tier: 3, category: "direct_care", offsetMin: 0, hint: "T3 · direct" },
-  { title: "Oral care", tier: 3, category: "direct_care", offsetMin: 15, hint: "T3 · direct" },
-  { title: "Vital signs", tier: 2, category: "direct_care", offsetMin: 0, hint: "T2 · direct" },
-  { title: "Charting / documentation", tier: 4, category: "indirect_care", offsetMin: 15, hint: "T4 · indirect" },
-  { title: "Supplies restock", tier: 4, category: "indirect_care", offsetMin: 30, hint: "T4 · indirect" },
-  { title: "Family update", tier: 4, category: "indirect_care", offsetMin: 20, hint: "T4 · indirect" },
+  { title: "Reposition / pressure care", tier: 3, category: "direct_care", offsetMin: 0, expectedMin: 10, hint: "T3 · direct" },
+  { title: "Oral care", tier: 3, category: "direct_care", offsetMin: 15, expectedMin: 10, hint: "T3 · direct" },
+  { title: "Vital signs", tier: 2, category: "direct_care", offsetMin: 0, expectedMin: 5, hint: "T2 · direct" },
+  { title: "Charting / documentation", tier: 4, category: "indirect_care", offsetMin: 15, expectedMin: 10, hint: "T4 · indirect" },
+  { title: "Supplies restock", tier: 4, category: "indirect_care", offsetMin: 30, expectedMin: 10, hint: "T4 · indirect" },
+  { title: "Family update", tier: 4, category: "indirect_care", offsetMin: 20, expectedMin: 5, hint: "T4 · indirect" },
 ];
 
 function runningElapsed(events: DomainEvent[], task: Task, now: number): number | undefined {
@@ -92,7 +93,6 @@ function TasksInner() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [tickTarget, setTickTarget] = useState<Task | null>(null);
   const [busy, setBusy] = useState(false);
-const [unitId, setUnitId] = useState("");
 
   const shiftBox = useLive(
     async () => (user ? { shift: await activeShift(user.id) } : undefined),
@@ -127,31 +127,26 @@ const [unitId, setUnitId] = useState("");
   const durations = useMemo(() => computeDurations(events, now), [events, now]);
 
   const filtered = useMemo(() => {
-    const effectiveUnitId = unitId || bedFilter;
-    const scoped = effectiveUnitId
-      ? tasks.filter((t) => t.unitId === effectiveUnitId || t.bedId === effectiveUnitId)
-      : tasks;
+    const scoped = bedFilter ? tasks.filter((t) => t.bedId === bedFilter) : tasks;
     const sorted = sortTasks(scoped, now);
     if (filter === "overdue") return sorted.filter((t) => isOverdue(t, now));
     if (filter === "deferred") return sorted.filter((t) => t.status === "deferred");
     if (filter === "done") return sorted.filter((t) => t.status === "done" || t.status === "missed");
     return sorted.filter((t) => ["planned", "in_progress", "paused"].includes(t.status));
-  }, [tasks, bedFilter, unitId, filter, now]);
+  }, [tasks, bedFilter, filter, now]);
 
   const counts = useMemo(
-    () => {
-      const effectiveUnitId = unitId || bedFilter;
-      const baseFilter = effectiveUnitId
-        ? (t: Task) => t.unitId === effectiveUnitId || t.bedId === effectiveUnitId : _ => true;
-      const filteredTasks = tasks.filter(baseFilter);
-      return {
-        open: filteredTasks.filter((t) => ["planned", "in_progress", "paused"].includes(t.status)).length,
-        overdue: filteredTasks.filter((t) => isOverdue(t, now)).length,
-        deferred: filteredTasks.filter((t) => t.status === "deferred").length,
-        done: filteredTasks.filter((t) => t.status === "done" || t.status === "missed").length,
-      };
-    },
-    [tasks, bedFilter, unitId, now],
+    () => ({
+      open: tasks
+        .filter((t) => !bedFilter || t.bedId === bedFilter)
+        .filter((t) => ["planned", "in_progress", "paused"].includes(t.status)).length,
+      overdue: tasks.filter((t) => !bedFilter || t.bedId === bedFilter).filter((t) => isOverdue(t, now)).length,
+      deferred: tasks.filter((t) => !bedFilter || t.bedId === bedFilter).filter((t) => t.status === "deferred").length,
+      done: tasks
+        .filter((t) => !bedFilter || t.bedId === bedFilter)
+        .filter((t) => t.status === "done" || t.status === "missed").length,
+    }),
+    [tasks, bedFilter, now],
   );
 
   const detail = detailId ? tasks.find((t) => t.id === detailId) : undefined;
@@ -378,7 +373,6 @@ function QuickAddSheet({
 }) {
   const notify = useApp((s) => s.notify);
   const [bedId, setBedId] = useState(defaultBedId);
-  const [unitId, setUnitId] = useState("");
   const [title, setTitle] = useState("");
   const [tier, setTier] = useState<Tier>(3);
   const [category, setCategory] = useState<TaskCategory>("direct_care");
@@ -390,7 +384,7 @@ function QuickAddSheet({
   }, [open, defaultBedId]);
 
   async function addPreset(preset: (typeof PRESETS)[number]) {
-    if (!bedId && !unitId) return;
+    if (!bedId) return;
     setBusy(true);
     try {
       await addQuickTask({
