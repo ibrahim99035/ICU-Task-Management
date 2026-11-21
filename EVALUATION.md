@@ -46,18 +46,22 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live login | `POST /api/auth/login` on Vercel | **200** for `amina/1111` and `head/9999`; role returned in `user.role` |
 | Live nurse registration | `POST /api/auth/register` on Vercel | **201**; nurse role, unique `N-...` code, login **200**; duplicate username **409**; role injection **400** |
 | Live head analytics | `GET /api/analytics/unit` on Vercel | **200**; 14 shifts |
+| Live units | `GET /api/units` with head token on Vercel | **200**; Unit A and Unit B |
+| Live unit shift filter | `GET /api/shifts?unitId=unit-a` on Vercel | **200**; 7 shifts, all `unitId=unit-a`, each with `unitName=Unit A` |
+| Live unit analytics | `GET /api/analytics/unit?days=30&unitId=unit-a` on Vercel | **200**; 7 shifts, completion 81.0% |
 | Live planned windows | `GET /api/shifts/sim-20261120-u-nurse-2` on Vercel | **200**; 36 `TASK_CREATED` events carry `plannedFrom`/`plannedTo`; no `dueAt` |
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
+| Live CORS unit update | `OPTIONS /api/units/unit-a`, requested `PATCH` | **204**; `access-control-allow-methods` includes `PATCH`, `DELETE` |
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
-| Android CI build | GitHub Actions run `44904871255` | **success**; `app-debug.apk`, 5,600,714 bytes, SHA-256 `3d5be57d18a28de0daae062bffc382c8fea00866186ff44aa7b903148614f284` |
+| Android CI build | GitHub Actions run `44917777448` | **success**; `app-debug.apk`, 5,616,993 bytes, SHA-256 `55dc67f52cb15c405538dbe342714932b9b48b874fa3c2a04e5a0a6bdf51c2eb` |
 
 ### Production deployment
 
 - Web/API: <https://icu-tasklog.vercel.app> — one Vercel Next.js project; `/api/*` is served by the mounted Hono app.
-- Observed checks: health 200, nurse and head login 200, head analytics 200, CORS preflight 204.
-- Nurse self-registration: live `POST /api/auth/register` returned 201, created a nurse account, and that account signed in successfully. Duplicate username returned 409 and a client-supplied `head_nurse` role returned 400. The verification account was removed after the check.
-- Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors.
-- Android artifact: GitHub Actions run `44904871255` succeeded. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,600,714 bytes, SHA-256 above), and its bundled JavaScript contains `https://icu-tasklog.vercel.app`.
+- Observed checks after the unit deployment: health 200, head login 200, units 200 (Unit A/Unit B), unit-filtered shifts 200 (7 Unit A shifts), unit analytics 200 (7 shifts, 81.0% completion), CORS `PATCH` preflight 204.
+- Nurse self-registration: live `POST /api/auth/register` returned 201, created a nurse account, and that account signed in successfully. Duplicate username returned 409 and a client-supplied `head_nurse` role returned 400. The verification accounts were removed after the checks.
+- Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors. The unit page was also opened live to capture `17-head-units.png`.
+- Android artifact: GitHub Actions run `44917777448` succeeded. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,616,993 bytes, SHA-256 above), and its bundled JavaScript contains `https://icu-tasklog.vercel.app`.
 - **NOT VERIFIED:** installing and opening the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 The simulation is deterministic and uses only bed labels and participant codes. It is demonstration data, not a study result.
@@ -96,6 +100,9 @@ Final captures are in `evaluation/screenshots/`:
 | `14-head-review.png` | Five manual ratings |
 | `15-head-export.png` | CSV export |
 | `16-surveys.png` | SUS/raw TLX forms |
+| `17-head-units.png` | Dynamic unit editor and nurse assignment |
+
+`02-shift-start.png`, `11-head-dashboard.png` and `17-head-units.png` were recaptured after the dynamic-unit changes. The remaining screenshots show the same flows and timestamp rules from the pre-unit capture pass.
 
 ## 4. Usability targets to check with participants
 

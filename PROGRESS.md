@@ -30,18 +30,18 @@
 
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.
-- Production checks observed: health `200`, nurse and head login `200`, head analytics `200`, CORS preflight `204`; Playwright logins reached `/shift-start` and `/head` with no page errors.
-- Live self-registration observed: `201` for a nurse account, login `200`, duplicate `409`, client role injection `400`; the check account was removed.
+- Production checks observed after unit deployment: health `200`, head login `200`, units `200` (Unit A/Unit B), `GET /api/shifts?unitId=unit-a` `200` with 7 Unit A shifts, unit analytics `200` with 7 shifts, CORS `PATCH` preflight `204`.
+- Live self-registration observed earlier: `201` for a nurse account, login `200`, duplicate `409`, client role injection `400`; test accounts were removed.
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
 - `npm run build:mobile` verified locally: static export succeeds and `src/app/api` is restored.
-- GitHub Actions run `44904871255` succeeded: `app-debug.apk`, 5,600,714 bytes, SHA-256 `3d5be57d18a28de0daae062bffc382c8fea00866186ff44aa7b903148614f284`.
+- GitHub Actions run `44917777448` succeeded: `app-debug.apk`, 5,616,993 bytes, SHA-256 `55dc67f52cb15c405538dbe342714932b9b48b874fa3c2a04e5a0a6bdf51c2eb`.
+- Screenshots `02-shift-start.png`, `11-head-dashboard.png` and `17-head-units.png` were refreshed from the live deployment.
 - **NOT VERIFIED:** installation and opening of the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 ## NOT VERIFIED
 - APK installation/opening on a physical device.
 - Real ICU nurse usability sessions, SUS/TLX results and clinical review of demo task tiers.
 - Neon transient DNS failures observed locally are environmental; production reliability is not measured.
-- Physical-device APK installation remains unverified.
 
 ## Evidence
 - `EVALUATION.md` records commands, observed outputs and screenshot paths.

@@ -18,7 +18,7 @@ cp /tmp/icu-apk-final/app-debug.apk ~/Desktop/icu-tasklog.apk
 
 Or download it again from GitHub Actions:
 
-<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/44904871255>
+<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/44917777448>
 
 At the bottom of that run page, under **Artifacts**, download:
 
@@ -34,8 +34,8 @@ app-debug.apk
 
 ### Artifact details
 
-- Size: 5,600,714 bytes (5.4 MiB)
-- SHA-256: `3d5be57d18a28de0daae062bffc382c8fea00866186ff44aa7b903148614f284`
+- Size: 5,616,993 bytes (5.4 MiB)
+- SHA-256: `55dc67f52cb15c405538dbe342714932b9b48b874fa3c2a04e5a0a6bdf51c2eb`
 
 ## 2. Share it
 

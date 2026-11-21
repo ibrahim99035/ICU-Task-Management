@@ -29,6 +29,8 @@ The production deployment serves the Next.js app and the Hono API from the same 
 | `omar` | `3333` | Nurse |
 | `head` | `9999` | Head nurse |
 
+Demo unit assignments: `amina` → Unit A, `yara` → Unit A and Unit B, `omar` → Unit B. The head-nurse demo account can create more units and change these assignments.
+
 The shift-start screen has a demo option that backdates the shift by two hours, so overdue and tier-ordering states are visible immediately. Turn it off for a live practice shift.
 
 Nurses can also create their own account from the login screen. Self-registration creates **nurse accounts only**; head-nurse accounts are provisioned by the study team. There is no email recovery, and account creation requires a network connection. After the first sign-in, the normal offline nurse flow is available.
