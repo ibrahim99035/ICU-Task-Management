@@ -39,6 +39,7 @@
 - APK installation/opening on a physical device.
 - Real ICU nurse usability sessions, SUS/TLX results and clinical review of demo task tiers.
 - Neon transient DNS failures observed locally are environmental; production reliability is not measured.
+- Unit grouping is currently type/Dexie scaffolding only; there is no unit CRUD, assignment UI, server table or sync path.
 
 ## Evidence
 - `EVALUATION.md` records commands, observed outputs and screenshot paths.
