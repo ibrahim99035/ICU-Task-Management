@@ -7,18 +7,18 @@ This guide explains how to get the latest debug APK, share it with the group, in
 The latest APK was downloaded to:
 
 ```text
-/tmp/icu-apk-register/app-debug.apk
+/tmp/icu-apk-final/app-debug.apk
 ```
 
 Copy it somewhere easier to share:
 
 ```bash
-cp /tmp/icu-apk-register/app-debug.apk ~/Desktop/icu-tasklog.apk
+cp /tmp/icu-apk-final/app-debug.apk ~/Desktop/icu-tasklog.apk
 ```
 
 Or download it again from GitHub Actions:
 
-<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/43312717097>
+<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/44904871255>
 
 At the bottom of that run page, under **Artifacts**, download:
 
@@ -34,8 +34,8 @@ app-debug.apk
 
 ### Artifact details
 
-- Size: 5,600,362 bytes (5.4 MiB)
-- SHA-256: `ce21231cbe455d7ca498b0185c2eacc1f236acb11795fa1ac38f84e526a3f7fe`
+- Size: 5,600,714 bytes (5.4 MiB)
+- SHA-256: `3d5be57d18a28de0daae062bffc382c8fea00866186ff44aa7b903148614f284`
 
 ## 2. Share it
 
@@ -48,7 +48,7 @@ The file is only about **5.4 MB**, so any of these work:
 
 For a group, Google Drive is usually easiest: upload once, share the link, and tell everyone to download it on their Android phone.
 
-Do not send the older `/tmp/icu-apk-final/app-debug.apk`; that one does not include account creation.
+Always share the APK from the run linked above. Do not share stale copies from earlier runs.
 
 ## 3. Install on Android
 

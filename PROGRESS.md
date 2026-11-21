@@ -32,7 +32,7 @@
 - Live self-registration observed: `201` for a nurse account, login `200`, duplicate `409`, client role injection `400`; the check account was removed.
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
 - `npm run build:mobile` verified locally: static export succeeds and `src/app/api` is restored.
-- GitHub Actions run `43312717097` succeeded: `app-debug.apk`, 5,600,362 bytes, SHA-256 `ce21231cbe455d7ca498b0185c2eacc1f236acb11795fa1ac38f84e526a3f7fe`.
+- GitHub Actions run `44904871255` succeeded: `app-debug.apk`, 5,600,714 bytes, SHA-256 `3d5be57d18a28de0daae062bffc382c8fea00866186ff44aa7b903148614f284`.
 - **NOT VERIFIED:** installation and opening of the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 ## NOT VERIFIED

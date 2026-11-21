@@ -45,7 +45,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live head analytics | `GET /api/analytics/unit` on Vercel | **200**; 14 shifts |
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
-| Android CI build | GitHub Actions run `43312717097` | **success**; `app-debug.apk`, 5,600,362 bytes, SHA-256 `ce21231cbe455d7ca498b0185c2eacc1f236acb11795fa1ac38f84e526a3f7fe` |
+| Android CI build | GitHub Actions run `44904871255` | **success**; `app-debug.apk`, 5,600,714 bytes, SHA-256 `3d5be57d18a28de0daae062bffc382c8fea00866186ff44aa7b903148614f284` |
 
 ### Production deployment
 
@@ -53,7 +53,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 - Observed checks: health 200, nurse and head login 200, head analytics 200, CORS preflight 204.
 - Nurse self-registration: live `POST /api/auth/register` returned 201, created a nurse account, and that account signed in successfully. Duplicate username returned 409 and a client-supplied `head_nurse` role returned 400. The verification account was removed after the check.
 - Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors.
-- Android artifact: GitHub Actions run `43312717097` succeeded. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,600,362 bytes, SHA-256 above), and its bundled JavaScript contains `https://icu-tasklog.vercel.app`.
+- Android artifact: GitHub Actions run `44904871255` succeeded. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,600,714 bytes, SHA-256 above), and its bundled JavaScript contains `https://icu-tasklog.vercel.app`.
 - **NOT VERIFIED:** installing and opening the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 The simulation is deterministic and uses only bed labels and participant codes. It is demonstration data, not a study result.
