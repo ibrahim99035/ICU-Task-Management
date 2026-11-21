@@ -1,0 +1,1999 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>TaskLog — Roles, Scenarios &amp; Flows</title>
+<style>
+  :root {
+    --ink: #0f172a;
+    --ink-2: #1e293b;
+    --muted: #64748b;
+    --muted-2: #94a3b8;
+    --line: #e2e8f0;
+    --paper: #ffffff;
+    --wash: #f6f9fa;
+    --teal: #0f766e;
+    --teal-2: #14b8a6;
+    --teal-wash: #ecfdf9;
+    --amber: #b45309;
+    --amber-wash: #fffbeb;
+    --danger: #be123c;
+    --danger-wash: #fff1f2;
+    --violet: #6d28d9;
+    --violet-wash: #f5f3ff;
+    --blue: #1d4ed8;
+    --blue-wash: #eff6ff;
+    --shadow: 0 10px 30px rgba(15, 23, 42, .07);
+    --radius: 18px;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--wash);
+    color: var(--ink);
+    font: 15px/1.62 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    text-rendering: optimizeLegibility;
+  }
+  a { color: var(--teal); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code {
+    background: #f1f5f9;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: .08em .34em;
+    font-size: .88em;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 290px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 26px 20px 22px;
+    background: #0b1624;
+    color: #dbe7ef;
+    border-right: 1px solid #12253a;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 4px 20px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, #0f766e, #0d9488);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+    font-size: 24px;
+    font-weight: 900;
+    color: white;
+    flex: 0 0 auto;
+  }
+  .brand strong { display: block; color: #fff; font-size: 17px; letter-spacing: -.02em; }
+  .brand span { display: block; color: #91a8b9; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; }
+  .nav-label {
+    margin: 22px 8px 8px;
+    font-size: 10px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: #6f8799;
+    font-weight: 800;
+  }
+  .nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    margin: 2px 0;
+    border-radius: 10px;
+    color: #b9ccd8;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: .15s ease;
+  }
+  .nav a:hover, .nav a.active { background: rgba(20,184,166,.13); color: #fff; }
+  .nav a.active { box-shadow: inset 3px 0 0 #2dd4bf; }
+  .nav a .num {
+    font: 700 10px/1 ui-monospace, monospace;
+    color: #5f7a8f;
+    width: 17px;
+  }
+  .nav a.active .num { color: #5eead4; }
+  .side-note {
+    margin-top: 22px;
+    padding: 13px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 12px;
+    background: rgba(255,255,255,.035);
+    color: #9fb5c4;
+    font-size: 11px;
+    line-height: 1.55;
+  }
+  .side-note strong { color: #e7f4f2; }
+
+  main { min-width: 0; }
+  .hero {
+    padding: 54px clamp(22px, 5vw, 76px) 42px;
+    background:
+      radial-gradient(circle at 88% 20%, rgba(20,184,166,.18), transparent 34%),
+      radial-gradient(circle at 60% 110%, rgba(59,130,246,.12), transparent 38%),
+      linear-gradient(180deg, #fff, #f9fcfc);
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 6px 11px;
+    border: 1px solid #cce9e4;
+    border-radius: 999px;
+    background: #f0fdfa;
+    color: #0f766e;
+    font-size: 10px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    font-weight: 900;
+  }
+  .hero h1 {
+    max-width: 960px;
+    margin: 0;
+    font-size: clamp(34px, 5vw, 62px);
+    line-height: 1.03;
+    letter-spacing: -.045em;
+    color: var(--ink);
+  }
+  .hero .lede {
+    max-width: 860px;
+    margin: 20px 0 0;
+    font-size: clamp(16px, 1.6vw, 20px);
+    line-height: 1.55;
+    color: #475569;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(15,23,42,.03);
+  }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal-2); display: inline-block; }
+  .chip.warn i { background: #f59e0b; }
+  .chip.danger i { background: #fb7185; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink-2);
+    border-radius: 11px;
+    padding: 9px 14px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn:hover { background: #f8fafc; }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn.primary:hover { background: #1e293b; }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .content { padding: 0 clamp(20px, 5vw, 76px) 80px; max-width: 1380px; }
+  section { padding-top: 46px; scroll-margin-top: 24px; }
+  .section-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .section-kicker {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-top: 2px;
+    border-radius: 10px;
+    background: var(--ink);
+    color: #fff;
+    font: 800 12px/1 ui-monospace, monospace;
+  }
+  h2 {
+    margin: 0;
+    font-size: clamp(25px, 3vw, 36px);
+    line-height: 1.12;
+    letter-spacing: -.035em;
+  }
+  .section-head p { margin: 5px 0 0; color: var(--muted); max-width: 820px; font-size: 14px; }
+  h3 { margin: 0 0 9px; font-size: 18px; line-height: 1.25; letter-spacing: -.02em; }
+  h4 { margin: 0 0 8px; font-size: 14px; line-height: 1.3; }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .card.tight { padding: 16px; }
+  .card.no-shadow { box-shadow: none; }
+  .card h3:last-child, .card p:last-child { margin-bottom: 0; }
+  .soft { background: var(--wash); }
+  .teal-card { border-color: #b7e6dd; background: linear-gradient(180deg,#fff,#f4fdfb); }
+  .amber-card { border-color: #fde68a; background: linear-gradient(180deg,#fff,#fffdf3); }
+  .danger-card { border-color: #fecdd3; background: linear-gradient(180deg,#fff,#fff7f8); }
+  .violet-card { border-color: #ddd6fe; background: linear-gradient(180deg,#fff,#fbf9ff); }
+  .blue-card { border-color: #bfdbfe; background: linear-gradient(180deg,#fff,#f7fbff); }
+
+  .role-card { position: relative; overflow: hidden; }
+  .role-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--teal);
+  }
+  .role-card.head::before { background: var(--violet); }
+  .role-card.public::before { background: #64748b; }
+  .role-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .role-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--teal-wash);
+    color: var(--teal);
+    font-size: 20px;
+    font-weight: 900;
+    flex: 0 0 auto;
+  }
+  .role-card.head .role-icon { background: var(--violet-wash); color: var(--violet); }
+  .role-card.public .role-icon { background: #f1f5f9; color: #475569; }
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font: 800 9px/1.3 ui-monospace, monospace;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .role-card.head .role-badge { background: var(--violet-wash); color: var(--violet); }
+  .role-card.public .role-badge { background: #f1f5f9; color: #475569; }
+  .role-card h3 { margin-top: 1px; }
+  .role-card .tagline { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .role-card ul { margin: 0; padding-left: 18px; }
+  .role-card li { margin: 5px 0; color: #475569; }
+  .role-card li strong { color: var(--ink-2); }
+
+  .callout {
+    border-left: 4px solid var(--teal-2);
+    background: #f0fdfa;
+    border-radius: 0 14px 14px 0;
+    padding: 14px 17px;
+    color: #134e4a;
+  }
+  .callout.warn { border-left-color: #f59e0b; background: var(--amber-wash); color: #78350f; }
+  .callout.danger { border-left-color: #fb7185; background: var(--danger-wash); color: #881337; }
+  .callout.violet { border-left-color: #8b5cf6; background: var(--violet-wash); color: #4c1d95; }
+  .callout.blue { border-left-color: #60a5fa; background: var(--blue-wash); color: #1e3a8a; }
+  .callout strong { display: block; margin-bottom: 3px; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: var(--shadow); }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  th, td { padding: 11px 13px; text-align: left; vertical-align: top; border-bottom: 1px solid #edf2f7; font-size: 12.5px; }
+  th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: 0; }
+  td strong { color: var(--ink-2); }
+  .yes, .no, .own, .read { display: inline-flex; align-items: center; gap: 5px; font-weight: 800; white-space: nowrap; }
+  .yes { color: #047857; }
+  .no { color: #be123c; }
+  .own { color: #0f766e; }
+  .read { color: #1d4ed8; }
+  .yes::before { content: "✓"; }
+  .no::before { content: "—"; }
+  .own::before { content: "◐"; }
+  .read::before { content: "◉"; }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+    margin: 14px 0 4px;
+  }
+  .flow-step {
+    flex: 1 1 135px;
+    min-width: 125px;
+    padding: 12px 12px 11px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: #fff;
+    position: relative;
+  }
+  .flow-step .n {
+    display: inline-grid;
+    place-items: center;
+    width: 21px;
+    height: 21px;
+    margin-bottom: 6px;
+    border-radius: 50%;
+    background: var(--teal-wash);
+    color: var(--teal);
+    font: 900 10px/1 ui-monospace, monospace;
+  }
+  .flow-step strong { display: block; font-size: 12px; line-height: 1.25; color: var(--ink-2); }
+  .flow-step span { display: block; margin-top: 3px; color: var(--muted); font-size: 10.5px; line-height: 1.4; }
+  .flow-step::after {
+    content: "→";
+    position: absolute;
+    right: -9px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-weight: 900;
+    z-index: 2;
+  }
+  .flow-step:last-child::after { display: none; }
+
+  .scenario {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .scenario + .scenario { margin-top: 12px; }
+  .scenario summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 17px 18px;
+    background: #fff;
+    transition: background .15s ease;
+  }
+  .scenario summary::-webkit-details-marker { display: none; }
+  .scenario summary:hover { background: #fbfdfd; }
+  .scenario[open] summary { border-bottom: 1px solid #edf2f7; background: #fbfdfd; }
+  .scenario .snum {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: var(--ink);
+    color: #fff;
+    font: 900 10px/1 ui-monospace, monospace;
+  }
+  .scenario .stitle { flex: 1; min-width: 0; }
+  .scenario .stitle strong { display: block; font-size: 15px; line-height: 1.28; color: var(--ink); }
+  .scenario .stitle span { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
+  .scenario .caret { color: #94a3b8; font-weight: 900; transition: transform .15s ease; margin-top: 4px; }
+  .scenario[open] .caret { transform: rotate(90deg); }
+  .scenario-body { padding: 18px; }
+  .scenario-body > :last-child { margin-bottom: 0; }
+  .scenario-body ol, .scenario-body ul { margin: 0 0 12px; padding-left: 21px; }
+  .scenario-body li { margin: 6px 0; color: #475569; }
+  .scenario-body li strong { color: var(--ink-2); }
+  .scenario-body .result {
+    margin-top: 13px;
+    padding: 11px 13px;
+    border-radius: 11px;
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    color: #115e59;
+    font-size: 12.5px;
+  }
+  .scenario-body .result strong { color: #134e4a; }
+  .rule-note {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #78350f;
+    font-size: 12px;
+  }
+  .rule-note strong { color: #92400e; }
+
+  .mini-list { margin: 0; padding-left: 18px; }
+  .mini-list li { margin: 5px 0; color: #475569; }
+  .mini-list li strong { color: var(--ink-2); }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 0; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+  .pill.teal { background: var(--teal-wash); color: var(--teal); }
+  .pill.amber { background: var(--amber-wash); color: var(--amber); }
+  .pill.danger { background: var(--danger-wash); color: var(--danger); }
+  .pill.violet { background: var(--violet-wash); color: var(--violet); }
+  .pill.blue { background: var(--blue-wash); color: var(--blue); }
+
+  .quote {
+    margin: 16px 0 0;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: var(--ink);
+    color: #dbe7ef;
+    font-size: 13px;
+  }
+  .quote strong { color: #5eead4; }
+
+  .small { color: var(--muted); font-size: 11.5px; }
+  .divider { height: 1px; background: var(--line); margin: 26px 0; }
+  .kicker { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 900; color: var(--muted); }
+
+  .qa { display: grid; gap: 10px; }
+  .qa details {
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: #fff;
+    padding: 0;
+    overflow: hidden;
+  }
+  .qa summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 13px 15px;
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--ink-2);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary::before { content: "?"; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: var(--teal-wash); color: var(--teal); font: 900 11px/1 ui-monospace, monospace; flex: 0 0 auto; }
+  .qa .a { padding: 0 15px 14px 45px; color: #475569; font-size: 12.5px; }
+  .qa .a p { margin: 0; }
+
+  .footer {
+    margin-top: 54px;
+    padding: 30px clamp(20px, 5vw, 76px);
+    border-top: 1px solid var(--line);
+    background: #fff;
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+  .footer strong { color: var(--ink-2); }
+
+  .mobile-bar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 10px 14px;
+    background: rgba(11,22,36,.96);
+    color: #fff;
+    backdrop-filter: blur(10px);
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .mobile-bar .mbrand { font-weight: 900; letter-spacing: -.02em; }
+  .mobile-bar button {
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    border-radius: 9px;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .mobile-nav { display: none; }
+
+  @media (max-width: 1020px) {
+    .layout { display: block; }
+    .sidebar { display: none; }
+    .mobile-bar { display: flex; }
+    .mobile-nav.open {
+      display: block;
+      position: sticky;
+      top: 52px;
+      z-index: 40;
+      max-height: 65vh;
+      overflow-y: auto;
+      padding: 12px 14px 16px;
+      background: #0b1624;
+      border-bottom: 1px solid #12253a;
+    }
+    .mobile-nav a {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 9px;
+      color: #c6d7e2;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .mobile-nav a:hover { background: rgba(20,184,166,.13); color: #fff; }
+    .hero { padding-top: 36px; }
+    .grid-3 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .content { padding-bottom: 55px; }
+    .flow-step { flex-basis: 100%; }
+    .flow-step::after { content: "↓"; right: 50%; top: auto; bottom: -10px; transform: translateX(50%); }
+    .flow-step:last-child::after { display: none; }
+    .hero h1 { font-size: 36px; }
+  }
+
+  @media print {
+    @page { size: A4; margin: 14mm; }
+    body { background: #fff; font-size: 10.5pt; }
+    .sidebar, .mobile-bar, .mobile-nav, .hero-actions, .no-print { display: none !important; }
+    .layout { display: block; }
+    .hero { padding: 0 0 18px; background: #fff; border-bottom: 1px solid #ddd; }
+    .hero h1 { font-size: 28pt; }
+    .hero .lede { font-size: 12pt; }
+    .content { padding: 0; max-width: none; }
+    section { padding-top: 22px; page-break-inside: auto; }
+    .card, .scenario, .table-wrap { box-shadow: none; break-inside: avoid; }
+    .scenario { break-inside: avoid; }
+    .scenario:not([open]) .scenario-body { display: block; }
+    .scenario summary { background: #fff; }
+    .scenario .caret { display: none; }
+    .flow-step::after { color: #777; }
+    a { color: #000; text-decoration: none; }
+    .chip { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="mobile-bar">
+  <div class="mbrand">TaskLog Roles &amp; Flows</div>
+  <button type="button" id="menuButton" aria-expanded="false" aria-controls="mobileNav">Contents</button>
+</div>
+<nav class="mobile-nav" id="mobileNav" aria-label="Mobile contents">
+  <a href="#overview">Overview</a>
+  <a href="#roles">Roles at a glance</a>
+  <a href="#permissions">Permission matrix</a>
+  <a href="#visitor">Visitor flow</a>
+  <a href="#nurse">Nurse role</a>
+  <a href="#nurse-scenarios">Nurse scenarios</a>
+  <a href="#head">Head nurse role</a>
+  <a href="#head-scenarios">Head nurse scenarios</a>
+  <a href="#cross-role">Cross-role flow</a>
+  <a href="#offline">Offline and sync</a>
+  <a href="#emergency">Emergency flow</a>
+  <a href="#rules">Product rules</a>
+  <a href="#screens">Screen map</a>
+  <a href="#technical">Technical appendix</a>
+  <a href="#demo">Demo script</a>
+  <a href="#evidence">Evidence</a>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">+</div>
+      <div>
+        <strong>TaskLog</strong>
+        <span>Roles &amp; Flows</span>
+      </div>
+    </div>
+    <div class="nav-label">Explain the demo</div>
+    <nav class="nav" id="desktopNav" aria-label="Contents">
+      <a href="#overview"><span class="num">01</span> One-minute overview</a>
+      <a href="#roles"><span class="num">02</span> Roles at a glance</a>
+      <a href="#permissions"><span class="num">03</span> Permission matrix</a>
+      <a href="#visitor"><span class="num">04</span> Visitor flow</a>
+      <a href="#nurse"><span class="num">05</span> Nurse role</a>
+      <a href="#nurse-scenarios"><span class="num">06</span> Nurse scenarios</a>
+      <a href="#head"><span class="num">07</span> Head nurse role</a>
+      <a href="#head-scenarios"><span class="num">08</span> Head nurse scenarios</a>
+      <a href="#cross-role"><span class="num">09</span> Cross-role flow</a>
+      <a href="#offline"><span class="num">10</span> Offline and sync</a>
+      <a href="#emergency"><span class="num">11</span> Emergency flow</a>
+      <a href="#rules"><span class="num">12</span> Product rules</a>
+      <a href="#screens"><span class="num">13</span> Screen map</a>
+      <a href="#technical"><span class="num">14</span> Technical appendix</a>
+      <a href="#demo"><span class="num">15</span> Demo script</a>
+      <a href="#evidence"><span class="num">16</span> Evidence</a>
+    </nav>
+    <div class="side-note">
+      <strong>Standalone page.</strong> This file contains all styles and scripts. It does not need the internet, a build step or a web server. Open it directly in a browser.
+    </div>
+    <div class="side-note">
+      <strong>Product truth:</strong> TaskLog is a planning and logging aid for practice data. It is not a medical device and does not replace monitors, alarms, official orders or clinical handover.
+    </div>
+  </aside>
+
+  <main>
+    <header class="hero" id="overview">
+      <div class="eyebrow">Thesis demo · explanation guide</div>
+      <h1>Roles, scenarios and flows</h1>
+      <p class="lede">
+        A single-page explanation of who uses TaskLog, what each role can do, what happens on every main screen,
+        and how the nurse and head-nurse flows connect. Written to be read aloud, printed, or used as a
+        presentation script.
+      </p>
+      <div class="chips">
+        <span class="chip"><i></i> 2 authenticated roles</span>
+        <span class="chip"><i></i> Offline-first nurse flow</span>
+        <span class="chip"><i></i> Rule-based, no AI</span>
+        <span class="chip warn"><i></i> No patient identifiers</span>
+        <span class="chip danger"><i></i> Not a medical device</span>
+      </div>
+      <div class="hero-actions no-print">
+        <button class="btn primary" type="button" onclick="window.print()">Print / Save as PDF</button>
+        <button class="btn" type="button" id="expandAll">Expand all scenarios</button>
+        <a class="btn" href="#demo">Jump to demo script</a>
+      </div>
+      <div class="meta-row">
+        <span>Live demo: <a href="https://icu-tasklog.vercel.app">icu-tasklog.vercel.app</a></span>
+        <span>Evidence updated: 21 November 2026</span>
+        <span>Product roles: <code>nurse</code> and <code>head_nurse</code></span>
+      </div>
+    </header>
+
+    <div class="content">
+      <section id="one-minute">
+        <div class="section-head">
+          <div class="section-kicker">01</div>
+          <div>
+            <h2>The one-minute explanation</h2>
+            <p>Use this as the opening answer before walking through screens or scenarios.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card teal-card">
+            <h3>What TaskLog does</h3>
+            <p>
+              TaskLog is a thesis demo for nurses working in dynamic care units. It helps a nurse plan a shift by
+              task priority, time care from stored timestamps, protect tier 1–2 work during an emergency, and build
+              a handover from what actually happened.
+            </p>
+            <p>
+              A head nurse creates units and assigns nurses. The nurse starts a shift inside one unit. Every task
+              created in that shift belongs to the same unit, so the head nurse can filter shifts, analytics and
+              exports by unit.
+            </p>
+          </div>
+          <div class="card blue-card">
+            <h3>The six points to say out loud</h3>
+            <ol class="mini-list">
+              <li><strong>Two roles:</strong> nurse and head nurse. There is no admin role, no doctor role and no patient account.</li>
+              <li><strong>Dynamic units:</strong> units are not hard-coded. A head nurse creates them and assigns nurses.</li>
+              <li><strong>Offline-first nurse:</strong> actions are written to the device first, then synced.</li>
+              <li><strong>Rule-based:</strong> no AI or machine learning. Tier 1–2 work is never auto-deferred.</li>
+              <li><strong>No score:</strong> the head nurse writes five separate 1–5 ratings; the app never averages or ranks nurses.</li>
+              <li><strong>No identifiers:</strong> bed number plus a short nickname only. No names, MRNs, dates of birth or photos.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="quote">
+          <strong>The shortest correct answer:</strong> “TaskLog is an offline-first, rule-based task planner and
+          handover aid for nurses. A head nurse configures units and reviews finished shifts; a nurse works the
+          shift inside one assigned unit. It records timestamps and events, not clinical decisions or performance
+          scores.”
+        </div>
+      </section>
+
+      <section id="roles">
+        <div class="section-head">
+          <div class="section-kicker">02</div>
+          <div>
+            <h2>The roles at a glance</h2>
+            <p>
+              The application has exactly two authenticated roles. The unauthenticated visitor is an entry state,
+              not a third role. Head-nurse accounts are provisioned; public signup creates nurse accounts only.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <article class="card role-card public">
+            <div class="role-top">
+              <div class="role-icon">?</div>
+              <span class="role-badge">Entry state</span>
+            </div>
+            <h3>Visitor / unauthenticated</h3>
+            <p class="tagline">Someone who opens the link but has not signed in.</p>
+            <ul>
+              <li><strong>Can:</strong> read the login and disclaimer, create a nurse account, or resume a saved offline session.</li>
+              <li><strong>Cannot:</strong> see shifts, units, tasks, reviews or exports.</li>
+              <li><strong>Lands on:</strong> <code>/login</code>; the root route redirects there.</li>
+            </ul>
+          </article>
+
+          <article class="card role-card">
+            <div class="role-top">
+              <div class="role-icon">N</div>
+              <span class="role-badge">nurse</span>
+            </div>
+            <h3>Nurse</h3>
+            <p class="tagline">The person working the shift and logging care.</p>
+            <ul>
+              <li><strong>Can:</strong> start/end a shift in an assigned unit, manage tasks, log interruptions, handle emergencies, reschedule tier 3–4 work, finalize handover, read own summary and reviews, complete surveys.</li>
+              <li><strong>Cannot:</strong> create units, assign nurses, see other nurses’ shifts, rate anyone, or export unit data.</li>
+              <li><strong>Lands on:</strong> <code>/beds</code> when a shift is active; otherwise <code>/shift-start</code>.</li>
+            </ul>
+          </article>
+
+          <article class="card role-card head">
+            <div class="role-top">
+              <div class="role-icon">H</div>
+              <span class="role-badge">head_nurse</span>
+            </div>
+            <h3>Head nurse</h3>
+            <p class="tagline">The person who configures units and reviews finished shifts.</p>
+            <ul>
+              <li><strong>Can:</strong> create/archive units, assign nurses, filter dashboard/shifts/exports by unit, inspect shift timelines, write five manual ratings, export CSV.</li>
+              <li><strong>Cannot:</strong> run the nurse shift flow, start or edit tasks, or change a nurse’s event log.</li>
+              <li><strong>Lands on:</strong> <code>/head</code>.</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="callout blue" style="margin-top:16px">
+          <strong>Important distinction</strong>
+          The head nurse is not a “super nurse” inside the same screens. The head-nurse screens are read/analyse
+          screens plus unit configuration and manual review. The nurse flow is a separate, offline-first workspace.
+        </div>
+      </section>
+
+      <section id="permissions">
+        <div class="section-head">
+          <div class="section-kicker">03</div>
+          <div>
+            <h2>Permission matrix</h2>
+            <p>This is the quickest table to show that the role boundary is deliberate and enforced in both the UI and the API.</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Action / area</th>
+                <th>Visitor</th>
+                <th>Nurse</th>
+                <th>Head nurse</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Sign in with username + PIN</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+              <tr><td>Create a public account</td><td class="yes">Nurse only</td><td class="no">—</td><td class="no">—</td></tr>
+              <tr><td>Resume a saved offline session</td><td class="yes">If saved</td><td class="yes">Yes</td><td class="no">Head screens need network</td></tr>
+              <tr><td>Start / end own shift</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
+              <tr><td>Choose unit when starting shift</td><td class="no">—</td><td class="own">Assigned active units</td><td class="no">—</td></tr>
+              <tr><td>Create, start, pause, finish tasks</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
+              <tr><td>Quick-add a task</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
+              <tr><td>Log interruptions and emergency time</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
+              <tr><td>Confirm new times for deferred tier 3–4 work</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
+              <tr><td>Finalize handover snapshot</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
+              <tr><td>Read own shift summary and own reviews</td><td class="no">—</td><td class="own">Own</td><td class="read">All shifts</td></tr>
+              <tr><td>Complete SUS / raw NASA-TLX surveys</td><td class="no">—</td><td class="yes">Yes</td><td class="yes">Reachable, not linked</td></tr>
+              <tr><td>Create, rename, archive or delete units</td><td class="no">—</td><td class="no">—</td><td class="yes">Yes</td></tr>
+              <tr><td>Assign / remove nurses from a unit</td><td class="no">—</td><td class="no">—</td><td class="yes">Yes</td></tr>
+              <tr><td>View all nurses’ finished shifts</td><td class="no">—</td><td class="no">—</td><td class="read">Yes</td></tr>
+              <tr><td>Filter dashboard, shifts and exports by unit</td><td class="no">—</td><td class="no">—</td><td class="yes">Yes</td></tr>
+              <tr><td>Open shift detail and event timeline</td><td class="no">—</td><td class="no">—</td><td class="read">Yes</td></tr>
+              <tr><td>Write five manual 1–5 ratings</td><td class="no">—</td><td class="no">—</td><td class="yes">Yes</td></tr>
+              <tr><td>Export CSV (events, summaries, surveys, reviews)</td><td class="no">—</td><td class="no">—</td><td class="yes">Yes</td></tr>
+              <tr><td>Access the other role’s screens by URL</td><td class="no">—</td><td class="no">Redirected/forbidden</td><td class="no">Redirected/forbidden</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small" style="margin-top:10px">
+          Legend: <span class="yes">yes</span> · <span class="own">own data only</span> · <span class="read">read-only</span> ·
+          <span class="no">not available</span>. The API repeats the check with <code>requireRole</code>; hiding a
+          button in the client is not the only protection.
+        </p>
+      </section>
+
+      <section id="visitor">
+        <div class="section-head">
+          <div class="section-kicker">04</div>
+          <div>
+            <h2>Visitor / unauthenticated flow</h2>
+            <p>The visitor is not a product role, but it is the first state every participant sees.</p>
+          </div>
+        </div>
+
+        <div class="flow" aria-label="Visitor flow">
+          <div class="flow-step"><span class="n">1</span><strong>Open link</strong><span>Root route checks for a saved session.</span></div>
+          <div class="flow-step"><span class="n">2</span><strong>Login screen</strong><span>Sign in or create a nurse account.</span></div>
+          <div class="flow-step"><span class="n">3</span><strong>Choose path</strong><span>Online login, registration, or resume offline.</span></div>
+          <div class="flow-step"><span class="n">4</span><strong>Role routing</strong><span>Head → dashboard; nurse → shift start/beds.</span></div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card">
+            <h3>What the visitor sees</h3>
+            <ul class="mini-list">
+              <li>Product name and the “planning, timing &amp; handover aid” positioning.</li>
+              <li>The disclaimer: not a medical device; practice data only.</li>
+              <li>Login fields: username and PIN.</li>
+              <li>A “Create account” tab for a nurse account.</li>
+              <li>A “Continue offline” option if a session was previously saved on that device.</li>
+            </ul>
+          </div>
+          <div class="card amber-card">
+            <h3>What the visitor cannot do</h3>
+            <ul class="mini-list">
+              <li>Browse units, shifts, tasks, handovers, reviews or exports.</li>
+              <li>Create a head-nurse account from the public form.</li>
+              <li>Choose a role in the request; the server rejects role injection.</li>
+              <li>Recover a PIN by email; there is no email or recovery flow in this demo.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top:16px">
+          <strong>Explain it this way</strong>
+          “A visitor can only create a nurse account or sign in. Head-nurse accounts are provisioned by the study
+          team. The server never trusts a role sent by the browser.”
+        </div>
+      </section>
+
+      <section id="nurse">
+        <div class="section-head">
+          <div class="section-kicker">05</div>
+          <div>
+            <h2>Nurse role</h2>
+            <p>The nurse is the main operational user. The nurse flow is designed to keep working when the network is unreliable.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card teal-card">
+            <h3>Purpose of the role</h3>
+            <p>
+              The nurse plans and logs the shift: choose an assigned unit, start with demo beds, work the tier-sorted
+              queue, record interruptions and emergencies, confirm new times for deferred work, finalize a handover,
+              and end the shift.
+            </p>
+            <div class="pill-row">
+              <span class="pill teal">Beds</span>
+              <span class="pill teal">Tasks</span>
+              <span class="pill teal">Handover</span>
+              <span class="pill teal">Me</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Role boundary</h3>
+            <ul class="mini-list">
+              <li><strong>Sees:</strong> own active shift, own beds, own tasks, own handovers, own summary, own reviews.</li>
+              <li><strong>Does not see:</strong> other nurses’ shifts, unit-wide analytics, export screens, unit management.</li>
+              <li><strong>Offline:</strong> the nurse flow is the only flow that is designed to continue offline.</li>
+              <li><strong>Routing:</strong> if no shift is active, nurse screens redirect to <code>/shift-start</code>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout violet" style="margin-top:16px">
+          <strong>Unit assignment is a precondition</strong>
+          A nurse must be assigned to at least one active unit before a shift can start. If no active unit is cached
+          or returned, the shift-start screen shows “No assigned unit” and disables the start button.
+        </div>
+
+        <div class="divider"></div>
+
+        <h3>Nurse screen map</h3>
+        <div class="grid-3">
+          <div class="card tight no-shadow">
+            <h4><code>/shift-start</code> · Start a shift</h4>
+            <p class="small">Choose unit, shift type and demo beds. Backdate by two hours for a demo.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/beds</code> · Bed overview</h4>
+            <p class="small">Bed cards, task counts, emergencies, shift clock and end-shift action.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/tasks</code> · Task queue</h4>
+            <p class="small">Tier-sorted work, filters, timers, quick add, interruption logging.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/review-deferred</code> · Confirm new times</h4>
+            <p class="small">After an emergency, confirm suggested times for tier 3–4 tasks.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/handover</code> · Handover</h4>
+            <p class="small">Generate a snapshot from the event log, add a note and finalize.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/summary</code> · Shift summary</h4>
+            <p class="small">Timestamp-derived totals, completion, tier facts and review status.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="nurse-scenarios">
+        <div class="section-head">
+          <div class="section-kicker">06</div>
+          <div>
+            <h2>Nurse scenarios and flows</h2>
+            <p>Each scenario lists the trigger, the steps, the result and the rule that makes it defensible.</p>
+          </div>
+        </div>
+
+        <details class="scenario" open>
+          <summary>
+            <span class="snum">N1</span>
+            <span class="stitle"><strong>Create a nurse account</strong><span>First-time participant; no account exists.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <code>/login</code> and choose <strong>Create account</strong>.</li>
+              <li>Enter a unique username, display name, PIN and confirmation PIN.</li>
+              <li>The server hashes the PIN with bcrypt and creates only a <code>nurse</code> account.</li>
+              <li>A participant code such as <code>N-...</code> is generated for analysis.</li>
+              <li>The app signs the nurse in and sends them to <code>/shift-start</code>.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> a nurse account exists, the role is forced server-side, and the account can start a shift after the head nurse assigns it to a unit.</div>
+            <div class="rule-note"><strong>Rule:</strong> public signup never creates a head nurse. A client-supplied role is rejected. Duplicate usernames return an error.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N2</span>
+            <span class="stitle"><strong>Sign in or resume offline</strong><span>Returning nurse; network may or may not be available.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Online: enter username and PIN at <code>/login</code>. The API returns a token and the user record.</li>
+              <li>The app stores the auth record locally so the session can be resumed.</li>
+              <li>Head nurse → <code>/head</code>; nurse → <code>/beds</code>.</li>
+              <li>If the nurse has no active shift, <code>/beds</code> redirects to <code>/shift-start</code>.</li>
+              <li>Offline: choose <strong>Continue offline</strong>. The saved session is resumed from the device.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the nurse can return to the local shift and continue logging without the server.</div>
+            <div class="rule-note"><strong>Rule:</strong> offline resume is a nurse convenience, not a bypass of role rules. The device still has only that nurse’s local data.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N3</span>
+            <span class="stitle"><strong>Start a shift inside an assigned unit</strong><span>Nurse is assigned to one or more active units.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <code>/shift-start</code>.</li>
+              <li>Choose an assigned active unit from the <strong>Unit</strong> card. The assigned units come from the cache and are refreshed from the API when online.</li>
+              <li>Choose shift type: <strong>Day</strong>, <strong>Night</strong> or <strong>Custom</strong>.</li>
+              <li>Choose the demo beds. The default is all six beds with their preset tasks.</li>
+              <li>Optionally keep <strong>Demo: start 2 hours ago</strong> to make overdue and tier-ordering states visible immediately.</li>
+              <li>Tap <strong>Start day shift · [unit] · 6 beds · 41 tasks</strong>.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> a local shift row is created with <code>unitId</code> and <code>unitName</code>; beds, preset tasks and a <code>SHIFT_STARTED</code> event are written to Dexie first.</div>
+            <div class="rule-note"><strong>Rule:</strong> one shift has exactly one unit. If no unit is selected, the start button is disabled. Tasks created in the shift inherit that unit.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N4</span>
+            <span class="stitle"><strong>Work the tier-sorted task queue</strong><span>Shift is active; the nurse needs to see what matters first.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <code>/tasks</code>. The queue is sorted by tier, then time window.</li>
+              <li>Use the filters <strong>Open</strong>, <strong>Overdue</strong>, <strong>Deferred</strong> and <strong>Done</strong>.</li>
+              <li>Open a bed from <code>/beds</code> to filter the queue to that bed.</li>
+              <li>Press play to start a task; press pause to stop the timer; press resume to continue; press done to finish.</li>
+              <li>Pin a task if it must stay visible at the top.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> each action appends an event. The task status and elapsed time are computed from the event log, not from an in-memory counter.</div>
+            <div class="rule-note"><strong>Rule:</strong> durations come from stored timestamps. A task marked done without a timer records completion but no duration.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N5</span>
+            <span class="stitle"><strong>Correct a timestamp</strong><span>The nurse tapped the wrong time; the original must remain auditable.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open the task detail sheet.</li>
+              <li>Find the stored event for start, pause, resume or completion.</li>
+              <li>Edit the displayed time and save the correction.</li>
+              <li>The app writes a correction event; the original event is not deleted.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the projection uses the corrected time while the event history still shows what happened.</div>
+            <div class="rule-note"><strong>Rule:</strong> corrections are additive. The log is the evidence, not a mutable “current value” only.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N6</span>
+            <span class="stitle"><strong>Quick-add a task</strong><span>A new task appears that was not in the preset list.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>On <code>/tasks</code>, tap the plus button.</li>
+              <li>Choose the bed.</li>
+              <li>Pick a preset: repositioning, oral care, vital signs, charting, supplies or family update.</li>
+              <li>Or expand <strong>Custom task</strong> and enter title, tier, category and expected minutes.</li>
+              <li>Confirm. The task is added to the current shift and unit.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the new task appears in the queue and follows the same timer, tier and handover rules.</div>
+            <div class="rule-note"><strong>Rule:</strong> quick add is a local-first action. It is queued for sync like every other event.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N7</span>
+            <span class="stitle"><strong>Log an interruption</strong><span> Care is interrupted by a physician request, missing equipment, family/visitor, other staff or another reason.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>From the task queue, open <strong>Interruption</strong>; or open the active task bar and choose interrupt.</li>
+              <li>Choose the affected bed/task if relevant.</li>
+              <li>Choose a reason.</li>
+              <li>Record the start and end time.</li>
+              <li>Optionally pause the active task; resume it when work continues.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> an interruption event is stored with its reason and duration. The head dashboard can show top reasons and total minutes.</div>
+            <div class="rule-note"><strong>Rule:</strong> interruption time is recorded, not guessed. It is displayed separately from direct care.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N8</span>
+            <span class="stitle"><strong>Start and end an emergency</strong><span>A bed needs immediate attention and the nurse must protect critical work.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>On <code>/beds</code>, choose <strong>Emergency on this bed</strong>.</li>
+              <li>Confirm. The emergency is active and the banner appears.</li>
+              <li>Tier 1–2 tasks on that bed are flagged with <strong>needs attention</strong> and stay visible.</li>
+              <li>When the emergency ends, choose <strong>End emergency &amp; review deferrals</strong>.</li>
+              <li>The app suggests new times for tier 3–4 tasks using the actual emergency duration.</li>
+              <li>Review each proposal, edit the time if needed, and confirm one or all.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> emergency minutes are recorded, tier 1–2 work was never deferred, and only tier 3–4 work receives a new time after confirmation.</div>
+            <div class="rule-note"><strong>Rule:</strong> this is the core safety rule. The app never automatically defers tier 1–2 tasks. Nothing moves until the nurse confirms the new time.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N9</span>
+            <span class="stitle"><strong>Finalize a handover</strong><span>The nurse needs a shift handover built from what actually happened.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <code>/handover</code>.</li>
+              <li>Choose a bed.</li>
+              <li>Review the snapshot: done, pending, deferred and missed tasks; interruptions; emergency minutes.</li>
+              <li>Add a free-text note. The UI warns against names and identifiers.</li>
+              <li>Tap <strong>Finalize handover</strong> and confirm.</li>
+              <li>Copy, share or print the generated handover text.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> a frozen handover snapshot is written to the event log. A later edit cannot overwrite it.</div>
+            <div class="rule-note"><strong>Rule:</strong> the handover is generated from stored events, not typed from memory. The snapshot is immutable after finalization.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N10</span>
+            <span class="stitle"><strong>End the shift and read the summary</strong><span>Care is complete; the nurse wants a timestamp-based record.</span></span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>On <code>/beds</code>, choose <strong>End this shift</strong>.</li>
+              <li>Confirm the end-shift dialog.</li>
+              <li>Open tasks are marked missed with the reason <code>shift_end</code>.</li>
+              <li>The summary is frozen and opened at <code>/summary</code>.</li>
+              <li>Read direct care, indirect care, interruption and emergency minutes; completion; tier 1–2 on-time rate; missed/deferred counts.</li>
+              <li>If a head-nurse review exists, the nurse can read the manual ratings on the summary or in <code>/me</code>.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the shift is closed, the summary becomes stable, and the data is available for sync and head-nurse review.</div>
+            <div class="rule-note"><strong>Rule:</strong> the summary is computed from timestamps. It is not a performance score and does not rank the nurse.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N11</span>
+            <span class="stitle"><strong>Surveys, privacy and sign-out</strong><span>The participant finishes or wants to understand the data.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <code>/me</code> for profile, active shift, local history, reviews and tool links.</li>
+              <li>Open <strong>Evaluation surveys</strong> to complete SUS and raw NASA-TLX forms. Answers use the participant code, not a patient identifier.</li>
+              <li>Open <strong>Privacy &amp; data</strong> to read what is stored and what is not.</li>
+              <li>Sign out. The confirmation explains that local events, tasks, handovers, shifts and beds are removed from this browser; synced server copies remain.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the participant can complete the evaluation instruments and understand the data boundary. Signing out clears the local device copy, including any unsynced outbox items, so the confirmation is a deliberate warning.</div>
+            <div class="rule-note"><strong>Rule:</strong> surveys are anonymous by participant code. Sign out clears local data, not server records; there is no self-service server deletion in this demo.</div>
+          </div>
+        </details>
+
+        <div class="callout danger" style="margin-top:16px">
+          <strong>What the nurse cannot do</strong>
+          The nurse cannot create units, assign other nurses, open the head dashboard, rate themselves or anyone
+          else, inspect another nurse’s shifts, or export the unit dataset. A direct URL to a head-nurse screen
+          redirects, and the API also rejects the request.
+        </div>
+      </section>
+
+      <section id="head">
+        <div class="section-head">
+          <div class="section-kicker">07</div>
+          <div>
+            <h2>Head nurse role</h2>
+            <p>The head nurse configures the organisational layer and reviews the evidence after shifts finish.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card violet-card">
+            <h3>Purpose of the role</h3>
+            <p>
+              The head nurse creates units, assigns nurses, monitors unit-level facts, opens an individual shift to
+              see what happened, writes five manual ratings, and exports CSV files for analysis.
+            </p>
+            <div class="pill-row">
+              <span class="pill violet">Dashboard</span>
+              <span class="pill violet">Units</span>
+              <span class="pill violet">Shifts</span>
+              <span class="pill violet">Export</span>
+              <span class="pill violet">Me</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Role boundary</h3>
+            <ul class="mini-list">
+              <li><strong>Sees:</strong> all units, all nurses’ finished and open shifts, unit analytics, event timelines, reviews and exports.</li>
+              <li><strong>Does not see:</strong> a “super nurse” task workspace. Head screens are read/analyse plus unit configuration.</li>
+              <li><strong>Offline:</strong> head-nurse screens require a connection. Nurse logging remains offline on the nurse device.</li>
+              <li><strong>Routing:</strong> if a nurse opens a head URL, the app redirects to <code>/beds</code>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout violet" style="margin-top:16px">
+          <strong>The unit model</strong>
+          A nurse can belong to more than one unit. A shift belongs to exactly one unit. Tasks inherit the shift
+          unit. Any head nurse in this demo can manage all units; <code>created_by</code> is retained for audit.
+        </div>
+
+        <div class="divider"></div>
+
+        <h3>Head-nurse screen map</h3>
+        <div class="grid-3">
+          <div class="card tight no-shadow">
+            <h4><code>/head</code> · Unit dashboard</h4>
+            <p class="small">Unit-filtered averages, time split, interruption reasons, review queue and recent shifts.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/head/units</code> · Units</h4>
+            <p class="small">Create, rename, archive/restore, delete unused units, assign nurses.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/head/shifts</code> · Nurse shifts</h4>
+            <p class="small">Date, unit and nurse filters; search; review status.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/head/shift</code> · Shift detail</h4>
+            <p class="small">Summary facts, task breakdown, interruptions, emergency timeline and event log.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/head/review</code> · Manual review</h4>
+            <p class="small">Five separate 1–5 ratings, comment, support flag; no composite score.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/head/export</code> · Export data</h4>
+            <p class="small">CSV for events, summaries, surveys or reviews, optionally filtered by unit.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="head-scenarios">
+        <div class="section-head">
+          <div class="section-kicker">08</div>
+          <div>
+            <h2>Head-nurse scenarios and flows</h2>
+            <p>These are the scenarios to demonstrate when explaining the management and review side.</p>
+          </div>
+        </div>
+
+        <details class="scenario" open>
+          <summary>
+            <span class="snum">H1</span>
+            <span class="stitle"><strong>Sign in to the unit dashboard</strong><span>Head-nurse account is provisioned.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <code>/login</code> and sign in with the head-nurse account.</li>
+              <li>The app routes to <code>/head</code>.</li>
+              <li>Choose <strong>7d</strong>, <strong>30d</strong> or <strong>90d</strong>.</li>
+              <li>Choose <strong>All units</strong>, a specific unit, or <strong>Unassigned</strong>.</li>
+              <li>Read unit-level averages: direct care, indirect care, interruptions, emergency time; completion and tier 1–2 on-time rate; missed and deferred totals.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the dashboard shows unit-level activity facts for finished shifts. It does not rank nurses.</div>
+            <div class="rule-note"><strong>Rule:</strong> the dashboard needs a connection. The head nurse does not write clinical data here.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">H2</span>
+            <span class="stitle"><strong>Create a unit</strong><span>A new care area needs its own grouping.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <strong>Units</strong> in the head navigation.</li>
+              <li>Enter a unit name and optional description under <strong>Create unit</strong>.</li>
+              <li>Tap <strong>Create unit</strong>.</li>
+              <li>The unit appears in the unit list with status <strong>active</strong>.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the unit can now be assigned to nurses and selected at shift start.</div>
+            <div class="rule-note"><strong>Rule:</strong> unit names are unique (case-insensitive) and descriptions are short. No patient identifiers are allowed in the description.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">H3</span>
+            <span class="stitle"><strong>Assign nurses to a unit</strong><span>The unit exists; the head nurse must decide who works in it.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Select a unit from the unit list.</li>
+              <li>Search the nurse list by name, username or participant code.</li>
+              <li>Tick one or more nurses. A nurse can be ticked in more than one unit.</li>
+              <li>Tap <strong>Save assignments</strong>.</li>
+              <li>The change is written to <code>unit_nurses</code> and appears in the selected count.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the assigned nurse sees the active unit at shift start and in offline cache after the next sync.</div>
+            <div class="rule-note"><strong>Rule:</strong> only accounts with the nurse role can be assigned. Removing a nurse does not rewrite past shifts, because those shifts store their own <code>unit_id</code>.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">H4</span>
+            <span class="stitle"><strong>Archive, restore or delete a unit</strong><span>A unit is no longer used, or was created by mistake.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Select the unit.</li>
+              <li>Choose <strong>Archive</strong> to hide it from online shift choices while keeping history.</li>
+              <li>Choose <strong>Restore</strong> to make it active again.</li>
+              <li>Choose <strong>Delete unused</strong> only if the unit has no shifts.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> archived units disappear from assigned active lists; historical shifts remain readable. A unit with shifts cannot be deleted.</div>
+            <div class="rule-note"><strong>Rule:</strong> archiving is safer than deleting. Historical data is preserved. Queued offline shifts still sync if the unit exists, so work is not lost.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">H5</span>
+            <span class="stitle"><strong>Find a shift</strong><span>The head nurse needs one nurse’s shift within a date range.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <strong>Shifts</strong>.</li>
+              <li>Set <strong>From</strong> and <strong>To</strong> dates.</li>
+              <li>Filter by unit: all, a specific unit, or unassigned.</li>
+              <li>Filter by nurse.</li>
+              <li>Search by nurse name, participant code, unit name or shift type.</li>
+              <li>Read the row: nurse, unit, shift type, date/time, completion and review status.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> a filtered list of shifts; each row opens the shift detail or review action.</div>
+            <div class="rule-note"><strong>Rule:</strong> the head nurse sees all shifts, but the list is still a record of work, not a ranking.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">H6</span>
+            <span class="stitle"><strong>Inspect the shift detail</strong><span>The head nurse wants to understand what happened.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open a shift from the list or dashboard.</li>
+              <li>Check the header: nurse, participant code, unit, start/end time.</li>
+              <li>Read the summary: direct care, indirect care, interruption, emergency, completion, tier 1–2 on-time, missed/deferred.</li>
+              <li>Inspect tier breakdown, task list, interruptions and emergency timeline.</li>
+              <li>Review the event log for the stored sequence.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the head nurse can trace the shift from summary facts back to the event log.</div>
+            <div class="rule-note"><strong>Rule:</strong> the detail is read-only. The head nurse cannot change the nurse’s events.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">H7</span>
+            <span class="stitle"><strong>Write a manual review</strong><span>The shift is finished and needs feedback.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open a finished shift and choose <strong>Manual review</strong>.</li>
+              <li>Rate five separate criteria from 1 (needs support) to 5 (strong):
+                <strong>Task completion</strong>,
+                <strong>Critical task timeliness</strong>,
+                <strong>Interruption handling</strong>,
+                <strong>Handover quality</strong>,
+                <strong>Documentation</strong>.
+              </li>
+              <li>Write a behavioural comment; do not include patient identifiers.</li>
+              <li>Optionally flag <strong>Needs support</strong>.</li>
+              <li>Save. The nurse can read the ratings.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> five separate ratings are stored. The app does not average, weight or rank them.</div>
+            <div class="rule-note"><strong>Rule:</strong> no composite performance score and no leaderboard. “Needs support” is a support flag, not a ranking.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">H8</span>
+            <span class="stitle"><strong>Export CSV for analysis</strong><span>The head nurse needs data for the thesis.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <strong>Export</strong>.</li>
+              <li>Choose a unit filter if needed.</li>
+              <li>Choose one of four exports:
+                <strong>Shift summaries</strong>,
+                <strong>Event log</strong>,
+                <strong>Survey responses</strong> or
+                <strong>Reviews</strong>.
+              </li>
+              <li>Download the CSV.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> a CSV is downloaded with the selected unit and scope. Summaries, events and reviews include <code>unit_id</code> and <code>unit_name</code>.</div>
+            <div class="rule-note"><strong>Rule:</strong> no patient identifiers are exported. Survey exports use participant codes; reviews contain manual ratings, not a computed score.</div>
+          </div>
+        </details>
+
+        <div class="callout danger" style="margin-top:16px">
+          <strong>What the head nurse cannot do</strong>
+          The head nurse cannot start a nurse shift, create or edit tasks, log interruptions, finalize a nurse’s
+          handover, or change an event timeline. The role is configuration + review, not a second clinical operator.
+        </div>
+      </section>
+
+      <section id="cross-role">
+        <div class="section-head">
+          <div class="section-kicker">09</div>
+          <div>
+            <h2>Cross-role end-to-end flow</h2>
+            <p>This is the full story to use when someone asks how the two roles connect.</p>
+          </div>
+        </div>
+
+        <div class="flow" aria-label="Cross-role flow">
+          <div class="flow-step"><span class="n">1</span><strong>Head creates unit</strong><span>Unit A is configured.</span></div>
+          <div class="flow-step"><span class="n">2</span><strong>Head assigns nurse</strong><span>Amina is added to Unit A.</span></div>
+          <div class="flow-step"><span class="n">3</span><strong>Nurse signs in</strong><span>Unit A is pulled and cached.</span></div>
+          <div class="flow-step"><span class="n">4</span><strong>Nurse starts shift</strong><span>One unit, six demo beds, 41 tasks.</span></div>
+          <div class="flow-step"><span class="n">5</span><strong>Nurse works</strong><span>Timers, interruptions, emergency, handover.</span></div>
+          <div class="flow-step"><span class="n">6</span><strong>Shift ends</strong><span>Summary freezes from events.</span></div>
+          <div class="flow-step"><span class="n">7</span><strong>Sync</strong><span>Outbox pushes events to the API.</span></div>
+          <div class="flow-step"><span class="n">8</span><strong>Head reviews</strong><span>Dashboard, timeline, ratings, CSV.</span></div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card">
+            <h3>What the head nurse supplies</h3>
+            <ul class="mini-list">
+              <li><strong>Units</strong> — the organisational grouping.</li>
+              <li><strong>Nurse membership</strong> — who can choose which unit.</li>
+              <li><strong>Manual review</strong> — five separate ratings after the shift.</li>
+              <li><strong>Analysis</strong> — unit filters and CSV exports.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>What the nurse supplies</h3>
+            <ul class="mini-list">
+              <li><strong>Shift choice</strong> — unit, type, beds.</li>
+              <li><strong>Events</strong> — start, pause, resume, done, interruptions, emergency, reschedule, handover.</li>
+              <li><strong>Notes</strong> — short handover text, no identifiers.</li>
+              <li><strong>Survey responses</strong> — SUS and raw TLX, tied to participant code.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top:16px">
+          <strong>The key sentence</strong>
+          The head nurse configures the unit and reviews the evidence; the nurse creates the evidence by working
+          the shift. The app never invents clinical data and never turns the evidence into a ranking.
+        </div>
+      </section>
+
+      <section id="offline">
+        <div class="section-head">
+          <div class="section-kicker">10</div>
+          <div>
+            <h2>Offline and sync flow</h2>
+            <p>This is the most important technical behaviour to explain after the role flow.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card teal-card">
+            <h3>Online</h3>
+            <ol class="mini-list">
+              <li>Nurse signs in; the API returns user, token and assigned active units.</li>
+              <li>Units are cached in Dexie. Templates and config are also cached.</li>
+              <li>Shift, beds, tasks and events are written locally first.</li>
+              <li>The outbox pushes events to <code>/api/sync/push</code>.</li>
+              <li>The server recomputes the shift summary and stores it.</li>
+              <li>The head dashboard can read the finished shift after sync.</li>
+            </ol>
+          </div>
+          <div class="card amber-card">
+            <h3>Offline</h3>
+            <ol class="mini-list">
+              <li>The nurse can resume the saved session.</li>
+              <li>The cached assigned units are available.</li>
+              <li>Shift actions continue to write to Dexie.</li>
+              <li>Events wait in the outbox; the sync chip shows pending work.</li>
+              <li>No head dashboard, export or unit management offline.</li>
+              <li>When the network returns, the outbox drains and the pull refreshes the cache.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="flow" style="margin-top:18px" aria-label="Offline sync flow">
+          <div class="flow-step"><span class="n">1</span><strong>Local action</strong><span>Write event to Dexie.</span></div>
+          <div class="flow-step"><span class="n">2</span><strong>Projection</strong><span>UI updates from the event log.</span></div>
+          <div class="flow-step"><span class="n">3</span><strong>Outbox</strong><span>Queue the event for sync.</span></div>
+          <div class="flow-step"><span class="n">4</span><strong>Reconnect</strong><span>Push queued events.</span></div>
+          <div class="flow-step"><span class="n">5</span><strong>Pull</strong><span>Refresh units, templates, shifts.</span></div>
+          <div class="flow-step"><span class="n">6</span><strong>Head view</strong><span>Server summary becomes available.</span></div>
+        </div>
+
+        <div class="callout warn" style="margin-top:16px">
+          <strong>Unit cache edge case</strong>
+          If a unit is archived after the nurse cached it, an already-started offline shift can still sync as long
+          as the unit row still exists. The server accepts the work instead of discarding it. Future shift-start
+          choices refresh to active units only.
+        </div>
+
+        <div class="callout danger" style="margin-top:10px">
+          <strong>No patient identifiers</strong>
+          Beds are a number plus a short nickname. The UI repeats the warning. The app cannot reliably detect a
+          name typed into free text, so human input remains the boundary and this is listed as an evaluation risk.
+        </div>
+      </section>
+
+      <section id="emergency">
+        <div class="section-head">
+          <div class="section-kicker">11</div>
+          <div>
+            <h2>Emergency and deferral flow</h2>
+            <p>This is the safety-critical rule the thesis is built around.</p>
+          </div>
+        </div>
+
+        <div class="flow" aria-label="Emergency flow">
+          <div class="flow-step"><span class="n">1</span><strong>Emergency starts</strong><span>Nurse confirms on a bed.</span></div>
+          <div class="flow-step"><span class="n">2</span><strong>Critical work flagged</strong><span>Tier 1–2 stays visible.</span></div>
+          <div class="flow-step"><span class="n">3</span><strong>Emergency ends</strong><span>Duration is stored.</span></div>
+          <div class="flow-step"><span class="n">4</span><strong>Proposals</strong><span>Tier 3–4 only; old time + duration.</span></div>
+          <div class="flow-step"><span class="n">5</span><strong>Nurse confirms</strong><span>Edit and confirm each new time.</span></div>
+          <div class="flow-step"><span class="n">6</span><strong>Audit</strong><span>Old time remains in the event log.</span></div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card danger-card">
+            <h3>Never deferred automatically</h3>
+            <ul class="mini-list">
+              <li><strong>Tier 1</strong> — immediate / life-critical.</li>
+              <li><strong>Tier 2</strong> — urgent, time-sensitive.</li>
+              <li>During an emergency they are flagged for attention, not moved out of the queue.</li>
+            </ul>
+          </div>
+          <div class="card violet-card">
+            <h3>May be proposed for a new time</h3>
+            <ul class="mini-list">
+              <li><strong>Tier 3</strong> — scheduled care that can move.</li>
+              <li><strong>Tier 4</strong> — indirect or flexible work.</li>
+              <li>The suggested time is the old time plus the actual emergency duration.</li>
+              <li>The nurse can edit the time; nothing moves until confirmation.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="quote">
+          <strong>Say this exactly:</strong> “Tier 1 and tier 2 are never deferred automatically. The app protects
+          them and keeps them visible. Only planned tier 3–4 work receives a proposed new time after the emergency,
+          and the nurse must confirm every change.”
+        </div>
+      </section>
+
+      <section id="rules">
+        <div class="section-head">
+          <div class="section-kicker">12</div>
+          <div>
+            <h2>Product rules to repeat in every explanation</h2>
+            <p>These are the non-negotiable boundaries. They are also enforced by the product-rule lint where possible.</p>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="card tight"><h4>Two roles only</h4><p class="small"><code>nurse</code> and <code>head_nurse</code>. No admin, doctor or patient login.</p></div>
+          <div class="card tight"><h4>No patient identifiers</h4><p class="small">No names, MRNs, IDs, dates of birth or photos. Bed number plus short nickname only.</p></div>
+          <div class="card tight"><h4>Rule-based only</h4><p class="small">No AI or ML. No automatic clinical decision-making.</p></div>
+          <div class="card tight"><h4>Tier 1–2 protection</h4><p class="small">Never auto-deferred. Only tier 3–4 can be proposed for a new time.</p></div>
+          <div class="card tight"><h4>No score or ranking</h4><p class="small">Five manual ratings, no average, no weighting, no leaderboard.</p></div>
+          <div class="card tight"><h4>Offline-first nurse</h4><p class="small">Every action is written to Dexie first and synced later.</p></div>
+          <div class="card tight"><h4>Timestamps, not counters</h4><p class="small">Durations are computed from stored event times.</p></div>
+          <div class="card tight"><h4>Visible disclaimer</h4><p class="small">Login, app shell and handover keep the “not a medical device” boundary visible.</p></div>
+          <div class="card tight"><h4>Dynamic units</h4><p class="small">Units are configured by head nurses; they are not ICU-hard-coded.</p></div>
+        </div>
+
+        <div class="callout warn" style="margin-top:16px">
+          <strong>Out of scope for this prototype</strong>
+          EHR/order integration, biometric or OAuth login, push notifications, iOS, Arabic/RTL, admin screens,
+          template editor UI, weighted TLX, TAM and AI.
+        </div>
+      </section>
+
+      <section id="screens">
+        <div class="section-head">
+          <div class="section-kicker">13</div>
+          <div>
+            <h2>Screen map for the whole app</h2>
+            <p>Use this when someone asks “what is on each page?”</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Route</th><th>Role</th><th>What it is for</th><th>Key actions</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>/login</code></td><td>Visitor / both</td><td>Entry, disclaimer, create account, offline resume</td><td>Sign in, register nurse, resume offline</td></tr>
+              <tr><td><code>/shift-start</code></td><td>Nurse</td><td>Choose unit, shift type and demo beds</td><td>Start shift, end existing shift</td></tr>
+              <tr><td><code>/beds</code></td><td>Nurse</td><td>Bed overview and shift status</td><td>Open tasks, start/end emergency, end shift</td></tr>
+              <tr><td><code>/tasks</code></td><td>Nurse</td><td>Tier-sorted task queue</td><td>Start/pause/resume/done, pin, quick add, interrupt</td></tr>
+              <tr><td><code>/review-deferred</code></td><td>Nurse</td><td>Confirm new times after emergency</td><td>Edit time, confirm one, confirm all</td></tr>
+              <tr><td><code>/handover</code></td><td>Nurse</td><td>Snapshot from event log</td><td>Choose bed, add note, finalize, copy/share/print</td></tr>
+              <tr><td><code>/summary</code></td><td>Nurse</td><td>Frozen shift summary</td><td>Read facts, optionally end open shift</td></tr>
+              <tr><td><code>/me</code></td><td>Both</td><td>Profile, shift history, reviews, tools</td><td>Survey/privacy links, sign out, end shift</td></tr>
+              <tr><td><code>/surveys</code></td><td>Nurse (linked)</td><td>SUS and raw NASA-TLX</td><td>Submit instrument</td></tr>
+              <tr><td><code>/privacy</code></td><td>Both</td><td>Privacy and data boundary</td><td>Read</td></tr>
+              <tr><td><code>/head</code></td><td>Head</td><td>Unit dashboard</td><td>Filter days/unit, open shifts</td></tr>
+              <tr><td><code>/head/units</code></td><td>Head</td><td>Unit configuration</td><td>Create, edit, archive, restore, delete, assign nurses</td></tr>
+              <tr><td><code>/head/shifts</code></td><td>Head</td><td>All shifts</td><td>Filter date/unit/nurse, search, open</td></tr>
+              <tr><td><code>/head/shift</code></td><td>Head</td><td>Shift detail and timeline</td><td>Read summary, tasks, events</td></tr>
+              <tr><td><code>/head/review</code></td><td>Head</td><td>Manual review</td><td>Five ratings, comment, support flag</td></tr>
+              <tr><td><code>/head/export</code></td><td>Head</td><td>CSV export</td><td>Choose type/unit, download</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="technical">
+        <div class="section-head">
+          <div class="section-kicker">14</div>
+          <div>
+            <h2>Technical appendix</h2>
+            <p>Enough architecture to answer follow-up questions without turning the explanation into a code review.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3>Stack</h3>
+            <ul class="mini-list">
+              <li><strong>One Next.js App Router project</strong> at the repository root.</li>
+              <li><strong>Hono API</strong> mounted inside <code>/api/[[...route]]</code>.</li>
+              <li><strong>Neon PostgreSQL + Drizzle ORM</strong> for server data.</li>
+              <li><strong>Dexie</strong> for the local event log, outbox, tasks, shifts, handover and units cache.</li>
+              <li><strong>Zustand</strong> for app state.</li>
+              <li><strong>Capacitor 8.6</strong> for the Android APK; the APK is a static export that calls the Vercel API.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Data model in one view</h3>
+            <ul class="mini-list">
+              <li><strong>users</strong> — id, username, hashed PIN, role, display name, participant code.</li>
+              <li><strong>units</strong> — id, name, description, status, created by, timestamps.</li>
+              <li><strong>unit_nurses</strong> — unit + nurse membership, assigned by/at.</li>
+              <li><strong>shifts</strong> — user, optional unit, type, start/end, summary.</li>
+              <li><strong>events</strong> — append-only domain events; the source of truth for projections.</li>
+              <li><strong>shift_reviews</strong> — five scores, comment, support flag, reviewer.</li>
+              <li><strong>survey_responses</strong> — participant code, instrument, phase, score, answers.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card">
+            <h3>Role enforcement</h3>
+            <ul class="mini-list">
+              <li><strong>Client:</strong> navigation is role-specific; nurse screens redirect head nurses and vice versa.</li>
+              <li><strong>API:</strong> <code>requireRole("nurse")</code> and <code>requireRole("head_nurse")</code> guard unit, sync, shift, analytics and export routes.</li>
+              <li><strong>Data scope:</strong> nurse pull returns only that nurse’s shifts and assigned active units; head pull returns unit context.</li>
+              <li><strong>Registration:</strong> the server ignores a client-supplied role and always creates a nurse.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Main API areas</h3>
+            <ul class="mini-list">
+              <li><code>/api/auth/login</code>, <code>/api/auth/register</code>, <code>/api/me</code>.</li>
+              <li><code>/api/units</code>, <code>/api/units/:id</code>, <code>/api/units/:id/nurses</code>.</li>
+              <li><code>/api/sync/push</code>, <code>/api/sync/pull</code>.</li>
+              <li><code>/api/shifts</code>, <code>/api/shifts/:id</code>, <code>/api/shifts/:id/summary</code>.</li>
+              <li><code>/api/analytics/unit</code>, <code>/api/reviews</code>, <code>/api/surveys</code>, <code>/api/export</code>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout blue" style="margin-top:16px">
+          <strong>Why an event log?</strong>
+          The app records what happened as events instead of overwriting a single “current value”. That makes it
+          possible to recompute durations, correct a timestamp without losing the original, and build a handover
+          from stored evidence. The UI is a projection of those events.
+        </div>
+      </section>
+
+      <section id="demo">
+        <div class="section-head">
+          <div class="section-kicker">15</div>
+          <div>
+            <h2>Eight-minute demo script</h2>
+            <p>A practical sequence for presenting the demo live, with the point to say at each step.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card teal-card">
+            <h3>Demo accounts</h3>
+            <ul class="mini-list">
+              <li><strong>Nurse Amina</strong> — <code>amina</code> / <code>1111</code> — Unit A.</li>
+              <li><strong>Nurse Yara</strong> — <code>yara</code> / <code>2222</code> — Unit A and Unit B.</li>
+              <li><strong>Nurse Omar</strong> — <code>omar</code> / <code>3333</code> — Unit B.</li>
+              <li><strong>Head nurse</strong> — <code>head</code> / <code>9999</code>.</li>
+            </ul>
+            <p class="small" style="margin-top:10px">Live app: <a href="https://icu-tasklog.vercel.app">icu-tasklog.vercel.app</a></p>
+          </div>
+          <div class="card amber-card">
+            <h3>Before you present</h3>
+            <ul class="mini-list">
+              <li>Use a fresh browser profile or sign out first.</li>
+              <li>If a demo shift already exists, end it or use a fresh nurse account.</li>
+              <li>Check that Unit A and Unit B exist.</li>
+              <li>Have the live URL and the APK path ready.</li>
+              <li>Say “practice data only” before entering anything.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="flow" style="margin-top:18px" aria-label="Demo script">
+          <div class="flow-step"><span class="n">1</span><strong>Head: Units</strong><span>Show Unit A/B and assignment.</span></div>
+          <div class="flow-step"><span class="n">2</span><strong>Head: create</strong><span>Create “Demo Unit” if useful.</span></div>
+          <div class="flow-step"><span class="n">3</span><strong>Nurse: login</strong><span>Amina / 1111.</span></div>
+          <div class="flow-step"><span class="n">4</span><strong>Start shift</strong><span>Unit A, day, backdate 2h.</span></div>
+          <div class="flow-step"><span class="n">5</span><strong>Work queue</strong><span>Start timer, quick add, interrupt.</span></div>
+          <div class="flow-step"><span class="n">6</span><strong>Emergency</strong><span>Show tier 1–2 protection.</span></div>
+          <div class="flow-step"><span class="n">7</span><strong>Handover</strong><span>Finalize and show snapshot.</span></div>
+          <div class="flow-step"><span class="n">8</span><strong>End shift</strong><span>Open summary.</span></div>
+          <div class="flow-step"><span class="n">9</span><strong>Head review</strong><span>Filter Unit A, open shift, rate.</span></div>
+          <div class="flow-step"><span class="n">10</span><strong>Export</strong><span>Download summaries CSV.</span></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <h3>What to say at each step</h3>
+          <ol class="mini-list">
+            <li><strong>Units:</strong> “The head nurse owns the organisational layer. Units are dynamic; they are not hard-coded to ICU.”</li>
+            <li><strong>Create/assign:</strong> “A nurse can belong to more than one unit. A shift belongs to one unit.”</li>
+            <li><strong>Nurse login:</strong> “Public signup creates nurse accounts only. Head-nurse accounts are provisioned.”</li>
+            <li><strong>Shift start:</strong> “The assigned unit is a precondition. The shift writes locally first.”</li>
+            <li><strong>Task queue:</strong> “Sorting is by tier then time. The timer is derived from events.”</li>
+            <li><strong>Emergency:</strong> “Tier 1–2 stay visible; only tier 3–4 get proposed times, and the nurse confirms.”</li>
+            <li><strong>Handover:</strong> “The snapshot is generated from the event log and frozen when finalized.”</li>
+            <li><strong>Summary:</strong> “All durations come from stored timestamps, not an in-memory counter.”</li>
+            <li><strong>Head review:</strong> “Five manual ratings; the app never averages or ranks.”</li>
+            <li><strong>Export:</strong> “The CSV is for analysis, filtered by unit, with no patient identifiers.”</li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="qa">
+        <div class="section-head">
+          <div class="section-kicker">Q&amp;A</div>
+          <div>
+            <h2>Questions people usually ask</h2>
+            <p>Short answers you can use without opening the code.</p>
+          </div>
+        </div>
+
+        <div class="qa">
+          <details>
+            <summary>Why are there only two roles?</summary>
+            <div class="a"><p>The thesis scope is nurses and head nurses. Adding admin, doctor or patient roles would introduce permissions and clinical workflows outside the evaluated product.</p></div>
+          </details>
+          <details>
+            <summary>Can a nurse see another nurse’s shift?</summary>
+            <div class="a"><p>No. The nurse pull is scoped to the signed-in nurse. Unit-wide shift lists, analytics and exports are head-nurse screens.</p></div>
+          </details>
+          <details>
+            <summary>Is the head-nurse rating a performance score?</summary>
+            <div class="a"><p>No. It is five separate manual 1–5 ratings plus a comment and an optional support flag. The app does not average, weight, rank or publish a composite score.</p></div>
+          </details>
+          <details>
+            <summary>What happens if the internet drops mid-shift?</summary>
+            <div class="a"><p>The nurse keeps working. Each action is written to Dexie first and queued in the outbox. The sync chip shows pending work. When the connection returns, the queue is pushed and the server recomputes summaries.</p></div>
+          </details>
+          <details>
+            <summary>What if the head nurse archives a unit?</summary>
+            <div class="a"><p>It disappears from online shift choices. Historical shifts keep their unit. An already-started offline shift still syncs if the unit row exists, so the nurse’s work is not lost.</p></div>
+          </details>
+          <details>
+            <summary>Why can tier 1–2 never be deferred?</summary>
+            <div class="a"><p>They represent immediate or urgent work. The product rule is that an emergency may interrupt the plan, but it must not silently move critical care out of the queue. Tier 1–2 are flagged and stay visible.</p></div>
+          </details>
+          <details>
+            <summary>Does the app use AI?</summary>
+            <div class="a"><p>No. The rules are deterministic TypeScript: tier rules, timers, event reductions, emergency proposals and summaries. There is no model, recommendation engine or automatic clinical decision.</p></div>
+          </details>
+          <details>
+            <summary>What data is stored about a patient?</summary>
+            <div class="a"><p>No patient identifiers. The bed is a number plus a short nickname. The app warns users not to type names, MRNs, dates of birth or other identifiers. Free text cannot be perfectly validated, so human input remains a listed risk.</p></div>
+          </details>
+          <details>
+            <summary>What is not verified yet?</summary>
+            <div class="a"><p>Physical-device APK installation/opening, real nurse usability sessions, SUS/TLX results and clinical review of the demo task tiers. These are recorded as NOT VERIFIED in the evaluation file.</p></div>
+          </details>
+          <details>
+            <summary>Why is there a separate APK if the app is on the web?</summary>
+            <div class="a"><p>The APK is the same Next.js project built as a static export and bundled with Capacitor. It calls the Vercel API over HTTPS. There is no second API project and no <code>server.url</code>.</p></div>
+          </details>
+        </div>
+      </section>
+
+      <section id="evidence">
+        <div class="section-head">
+          <div class="section-kicker">16</div>
+          <div>
+            <h2>Evidence and honest limits</h2>
+            <p>Use this to separate what was run and observed from what still needs real-world evaluation.</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Check</th><th>Observed result</th></tr></thead>
+            <tbody>
+              <tr><td>TypeScript</td><td>clean</td></tr>
+              <tr><td>Domain tests</td><td><strong>25 passed</strong></td></tr>
+              <tr><td>Product-rule lint</td><td>passed, 46 source files</td></tr>
+              <tr><td>API integration</td><td><strong>36 checks passed</strong> against disposable Docker Postgres</td></tr>
+              <tr><td>Playwright</td><td><strong>7 passed</strong>: auth, role routing, privacy, unit selection, unit management</td></tr>
+              <tr><td>Web build</td><td>success, all app routes plus <code>/api/[[...route]]</code></td></tr>
+              <tr><td>Mobile export</td><td>success, 19 static pages, API route restored</td></tr>
+              <tr><td>Live deployment</td><td>health 200, units 200, Unit A shift filter 200, unit analytics 200, CORS PATCH 204</td></tr>
+              <tr><td>Android CI</td><td>run <code>44917777448</code> success; APK 5,616,993 bytes; SHA-256 <code>55dc67f5…1c2eb</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card danger-card">
+            <h3>NOT VERIFIED</h3>
+            <ul class="mini-list">
+              <li>Installation and opening of the APK on a physical Android device.</li>
+              <li>Real ICU nurse usability sessions.</li>
+              <li>SUS/TLX results from participants.</li>
+              <li>Clinical review of demo task tiers and intervals.</li>
+              <li>Production reliability under real network conditions.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Evidence files in the repository</h3>
+            <ul class="mini-list">
+              <li><code>EVALUATION.md</code> — commands, outputs and limits.</li>
+              <li><code>PROGRESS.md</code> — build history and deployment status.</li>
+              <li><code>ASSUMPTIONS.md</code> — explicit assumptions and legacy handling.</li>
+              <li><code>evaluation/screenshots/</code> — captured UI screens.</li>
+              <li><code>README.md</code> — setup and demo accounts.</li>
+              <li><code>APK-DISTRIBUTION.md</code> — APK install/share instructions.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout warn" style="margin-top:16px">
+          <strong>The disclaimer to keep visible</strong>
+          TaskLog is a planning and logging aid for practice data. It is not a medical device and does not replace
+          bedside monitors, alarms, official orders or the clinical handover process.
+        </div>
+      </section>
+
+      <section id="glossary">
+        <div class="section-head">
+          <div class="section-kicker">G</div>
+          <div>
+            <h2>Glossary</h2>
+            <p>Short definitions for the terms used in the thesis explanation.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Term</th><th>Meaning in TaskLog</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Unit</strong></td><td>A dynamic grouping configured by a head nurse. Covers nurses and their shifts/tasks. Not hard-coded to ICU.</td></tr>
+              <tr><td><strong>Shift</strong></td><td>One nurse’s working period, with a type, start/end time and exactly one unit.</td></tr>
+              <tr><td><strong>Bed</strong></td><td>A numbered demo bed with a short nickname and preset tasks. No patient identity.</td></tr>
+              <tr><td><strong>Task tier</strong></td><td>1 = immediate, 2 = urgent, 3 = scheduled, 4 = indirect/flexible. Tier 1–2 are never auto-deferred.</td></tr>
+              <tr><td><strong>Event</strong></td><td>An append-only record of something that happened (task started, paused, emergency, handover, etc.).</td></tr>
+              <tr><td><strong>Projection</strong></td><td>The current UI state computed from the event log.</td></tr>
+              <tr><td><strong>Outbox</strong></td><td>The local queue of events waiting to be pushed to the API.</td></tr>
+              <tr><td><strong>Deferred</strong></td><td>A tier 3–4 task moved to a proposed new time after an emergency, pending nurse confirmation.</td></tr>
+              <tr><td><strong>Handover snapshot</strong></td><td>A frozen summary of done, pending, deferred and missed work plus interruptions and emergency minutes.</td></tr>
+              <tr><td><strong>Participant code</strong></td><td>An analysis code such as <code>N-...</code>; not a patient identifier.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <footer class="footer">
+      <p><strong>TaskLog — Roles, Scenarios &amp; Flows.</strong> Standalone HTML page. Open directly in a browser; use Print / Save as PDF for a handout.</p>
+      <p style="margin-top:6px">This page is an explanation aid, not a clinical protocol. The product remains a thesis demo: planning and logging only, no patient identifiers, no AI, no performance ranking, and no replacement for monitors, alarms, official orders or clinical handover.</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const menuButton = document.getElementById("menuButton");
+    const mobileNav = document.getElementById("mobileNav");
+    if (menuButton && mobileNav) {
+      menuButton.addEventListener("click", function () {
+        const open = mobileNav.classList.toggle("open");
+        menuButton.setAttribute("aria-expanded", String(open));
+      });
+      mobileNav.addEventListener("click", function (event) {
+        if (event.target.tagName === "A") {
+          mobileNav.classList.remove("open");
+          menuButton.setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+
+    const expand = document.getElementById("expandAll");
+    if (expand) {
+      expand.addEventListener("click", function () {
+        const all = Array.from(document.querySelectorAll("details"));
+        const shouldOpen = all.some((d) => !d.open);
+        all.forEach((d) => { d.open = shouldOpen; });
+        expand.textContent = shouldOpen ? "Collapse all scenarios" : "Expand all scenarios";
+      });
+    }
+
+    const links = Array.from(document.querySelectorAll("#desktopNav a"));
+    const sections = links
+      .map((a) => document.querySelector(a.getAttribute("href")))
+      .filter(Boolean);
+    if (sections.length) {
+      let ticking = false;
+      function updateActive() {
+        let current = links[0];
+        sections.forEach(function (section, index) {
+          if (section.getBoundingClientRect().top <= 150) current = links[index];
+        });
+        links.forEach(function (a) {
+          a.classList.toggle("active", a === current);
+        });
+        ticking = false;
+      }
+      window.addEventListener("scroll", function () {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(updateActive);
+      }, { passive: true });
+      window.addEventListener("resize", updateActive);
+      updateActive();
+    }
+
+    let printOpenState = null;
+    window.addEventListener("beforeprint", function () {
+      const all = Array.from(document.querySelectorAll("details"));
+      printOpenState = all.map((d) => d.open);
+      all.forEach((d) => { d.open = true; });
+    });
+    window.addEventListener("afterprint", function () {
+      if (!printOpenState) return;
+      const all = Array.from(document.querySelectorAll("details"));
+      all.forEach((d, index) => { d.open = printOpenState[index] ?? d.open; });
+      printOpenState = null;
+    });
+  })();
+</script>
+</body>
+</html>
