@@ -345,6 +345,25 @@
   .own::before { content: "◐"; }
   .read::before { content: "◉"; }
 
+  /* Keep permission cells as real table cells. Applying inline-flex to a <td>
+     collapses the column layout and pushes the three role columns together. */
+  #permissions table { table-layout: fixed; min-width: 820px; }
+  #permissions th:nth-child(1), #permissions td:nth-child(1) { width: 40%; }
+  #permissions th:nth-child(2), #permissions td:nth-child(2) { width: 18%; }
+  #permissions th:nth-child(3), #permissions td:nth-child(3) { width: 20%; }
+  #permissions th:nth-child(4), #permissions td:nth-child(4) { width: 22%; }
+  #permissions th:not(:first-child), #permissions td:not(:first-child) { text-align: center; }
+  #permissions td.yes, #permissions td.no, #permissions td.own, #permissions td.read {
+    display: table-cell;
+    white-space: normal;
+    line-height: 1.35;
+  }
+  #permissions td.yes::before, #permissions td.no::before,
+  #permissions td.own::before, #permissions td.read::before {
+    margin-right: 5px;
+  }
+  #permissions td.no::before { content: none; }
+
   .flow {
     display: flex;
     flex-wrap: wrap;
