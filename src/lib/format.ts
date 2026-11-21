@@ -45,17 +45,26 @@ export function formatPercent(value: number | undefined, digits = 0): string {
   return `${(value * 100).toFixed(digits)}%`;
 }
 
-export function dueLabel(dueAt: number, now: number): { text: string; overdue: boolean } {
-  const diff = now - dueAt;
-  if (diff > 60_000) {
-    const min = Math.max(1, Math.round(diff / 60_000));
-    return { text: `${min} min overdue`, overdue: true };
+export function windowLabel(
+  plannedFrom: number,
+  plannedTo: number,
+  now: number,
+): { text: string; overdue: boolean; status: "upcoming" | "due-now" | "overdue" } {
+  const diffTo = now - plannedTo;
+  const diffFrom = now - plannedFrom;
+  if (diffTo > 60_000) {
+    const min = Math.max(1, Math.round(diffTo / 60_000));
+    return { text: `${min} min overdue`, overdue: true, status: "overdue" };
   }
-  if (diff >= -60_000) return { text: "Due now", overdue: false };
-  const min = Math.max(1, Math.round(-diff / 60_000));
-  if (min < 60) return { text: `in ${min} min`, overdue: false };
+  if (diffTo > -60_000) return { text: "Due now", overdue: false, status: "due-now" };
+  if (diffFrom > 60_000) {
+    return { text: "Started", overdue: false, status: "due-now" };
+  }
+  if (diffFrom > -60_000) return { text: "Due now", overdue: false, status: "due-now" };
+  const min = Math.max(1, Math.round(-diffFrom / 60_000));
+  if (min < 60) return { text: `in ${min} min`, overdue: false, status: "upcoming" };
   const hours = Math.round(min / 60);
-  return { text: `in ${hours}h`, overdue: false };
+  return { text: `in ${hours}h`, overdue: false, status: "upcoming" };
 }
 
 export function tierStyle(tier: Tier): { chip: string; icon: string } {

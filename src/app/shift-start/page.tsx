@@ -200,7 +200,7 @@ export default function ShiftStartPage() {
 
         <div className="space-y-4">
           <InlineAlert tone="warning" title="Demo content needs clinical review">
-            Task names, intervals, expected minutes and priority tiers are illustrative. An ICU nurse must
+            Task names, intervals, expected minutes and priority tiers are illustrative. An nurse must
             review them before this is used in teaching or simulation.
           </InlineAlert>
           <div className="card p-5">

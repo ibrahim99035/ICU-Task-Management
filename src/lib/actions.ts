@@ -122,7 +122,8 @@ export async function startShift(
           title: template.name,
           category: template.category,
           tier: template.tier,
-          dueAt: startedAt + template.offsetMin * MIN,
+          plannedFrom: startedAt + template.offsetMin * MIN,
+          plannedTo: startedAt + template.offsetMin * MIN + template.expectedMin * MIN,
           expectedMin: template.expectedMin,
           intervalMin: template.intervalMin,
           templateId: template.id,
@@ -263,7 +264,8 @@ export async function getReschedule(bedId: string): Promise<StoredReschedule | u
 export async function confirmReschedule(
   bedId: string,
   taskId: string,
-  newDue: number,
+  newFrom: number,
+  newTo: number,
 ): Promise<void> {
   const stored = await getReschedule(bedId);
   if (!stored) throw new Error("No reschedule proposals");
@@ -273,7 +275,7 @@ export async function confirmReschedule(
   if (!task) throw new Error("Task not found");
   const shift = await db().shifts.get(task.shiftId);
   if (!shift) throw new Error("Shift not found");
-  const event = confirmRescheduleEvent(task, proposal, Date.now(), shift.actorId, newDue);
+  const event = confirmRescheduleEvent(task, proposal, Date.now(), shift.actorId, newFrom, newTo);
   await appendEvents([event]);
   const remaining = stored.proposals.filter((p) => p.taskId !== taskId);
   if (remaining.length) {
@@ -373,7 +375,8 @@ export async function addQuickTask(input: {
   title: string;
   tier: Tier;
   category: TaskCategory;
-  dueAt: number;
+  plannedFrom: number;
+  plannedTo: number;
 }): Promise<void> {
   const shift = await db().shifts.get(input.shiftId);
   if (!shift) throw new Error("Shift not found");
@@ -392,7 +395,8 @@ export async function addQuickTask(input: {
         title: input.title,
         category: input.category,
         tier: input.tier,
-        dueAt: input.dueAt,
+        plannedFrom: input.plannedFrom,
+        plannedTo: input.plannedTo,
         expectedMin: 10,
         bedLabel: bed?.alias,
       },

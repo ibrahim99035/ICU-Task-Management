@@ -5,6 +5,39 @@ export type Tier = 1 | 2 | 3 | 4;
 export type TaskCategory = "direct_care" | "indirect_care" | "interruption";
 export type TaskStatus = "planned" | "in_progress" | "paused" | "done" | "deferred" | "missed";
 
+// NEW: Unit entity - higher-level grouping covering nurses and tasks
+export type Unit = {
+  id: string;
+  label: string; // unit nickname/name
+  headNurseId: string; // who configured it
+  nurseIds: string[]; // assigned nurses
+  taskIds: string[]; // tasks in this unit
+  config: Record<string, unknown>; // unit configuration
+  status: "active" | "inactive";
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type UnitRow = {
+  id: string;
+  label: string;
+  headNurseId: string;
+  nurseIds: string[];
+  taskIds: string[];
+  config: Record<string, unknown>;
+  status: "active" | "inactive";
+  createdAt: number;
+  updatedAt: number;
+};
+
+// NEW: unitConfig for head nurse settings
+export type UnitConfig = {
+  allowTaskRescheduling: boolean;
+  maxConcurrentTasks: number;
+  autoMissedTimeoutMin: number;
+  defaultPlannedDurationMin: number;
+};
+
 export const INTERRUPTION_REASONS = [
   "physician_request",
   "missing_equipment",
@@ -69,25 +102,33 @@ export const shiftStartedPayload = z.object({
   note: z.string().max(500).optional(),
 });
 export const shiftEndedPayload = z.object({ note: z.string().max(1000).optional() });
-export const taskCreatedPayload = z.object({
-  title: z.string().min(1).max(120),
-  category: z.enum(["direct_care", "indirect_care"]),
-  tier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
-  dueAt: iso,
-  expectedMin: z.number().int().min(0).max(720).default(5),
-  intervalMin: z.number().int().min(0).max(1440).optional(),
-  templateId: z.string().max(80).optional(),
-  bedLabel: z.string().max(60).optional(),
-  note: z.string().max(300).optional(),
-});
+export const taskCreatedPayload = z
+  .object({
+    title: z.string().min(1).max(120),
+    category: z.enum(["direct_care", "indirect_care"]),
+    tier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+    plannedFrom: iso,
+    plannedTo: iso,
+    expectedMin: z.number().int().min(0).max(720).default(5),
+    intervalMin: z.number().int().min(0).max(1440).optional(),
+    templateId: z.string().max(80).optional(),
+    bedLabel: z.string().max(60).optional(),
+    note: z.string().max(300).optional(),
+  })
+  .refine((d) => d.plannedTo >= d.plannedFrom, {
+    message: "plannedTo must be >= plannedFrom",
+    path: ["plannedTo"],
+  });
 export const taskDeferredPayload = z.object({
   reason: z.enum(["emergency", "other"]),
   emergencyId: z.string().optional(),
   note: z.string().max(300).optional(),
 });
 export const taskRescheduledPayload = z.object({
-  dueAt: iso,
-  previousDueAt: iso.optional(),
+  plannedFrom: iso,
+  plannedTo: iso,
+  previousPlannedFrom: iso.optional(),
+  previousPlannedTo: iso.optional(),
   reason: z.enum(["emergency", "manual"]).default("emergency"),
   emergencyId: z.string().optional(),
 });
@@ -146,11 +187,13 @@ export type Task = {
   id: string;
   shiftId: string;
   bedId: string;
+  unitId?: string; // NEW: optional unit assignment
   title: string;
   category: Exclude<TaskCategory, "interruption">;
   tier: Tier;
   status: TaskStatus;
-  dueAt: number;
+  plannedFrom: number;
+  plannedTo: number;
   expectedMin: number;
   intervalMin?: number;
   templateId?: string;
@@ -214,7 +257,8 @@ export type HandoverTask = {
   title: string;
   tier: Tier;
   status: TaskStatus;
-  dueAt: number;
+  plannedFrom: number;
+  plannedTo: number;
   completedAt?: number;
   category: TaskCategory;
 };
@@ -261,8 +305,10 @@ export type EmergencyPlan = {
 export type RescheduleProposal = {
   taskId: string;
   title: string;
-  oldDue: number;
-  newDue: number;
+  oldFrom: number;
+  oldTo: number;
+  newFrom: number;
+  newTo: number;
 };
 
 export type TaskTransition = { from: TaskStatus; event: EventType; to: TaskStatus };

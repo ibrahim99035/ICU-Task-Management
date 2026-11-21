@@ -19,7 +19,7 @@ function ReviewInner() {
   const bedId = params.get("bed") ?? "";
   const user = useApp((s) => s.user);
   const notify = useApp((s) => s.notify);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, { from: string; to: string }>>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -34,7 +34,12 @@ function ReviewInner() {
     setValues((prev) => {
       const next = { ...prev };
       for (const proposal of stored.proposals) {
-        if (!next[proposal.taskId]) next[proposal.taskId] = toDateTimeLocal(proposal.newDue);
+        if (!next[proposal.taskId]) {
+          next[proposal.taskId] = {
+            from: toDateTimeLocal(proposal.newFrom),
+            to: toDateTimeLocal(proposal.newTo),
+          };
+        }
       }
       return next;
     });
@@ -45,8 +50,13 @@ function ReviewInner() {
     if (!value) return;
     setBusy(true);
     try {
-      await confirmReschedule(bedId, proposal.taskId, fromDateTimeLocal(value));
-      notify("New due time saved. The old time remains in the event log.", "success");
+      await confirmReschedule(
+        bedId,
+        proposal.taskId,
+        fromDateTimeLocal(value.from),
+        fromDateTimeLocal(value.to),
+      );
+      notify("New time saved. The old time remains in the event log.", "success");
     } catch (error) {
       notify(error instanceof Error ? error.message : "Could not reschedule", "error");
     } finally {
@@ -61,7 +71,12 @@ function ReviewInner() {
       for (const proposal of stored.proposals) {
         const value = values[proposal.taskId];
         if (!value) continue;
-        await confirmReschedule(bedId, proposal.taskId, fromDateTimeLocal(value));
+        await confirmReschedule(
+          bedId,
+          proposal.taskId,
+          fromDateTimeLocal(value.from),
+          fromDateTimeLocal(value.to),
+        );
       }
       notify("All deferred tasks rescheduled.", "success");
     } catch (error) {
@@ -110,19 +125,48 @@ function ReviewInner() {
                     <h2 className="text-sm font-bold text-ink">{proposal.title}</h2>
                   </div>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Old due {formatDateTime(proposal.oldDue)} → suggested {formatDateTime(proposal.newDue)}
+                    Old {formatDateTime(proposal.oldFrom)} – {formatDateTime(proposal.oldTo)} → suggested {formatDateTime(proposal.newFrom)} – {formatDateTime(proposal.newTo)}
                   </p>
                 </div>
                 <span className="pill bg-violet-50 text-violet-700"><Clock3 className="h-3.5 w-3.5" /> Deferred</span>
               </div>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="datetime-local"
-                  className="input flex-1"
-                  value={values[proposal.taskId] ?? toDateTimeLocal(proposal.newDue)}
-                  onChange={(e) => setValues((prev) => ({ ...prev, [proposal.taskId]: e.target.value }))}
-                  aria-label={`New due time for ${proposal.title}`}
-                />
+                <div className="flex-1">
+                  <label className="text-[10px] block text-slate-500 mb-1">Start</label>
+                  <input
+                    type="datetime-local"
+                    className="input w-full"
+                    value={values[proposal.taskId]?.from ?? toDateTimeLocal(proposal.newFrom)}
+                    onChange={(e) =>
+                      setValues((prev) => ({
+                        ...prev,
+                        [proposal.taskId]: {
+                          ...(prev[proposal.taskId] ?? { from: "", to: "" }),
+                          from: e.target.value,
+                        },
+                      }))
+                    }
+                    aria-label={`New start time for ${proposal.title}`}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] block text-slate-500 mb-1">End</label>
+                  <input
+                    type="datetime-local"
+                    className="input w-full"
+                    value={values[proposal.taskId]?.to ?? toDateTimeLocal(proposal.newTo)}
+                    onChange={(e) =>
+                      setValues((prev) => ({
+                        ...prev,
+                        [proposal.taskId]: {
+                          ...(prev[proposal.taskId] ?? { from: "", to: "" }),
+                          to: e.target.value,
+                        },
+                      }))
+                    }
+                    aria-label={`New end time for ${proposal.title}`}
+                  />
+                </div>
                 <button className="btn-primary" disabled={busy} onClick={() => void confirmOne(proposal)}>
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
                   Confirm time

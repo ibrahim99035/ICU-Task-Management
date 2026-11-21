@@ -7,6 +7,8 @@ import type {
   HandoverSnapshot,
   Task,
   ShiftType,
+  Unit,
+  UnitRow,
 } from "@/domain";
 
 export type ShiftRow = {
@@ -103,6 +105,9 @@ class IcuDatabase extends Dexie {
   events!: EntityTable<DomainEvent, "id">;
   tasks!: EntityTable<Task, "id">;
   outbox!: EntityTable<OutboxItem, "id">;
+  
+
+  units!: EntityTable<UnitRow, "id">;
   templates!: EntityTable<TemplateRow, "id">;
   session!: EntityTable<SessionRow, "key">;
   reviews!: EntityTable<ReviewRow, "id">;
@@ -111,10 +116,11 @@ class IcuDatabase extends Dexie {
   beds!: EntityTable<BedRow, "id">;
 
   constructor() {
-    super("icu-tasklog");
+    super("tasklog");
     this.version(1).stores({
       events: "id, shiftId, taskId, serverSeq, clientTs",
-      tasks: "id, shiftId, bedId, status, tier, dueAt",
+      tasks: "id, shiftId, bedId, status, tier, plannedFrom, unitId",
+      units: "id, label, headNurseId, nurseIds, taskIds, config, status, createdAt, updatedAt",
       outbox: "id, kind, createdAt",
       templates: "id, tier, category",
       session: "key",

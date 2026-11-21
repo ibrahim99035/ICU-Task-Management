@@ -24,7 +24,7 @@ import { ConfirmDialog } from "@/components/modal";
 import { InlineAlert, StatCard, TierBadge } from "@/components/ui";
 import { isOverdue, reduce, type Task } from "@/domain";
 import { activeShift, db, type BedRow } from "@/lib/db";
-import { cn, dueLabel, formatElapsed, formatTime } from "@/lib/format";
+import { cn, windowLabel, formatElapsed, formatTime } from "@/lib/format";
 import { useLive, useNow } from "@/lib/hooks";
 import { endShift, finishEmergency, startEmergency } from "@/lib/actions";
 import { useApp } from "@/lib/store";
@@ -78,7 +78,7 @@ export default function BedsPage() {
       beds.map((bed) => {
         const bedTasks = tasks.filter((t) => t.bedId === bed.id);
         const open = bedTasks.filter((t) => !["done", "missed", "deferred"].includes(t.status));
-        const next = open.sort((a, b) => a.dueAt - b.dueAt)[0];
+        const next = open.sort((a, b) => a.plannedFrom - b.plannedFrom || a.plannedTo - b.plannedTo)[0];
         const emergency = activeEmergencies.find((e) => e.bedId === bed.id);
         return {
           bed,
@@ -178,7 +178,7 @@ export default function BedsPage() {
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {bedSummaries.map((item) => {
-          const due = item.next ? dueLabel(item.next.dueAt, now) : undefined;
+          const due = item.next ? windowLabel(item.next.plannedFrom, item.next.plannedTo, now) : undefined;
           return (
             <article
               key={item.bed.id}
@@ -249,7 +249,7 @@ export default function BedsPage() {
                   </span>
                   {item.next ? (
                     <span className={cn("text-[11px]", due?.overdue ? "font-semibold text-danger-700" : "text-slate-500")}>
-                      Next {formatTime(item.next.dueAt)} · {due?.text}
+                      Next {formatTime(item.next.plannedFrom)} – {formatTime(item.next.plannedTo)} · {due?.text}
                     </span>
                   ) : (
                     <span className="text-[11px] text-teal-700">All clear</span>

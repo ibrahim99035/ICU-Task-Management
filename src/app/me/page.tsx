@@ -224,7 +224,7 @@ export default function MePage() {
           <section className="card border-amber-200 bg-amber-50/50 p-4 text-xs leading-relaxed text-amber-900">
             <p className="flex items-center gap-2 font-bold"><ShieldCheck className="h-4 w-4" /> Safety reminder</p>
             <p className="mt-1.5">
-              ICU TaskLog is not a medical device. It does not read bedside monitors or alarms and does not replace
+              TaskLog is not a medical device. It does not read bedside monitors or alarms and does not replace
               official orders or the medical record.
             </p>
           </section>
@@ -232,7 +232,7 @@ export default function MePage() {
           <button className="btn-secondary w-full" onClick={() => setLogoutOpen(true)}>
             <LogOut className="h-4 w-4" /> Sign out
           </button>
-          <p className="text-center text-[11px] text-slate-400">ICU TaskLog v1.0 · thesis demo</p>
+          <p className="text-center text-[11px] text-slate-400">TaskLog v1.0 · thesis demo</p>
         </div>
       </div>
 

@@ -9,7 +9,7 @@ export type DemoTemplate = {
   active: boolean;
 };
 
-/** Demo content only. Every template and tier needs ICU clinical review. */
+/** Demo content only. Every template and tier needs clinical review. */
 export const DEMO_TEMPLATES: DemoTemplate[] = [
   { id: "t-vent", name: "Ventilator settings check", category: "direct_care", tier: 1, intervalMin: 60, expectedMin: 10, offsetMin: 12, active: true },
   { id: "t-titration", name: "Vasoactive / sedation titration", category: "direct_care", tier: 1, intervalMin: 30, expectedMin: 10, offsetMin: 4, active: true },

@@ -99,7 +99,7 @@ export default function PrivacyPage() {
           <section className="card border-amber-200 bg-amber-50/50 p-4 text-xs leading-relaxed text-amber-900">
             <p className="flex items-center gap-2 font-bold"><ShieldCheck className="h-4 w-4" /> Not a medical device</p>
             <p className="mt-1.5">
-              ICU TaskLog plans and logs practice tasks. It does not read monitors or alarms, does not replace
+              TaskLog plans and logs practice tasks. It does not read monitors or alarms, does not replace
               official orders or the medical record, and must not be used for real patient care.
             </p>
           </section>

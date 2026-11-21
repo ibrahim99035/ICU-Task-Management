@@ -13,7 +13,7 @@ import {
   TimerReset,
 } from "lucide-react";
 import type { Task } from "@/domain";
-import { cn, dueLabel, formatElapsed, formatTime, tierStyle } from "@/lib/format";
+import { cn, windowLabel, formatElapsed, formatTime, tierStyle } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { TierBadge } from "./ui";
 
@@ -43,7 +43,7 @@ export function TaskCard({
   onOpen?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const due = dueLabel(task.dueAt, now);
+  const due = windowLabel(task.plannedFrom, task.plannedTo, now);
   const completed = task.status === "done";
   const missed = task.status === "missed";
   const deferred = task.status === "deferred";
@@ -104,7 +104,7 @@ export function TaskCard({
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
           <span>{task.category === "direct_care" ? "Direct care" : "Indirect care"}</span>
           <span aria-hidden>·</span>
-          <span>Due {formatTime(task.dueAt)}</span>
+          <span>{formatTime(task.plannedFrom)} – {formatTime(task.plannedTo)}</span>
           {!due.overdue && !completed && !missed && !deferred ? <span className="text-slate-400">{due.text}</span> : null}
           {deferred ? <span className="font-semibold text-violet-700">Awaiting reschedule</span> : null}
           {task.durationRecorded === false && completed ? (

@@ -11,7 +11,7 @@ export type AuthUser = {
 
 const secret = () =>
   new TextEncoder().encode(
-    process.env.JWT_SECRET ?? "icu-tasklog-local-demo-secret-change-in-production",
+    process.env.JWT_SECRET ?? "tasklog-local-demo-secret-change-in-production",
   );
 
 export async function hashPin(pin: string): Promise<string> {

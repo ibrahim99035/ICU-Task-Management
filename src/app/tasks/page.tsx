@@ -43,7 +43,7 @@ import {
   startTask,
 } from "@/lib/actions";
 import { activeShift, db, type BedRow, type ShiftRow } from "@/lib/db";
-import { cn, dueLabel, formatDateTime, formatElapsed, formatMinutes, formatTime, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
+import { cn, windowLabel, formatDateTime, formatElapsed, formatMinutes, formatTime, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
 import { useLive, useNow } from "@/lib/hooks";
 import { useApp } from "@/lib/store";
 
@@ -92,6 +92,7 @@ function TasksInner() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [tickTarget, setTickTarget] = useState<Task | null>(null);
   const [busy, setBusy] = useState(false);
+const [unitId, setUnitId] = useState("");
 
   const shiftBox = useLive(
     async () => (user ? { shift: await activeShift(user.id) } : undefined),
@@ -126,22 +127,31 @@ function TasksInner() {
   const durations = useMemo(() => computeDurations(events, now), [events, now]);
 
   const filtered = useMemo(() => {
-    const scoped = bedFilter ? tasks.filter((t) => t.bedId === bedFilter) : tasks;
+    const effectiveUnitId = unitId || bedFilter;
+    const scoped = effectiveUnitId
+      ? tasks.filter((t) => t.unitId === effectiveUnitId || t.bedId === effectiveUnitId)
+      : tasks;
     const sorted = sortTasks(scoped, now);
     if (filter === "overdue") return sorted.filter((t) => isOverdue(t, now));
     if (filter === "deferred") return sorted.filter((t) => t.status === "deferred");
     if (filter === "done") return sorted.filter((t) => t.status === "done" || t.status === "missed");
     return sorted.filter((t) => ["planned", "in_progress", "paused"].includes(t.status));
-  }, [tasks, bedFilter, filter, now]);
+  }, [tasks, bedFilter, unitId, filter, now]);
 
   const counts = useMemo(
-    () => ({
-      open: tasks.filter((t) => !bedFilter || t.bedId === bedFilter).filter((t) => ["planned", "in_progress", "paused"].includes(t.status)).length,
-      overdue: tasks.filter((t) => !bedFilter || t.bedId === bedFilter).filter((t) => isOverdue(t, now)).length,
-      deferred: tasks.filter((t) => !bedFilter || t.bedId === bedFilter).filter((t) => t.status === "deferred").length,
-      done: tasks.filter((t) => !bedFilter || t.bedId === bedFilter).filter((t) => t.status === "done" || t.status === "missed").length,
-    }),
-    [tasks, bedFilter, now],
+    () => {
+      const effectiveUnitId = unitId || bedFilter;
+      const baseFilter = effectiveUnitId
+        ? (t: Task) => t.unitId === effectiveUnitId || t.bedId === effectiveUnitId : _ => true;
+      const filteredTasks = tasks.filter(baseFilter);
+      return {
+        open: filteredTasks.filter((t) => ["planned", "in_progress", "paused"].includes(t.status)).length,
+        overdue: filteredTasks.filter((t) => isOverdue(t, now)).length,
+        deferred: filteredTasks.filter((t) => t.status === "deferred").length,
+        done: filteredTasks.filter((t) => t.status === "done" || t.status === "missed").length,
+      };
+    },
+    [tasks, bedFilter, unitId, now],
   );
 
   const detail = detailId ? tasks.find((t) => t.id === detailId) : undefined;
@@ -368,6 +378,7 @@ function QuickAddSheet({
 }) {
   const notify = useApp((s) => s.notify);
   const [bedId, setBedId] = useState(defaultBedId);
+  const [unitId, setUnitId] = useState("");
   const [title, setTitle] = useState("");
   const [tier, setTier] = useState<Tier>(3);
   const [category, setCategory] = useState<TaskCategory>("direct_care");
@@ -379,7 +390,7 @@ function QuickAddSheet({
   }, [open, defaultBedId]);
 
   async function addPreset(preset: (typeof PRESETS)[number]) {
-    if (!bedId) return;
+    if (!bedId && !unitId) return;
     setBusy(true);
     try {
       await addQuickTask({
@@ -388,7 +399,8 @@ function QuickAddSheet({
         title: preset.title,
         tier: preset.tier,
         category: preset.category,
-        dueAt: Date.now() + preset.offsetMin * 60_000,
+        plannedFrom: Date.now() + preset.offsetMin * 60_000,
+        plannedTo: Date.now() + preset.offsetMin * 60_000 + preset.expectedMin * 60_000,
       });
       notify(`Added “${preset.title}” to ${beds.find((b) => b.id === bedId)?.alias ?? "bed"}.`, "success");
       onClose();
@@ -410,7 +422,8 @@ function QuickAddSheet({
         title: title.trim(),
         tier,
         category,
-        dueAt: Date.now() + minutes * 60_000,
+        plannedFrom: Date.now(),
+        plannedTo: Date.now() + minutes * 60_000,
       });
       notify("Task added to the queue.", "success");
       setTitle("");
@@ -487,7 +500,7 @@ function QuickAddSheet({
               </div>
             </div>
             <div>
-              <label className="label" htmlFor="quick-due">Due in (minutes)</label>
+              <label className="label" htmlFor="quick-due">Window end (minutes from now)</label>
               <input
                 id="quick-due"
                 type="number"
@@ -556,7 +569,7 @@ function TaskDetail({
   }, [task?.id, payableEvents.length]);
 
   if (!task) return null;
-  const due = dueLabel(task.dueAt, now);
+  const due = windowLabel(task.plannedFrom, task.plannedTo, now);
   const running = task.status === "in_progress";
   const paused = task.status === "paused";
   const closed = task.status === "done" || task.status === "missed";
@@ -567,7 +580,7 @@ function TaskDetail({
       onClose={onClose}
       wide
       title={task.title}
-      description={`${bedLabel ?? "Bed"} · ${task.category === "direct_care" ? "Direct care" : "Indirect care"} · due ${formatTime(task.dueAt)}`}
+      description={`${bedLabel ?? "Bed"} · ${task.category === "direct_care" ? "Direct care" : "Indirect care"} · ${formatTime(task.plannedFrom)} – ${formatTime(task.plannedTo)}`}
     >
       <div className="flex flex-wrap items-center gap-2">
         <TierBadge tier={task.tier} />

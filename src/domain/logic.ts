@@ -189,7 +189,8 @@ export function reduce(input: DomainEvent[]): ReducedState {
           category: event.payload.category,
           tier: event.payload.tier,
           status: "planned",
-          dueAt: event.payload.dueAt,
+          plannedFrom: event.payload.plannedFrom,
+          plannedTo: event.payload.plannedTo,
           expectedMin: event.payload.expectedMin,
           intervalMin: event.payload.intervalMin,
           templateId: event.payload.templateId,
@@ -235,7 +236,8 @@ export function reduce(input: DomainEvent[]): ReducedState {
             break;
           case "TASK_RESCHEDULED":
             task.status = "planned";
-            task.dueAt = event.payload.dueAt;
+            task.plannedFrom = event.payload.plannedFrom;
+            task.plannedTo = event.payload.plannedTo;
             task.rescheduledAt = ts;
             break;
           case "TASK_MISSED":
@@ -306,7 +308,7 @@ export function reduce(input: DomainEvent[]): ReducedState {
 
 export function isOverdue(task: Task, now: number): boolean {
   return (
-    !["done", "deferred", "missed"].includes(task.status) && task.dueAt < now
+    !["done", "deferred", "missed"].includes(task.status) && task.plannedTo < now
   );
 }
 
@@ -317,8 +319,9 @@ export function sortTasks(tasks: Task[], now: number): Task[] {
     const aOverdue = isOverdue(a, now);
     const bOverdue = isOverdue(b, now);
     if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
-    if (aOverdue && bOverdue && a.dueAt !== b.dueAt) return a.dueAt - b.dueAt;
-    if (a.dueAt !== b.dueAt) return a.dueAt - b.dueAt;
+    if (aOverdue && bOverdue && a.plannedTo !== b.plannedTo) return a.plannedTo - b.plannedTo;
+    if (a.plannedFrom !== b.plannedFrom) return a.plannedFrom - b.plannedFrom;
+    if (a.plannedTo !== b.plannedTo) return a.plannedTo - b.plannedTo;
     return a.id.localeCompare(b.id);
   });
 }
@@ -332,7 +335,7 @@ export function isMissed(
   if (["done", "deferred", "missed"].includes(task.status)) return false;
   if (shiftEndedAt) return true;
   if (task.status !== "planned") return false;
-  return now > task.dueAt + config.missedTimeoutMin * MINUTE;
+  return now > task.plannedTo + config.missedTimeoutMin * MINUTE;
 }
 
 export function nextRecurringTask(
@@ -354,7 +357,11 @@ export function nextRecurringTask(
       title: task.title,
       category: task.category,
       tier: task.tier,
-      dueAt: completedAt + task.intervalMin * MINUTE,
+      plannedFrom: completedAt + task.intervalMin * MINUTE,
+      plannedTo:
+        completedAt +
+        task.intervalMin * MINUTE +
+        task.expectedMin * MINUTE,
       expectedMin: task.expectedMin,
       intervalMin: task.intervalMin,
       templateId: task.templateId,
@@ -439,8 +446,10 @@ export function proposeReschedule(
     .map((task) => ({
       taskId: task.id,
       title: task.title,
-      oldDue: task.dueAt,
-      newDue: task.dueAt + offset,
+      oldFrom: task.plannedFrom,
+      oldTo: task.plannedTo,
+      newFrom: task.plannedFrom + offset,
+      newTo: task.plannedTo + offset,
     }));
 }
 
@@ -478,11 +487,14 @@ export function confirmReschedule(
   proposal: RescheduleProposal,
   confirmedAt: number,
   actorId: string,
-  editedDue?: number,
+  editedFrom?: number,
+  editedTo?: number,
 ): DomainEvent {
   if (task.status !== "deferred") {
     throw new DomainError("Only deferred tasks can be confirmed");
   }
+  const plannedFrom = editedFrom ?? proposal.newFrom;
+  const plannedTo = editedTo ?? proposal.newTo;
   return {
     id: newId(),
     shiftId: task.shiftId,
@@ -492,8 +504,10 @@ export function confirmReschedule(
     type: "TASK_RESCHEDULED",
     clientTs: confirmedAt,
     payload: {
-      dueAt: editedDue ?? proposal.newDue,
-      previousDueAt: proposal.oldDue,
+      plannedFrom,
+      plannedTo,
+      previousPlannedFrom: proposal.oldFrom,
+      previousPlannedTo: proposal.oldTo,
       reason: "emergency",
     },
   };
@@ -517,7 +531,8 @@ export function computeDurations(events: DomainEvent[], now = Date.now()): Durat
       category: event.payload.category,
       tier: event.payload.tier,
       status: "planned",
-      dueAt: event.payload.dueAt,
+      plannedFrom: event.payload.plannedFrom,
+      plannedTo: event.payload.plannedTo,
       expectedMin: event.payload.expectedMin,
       intervalMin: event.payload.intervalMin,
       templateId: event.payload.templateId,
@@ -613,7 +628,8 @@ function toHandoverTask(task: Task): HandoverTask {
     title: task.title,
     tier: task.tier,
     status: task.status,
-    dueAt: task.dueAt,
+    plannedFrom: task.plannedFrom,
+    plannedTo: task.plannedTo,
     completedAt: task.completedAt,
     category: task.category,
   };
@@ -677,7 +693,7 @@ export function buildShiftSummary(events: DomainEvent[], now = Date.now()): Shif
     (t) => t.tier <= 2 && (t.status === "done" || t.status === "missed"),
   );
   const tier12OnTime = tier12Considered.filter(
-    (t) => t.status === "done" && t.completedAt !== undefined && t.completedAt <= t.dueAt,
+    (t) => t.status === "done" && t.completedAt !== undefined && t.completedAt <= t.plannedTo,
   ).length;
   const tierBreakdown = {
     1: { total: 0, done: 0 },

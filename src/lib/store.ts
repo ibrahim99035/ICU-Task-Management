@@ -31,14 +31,14 @@ type AppState = {
 
 function storeToken(token: string) {
   try {
-    localStorage.setItem("icu_token", token);
+    localStorage.setItem("tasklog_token", token);
   } catch {
     /* native adapter replaces this later */
   }
 }
 function removeToken() {
   try {
-    localStorage.removeItem("icu_token");
+    localStorage.removeItem("tasklog_token");
   } catch {
     /* ignore */
   }

@@ -241,7 +241,7 @@ function SummaryInner() {
                   <li key={task.id} className="flex items-center gap-2">
                     <TierBadge tier={task.tier} compact />
                     <span className="min-w-0 flex-1 truncate">{task.title}</span>
-                    <span className="text-[11px] text-slate-500">{formatTime(task.dueAt)}</span>
+                    <span className="text-[11px] text-slate-500">{formatTime(task.plannedFrom)} – {formatTime(task.plannedTo)}</span>
                   </li>
                 ))}
               </ul>

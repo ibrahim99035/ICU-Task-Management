@@ -44,7 +44,14 @@ function ev<T extends DomainEvent["type"]>(
   return { ...base, ...overrides } as Extract<DomainEvent, { type: T }>;
 }
 
-function created(taskId: string, tier: 1 | 2 | 3 | 4, dueAt: number, ts = T0, extra = {}) {
+function created(
+  taskId: string,
+  tier: 1 | 2 | 3 | 4,
+  plannedFrom: number,
+  plannedTo: number,
+  ts = T0,
+  extra = {},
+) {
   return ev("TASK_CREATED", ts, {
     taskId,
     bedId,
@@ -52,7 +59,8 @@ function created(taskId: string, tier: 1 | 2 | 3 | 4, dueAt: number, ts = T0, ex
       title: `Task ${taskId}`,
       category: tier === 4 ? "indirect_care" : "direct_care",
       tier,
-      dueAt,
+      plannedFrom,
+      plannedTo,
       expectedMin: 10,
       ...extra,
     },
@@ -77,8 +85,12 @@ function missed(taskId: string, ts: number, reason: "timeout" | "shift_end" = "t
 function deferred(taskId: string, ts: number) {
   return ev("TASK_DEFERRED", ts, { taskId, bedId, payload: { reason: "emergency" } });
 }
-function rescheduled(taskId: string, ts: number, dueAt: number) {
-  return ev("TASK_RESCHEDULED", ts, { taskId, bedId, payload: { dueAt, reason: "emergency" } });
+function rescheduled(taskId: string, ts: number, plannedFrom: number, plannedTo: number) {
+  return ev("TASK_RESCHEDULED", ts, {
+    taskId,
+    bedId,
+    payload: { plannedFrom, plannedTo, reason: "emergency" },
+  });
 }
 
 function shiftEvents(extra: DomainEvent[]): DomainEvent[] {
@@ -98,7 +110,8 @@ describe("sortTasks", () => {
     category: "direct_care",
     tier: 2,
     status: "planned",
-    dueAt: T0 + 20 * MIN,
+    plannedFrom: T0 + 20 * MIN,
+    plannedTo: T0 + 30 * MIN,
     expectedMin: 5,
     createdAt: T0,
     durationRecorded: false,
@@ -108,13 +121,13 @@ describe("sortTasks", () => {
 
   it("orders pinned first, then tier, then most overdue, then earliest due, with stable ties", () => {
     const tasks: Task[] = [
-      { ...base, id: "t3", tier: 3, dueAt: T0 + 5 * MIN },
-      { ...base, id: "t2-late", tier: 2, dueAt: T0 + 1 * MIN },
-      { ...base, id: "t2-early", tier: 2, dueAt: T0 + 10 * MIN },
-      { ...base, id: "t2-tie-a", tier: 2, dueAt: T0 + 3 * MIN },
-      { ...base, id: "t2-tie-b", tier: 2, dueAt: T0 + 3 * MIN },
-      { ...base, id: "pinned", tier: 4, pinned: true, dueAt: T0 + 100 * MIN },
-      { ...base, id: "t1", tier: 1, dueAt: T0 + 12 * MIN },
+      { ...base, id: "t3", tier: 3, plannedFrom: T0 + 5 * MIN, plannedTo: T0 + 15 * MIN },
+      { ...base, id: "t2-late", tier: 2, plannedFrom: T0 + 1 * MIN, plannedTo: T0 + 11 * MIN },
+      { ...base, id: "t2-early", tier: 2, plannedFrom: T0 + 10 * MIN, plannedTo: T0 + 20 * MIN },
+      { ...base, id: "t2-tie-a", tier: 2, plannedFrom: T0 + 3 * MIN, plannedTo: T0 + 13 * MIN },
+      { ...base, id: "t2-tie-b", tier: 2, plannedFrom: T0 + 3 * MIN, plannedTo: T0 + 13 * MIN },
+      { ...base, id: "pinned", tier: 4, pinned: true, plannedFrom: T0 + 100 * MIN, plannedTo: T0 + 110 * MIN },
+      { ...base, id: "t1", tier: 1, plannedFrom: T0 + 12 * MIN, plannedTo: T0 + 22 * MIN },
     ];
     const sorted = sortTasks(tasks, T0 + 4 * MIN).map((t) => t.id);
     expect(sorted).toEqual(["pinned", "t1", "t2-late", "t2-tie-a", "t2-tie-b", "t2-early", "t3"]);
@@ -124,7 +137,7 @@ describe("sortTasks", () => {
 describe("state machine", () => {
   it("rejects invalid transitions", () => {
     const events = [
-      created("x", 1, T0 + 5 * MIN),
+      created("x", 1, T0 + 5 * MIN, T0 + 15 * MIN),
       started("x", T0),
       paused("x", T0 + MIN),
       started("x", T0 + 2 * MIN),
@@ -134,7 +147,7 @@ describe("state machine", () => {
 
   it("rejects starting a deferred task without an explicit reschedule", () => {
     const events = [
-      created("x", 3, T0 + 5 * MIN),
+      created("x", 3, T0 + 5 * MIN, T0 + 15 * MIN),
       deferred("x", T0),
       started("x", T0 + MIN),
     ];
@@ -142,7 +155,7 @@ describe("state machine", () => {
   });
 
   it("allows tick-only completion but records no duration", () => {
-    const events = [created("x", 4, T0), completed("x", T0 + MIN, true)];
+    const events = [created("x", 4, T0, T0 + 10 * MIN), completed("x", T0 + MIN, true)];
     const state = reduce(events);
     expect(state.tasks.x.status).toBe("done");
     expect(state.tasks.x.durationRecorded).toBe(false);
@@ -150,7 +163,7 @@ describe("state machine", () => {
   });
 
   it("requires tickOnly for completion from planned", () => {
-    const events = [created("x", 4, T0), completed("x", T0 + MIN, false)];
+    const events = [created("x", 4, T0, T0 + 10 * MIN), completed("x", T0 + MIN, false)];
     expect(() => reduce(events)).toThrow(DomainError);
   });
 });
@@ -158,7 +171,7 @@ describe("state machine", () => {
 describe("priority protection and emergency", () => {
   it("never defers tier 1 or tier 2", () => {
     for (const tier of [1, 2] as const) {
-      const events = [created("x", tier, T0), deferred("x", T0 + MIN)];
+      const events = [created("x", tier, T0, T0 + 10 * MIN), deferred("x", T0 + MIN)];
       expect(() => reduce(events)).toThrow(/never be deferred/);
     }
   });
@@ -173,7 +186,8 @@ describe("priority protection and emergency", () => {
         category: "direct_care",
         tier: 1,
         status: "planned",
-        dueAt: T0,
+        plannedFrom: T0,
+        plannedTo: T0 + 10 * MIN,
         expectedMin: 5,
         createdAt: T0,
         durationRecorded: false,
@@ -188,7 +202,8 @@ describe("priority protection and emergency", () => {
         category: "direct_care",
         tier: 2,
         status: "in_progress",
-        dueAt: T0,
+        plannedFrom: T0,
+        plannedTo: T0 + 10 * MIN,
         expectedMin: 5,
         createdAt: T0,
         startedAt: T0,
@@ -204,7 +219,8 @@ describe("priority protection and emergency", () => {
         category: "direct_care",
         tier: 3,
         status: "planned",
-        dueAt: T0,
+        plannedFrom: T0,
+        plannedTo: T0 + 10 * MIN,
         expectedMin: 5,
         createdAt: T0,
         durationRecorded: false,
@@ -219,7 +235,8 @@ describe("priority protection and emergency", () => {
         category: "indirect_care",
         tier: 4,
         status: "planned",
-        dueAt: T0,
+        plannedFrom: T0,
+        plannedTo: T0 + 10 * MIN,
         expectedMin: 5,
         createdAt: T0,
         durationRecorded: false,
@@ -233,10 +250,10 @@ describe("priority protection and emergency", () => {
     expect(plan.flaggedTaskIds.sort()).toEqual(["t1", "t2"]);
 
     const events = [
-      created("t1", 1, T0),
-      created("t2", 2, T0),
-      created("t3", 3, T0),
-      created("t4", 4, T0),
+      created("t1", 1, T0, T0 + 10 * MIN),
+      created("t2", 2, T0, T0 + 10 * MIN),
+      created("t3", 3, T0, T0 + 10 * MIN),
+      created("t4", 4, T0, T0 + 10 * MIN),
       started("t2", T0),
       ...plan.events,
     ];
@@ -260,7 +277,8 @@ describe("priority protection and emergency", () => {
         category: "direct_care",
         tier: 3,
         status: "deferred",
-        dueAt: T0 + 5 * MIN,
+        plannedFrom: T0 + 5 * MIN,
+        plannedTo: T0 + 15 * MIN,
         expectedMin: 5,
         createdAt: T0,
         durationRecorded: false,
@@ -275,7 +293,8 @@ describe("priority protection and emergency", () => {
         category: "indirect_care",
         tier: 4,
         status: "deferred",
-        dueAt: T0 + 10 * MIN,
+        plannedFrom: T0 + 10 * MIN,
+        plannedTo: T0 + 20 * MIN,
         expectedMin: 5,
         createdAt: T0,
         durationRecorded: false,
@@ -292,13 +311,16 @@ describe("priority protection and emergency", () => {
     const end = endEmergency(emergency, deferredTasks, T0 + 55 * MIN, actorId);
     expect(end.durationMs).toBe(40 * MIN);
     expect(end.proposals).toEqual([
-      { taskId: "d1", title: "Oral care", oldDue: T0 + 5 * MIN, newDue: T0 + 45 * MIN },
-      { taskId: "d2", title: "Charting", oldDue: T0 + 10 * MIN, newDue: T0 + 50 * MIN },
+      { taskId: "d1", title: "Oral care", oldFrom: T0 + 5 * MIN, oldTo: T0 + 15 * MIN, newFrom: T0 + 45 * MIN, newTo: T0 + 55 * MIN },
+      { taskId: "d2", title: "Charting", oldFrom: T0 + 10 * MIN, oldTo: T0 + 20 * MIN, newFrom: T0 + 50 * MIN, newTo: T0 + 60 * MIN },
     ]);
     const confirm = confirmReschedule(deferredTasks[0], end.proposals[0], T0 + 56 * MIN, actorId);
     expect(confirm.type).toBe("TASK_RESCHEDULED");
-    expect((confirm as Extract<DomainEvent, { type: "TASK_RESCHEDULED" }>).payload.dueAt).toBe(
+    expect((confirm as Extract<DomainEvent, { type: "TASK_RESCHEDULED" }>).payload.plannedFrom).toBe(
       T0 + 45 * MIN,
+    );
+    expect((confirm as Extract<DomainEvent, { type: "TASK_RESCHEDULED" }>).payload.plannedTo).toBe(
+      T0 + 55 * MIN,
     );
 
     const fixed = proposeReschedule(deferredTasks, T0, T0 + 40 * MIN, {
@@ -306,7 +328,7 @@ describe("priority protection and emergency", () => {
       rescheduleOffsetMode: "fixed",
       fixedOffsetMin: 15,
     });
-    expect(fixed[0].newDue).toBe(T0 + 20 * MIN);
+    expect(fixed[0].newTo).toBe(T0 + 30 * MIN);
   });
 
   it("does not reschedule until the nurse confirms", () => {
@@ -320,7 +342,8 @@ describe("priority protection and emergency", () => {
           category: "direct_care",
           tier: 3,
           status: "deferred",
-          dueAt: T0,
+          plannedFrom: T0,
+          plannedTo: T0 + 10 * MIN,
           expectedMin: 5,
           createdAt: T0,
           durationRecorded: false,
@@ -331,7 +354,7 @@ describe("priority protection and emergency", () => {
       T0,
       T0 + 30 * MIN,
     );
-    const events = [created("d1", 3, T0), deferred("d1", T0)];
+    const events = [created("d1", 3, T0, T0 + 10 * MIN), deferred("d1", T0)];
     expect(reduce(events).tasks.d1.status).toBe("deferred");
     expect(plans).toHaveLength(1);
     const afterConfirm = reduce([
@@ -339,14 +362,15 @@ describe("priority protection and emergency", () => {
       confirmReschedule(reduce(events).tasks.d1, plans[0], T0 + 40 * MIN, actorId),
     ]);
     expect(afterConfirm.tasks.d1.status).toBe("planned");
-    expect(afterConfirm.tasks.d1.dueAt).toBe(T0 + 30 * MIN);
+    expect(afterConfirm.tasks.d1.plannedFrom).toBe(T0 + 30 * MIN);
+    expect(afterConfirm.tasks.d1.plannedTo).toBe(T0 + 40 * MIN);
   });
 });
 
 describe("durations and corrections", () => {
   it("sums multiple pause/resume segments", () => {
     const events = [
-      created("x", 1, T0),
+      created("x", 1, T0, T0 + 10 * MIN),
       started("x", T0),
       paused("x", T0 + 10 * MIN),
       resumed("x", T0 + 20 * MIN),
@@ -359,7 +383,7 @@ describe("durations and corrections", () => {
 
   it("uses timestamps only, so wall-clock sleep does not inflate durations", () => {
     const events = [
-      created("x", 1, T0),
+      created("x", 1, T0, T0 + 10 * MIN),
       started("x", T0),
       completed("x", T0 + 12 * MIN),
     ];
@@ -375,7 +399,7 @@ describe("durations and corrections", () => {
     const correction = ev("TIME_CORRECTED", T0 + 20 * MIN, {
       payload: { targetEventId: end.id, newTs: T0 + 20 * MIN },
     });
-    const events = [created("x", 1, T0), start, end, correction];
+    const events = [created("x", 1, T0, T0 + 10 * MIN), start, end, correction];
     expect(computeDurations(events).byTask.x.minutes).toBe(20);
     expect(reduce(events).tasks.x.completedAt).toBe(T0 + 20 * MIN);
     expect(end.clientTs).toBe(T0 + 10 * MIN);
@@ -392,16 +416,16 @@ describe("durations and corrections", () => {
       payload: { targetEventId: end.id, newTs: T0 + 25 * MIN },
     });
     expect(
-      computeDurations([created("x", 1, T0), started("x", T0), end, c1, c2]).byTask.x.minutes,
+      computeDurations([created("x", 1, T0, T0 + 10 * MIN), started("x", T0), end, c1, c2]).byTask.x.minutes,
     ).toBe(25);
   });
 
   it("splits direct, indirect, interruption and emergency minutes", () => {
     const events = [
-      created("direct", 2, T0),
+      created("direct", 2, T0, T0 + 10 * MIN),
       started("direct", T0),
       completed("direct", T0 + 10 * MIN),
-      created("indirect", 4, T0),
+      created("indirect", 4, T0, T0 + 10 * MIN),
       started("indirect", T0 + 10 * MIN),
       completed("indirect", T0 + 25 * MIN),
       ev("INTERRUPTION_LOGGED", T0 + 30 * MIN, {
@@ -434,7 +458,8 @@ describe("missed tasks and recurring tasks", () => {
       category: "direct_care",
       tier: 2,
       status: "planned",
-      dueAt: T0,
+      plannedFrom: T0,
+      plannedTo: T0 + 10 * MIN,
       expectedMin: 5,
       createdAt: T0,
       durationRecorded: false,
@@ -442,7 +467,8 @@ describe("missed tasks and recurring tasks", () => {
       needsAttention: false,
     };
     expect(isMissed(task, T0 + 29 * MIN, DEFAULT_CONFIG)).toBe(false);
-    expect(isMissed(task, T0 + 31 * MIN, DEFAULT_CONFIG)).toBe(true);
+    expect(isMissed(task, T0 + 39 * MIN, DEFAULT_CONFIG)).toBe(false);
+    expect(isMissed(task, T0 + 41 * MIN, DEFAULT_CONFIG)).toBe(true);
     expect(isMissed(task, T0 + MIN, DEFAULT_CONFIG, T0 + 2 * MIN)).toBe(true);
   });
 
@@ -455,9 +481,10 @@ describe("missed tasks and recurring tasks", () => {
       category: "direct_care",
       tier: 2,
       status: "done",
-      dueAt: T0,
-      expectedMin: 5,
+      plannedFrom: T0,
+      plannedTo: T0 + 10 * MIN,
       intervalMin: 60,
+      expectedMin: 10,
       createdAt: T0,
       durationRecorded: true,
       pinned: false,
@@ -465,8 +492,11 @@ describe("missed tasks and recurring tasks", () => {
     };
     const next = nextRecurringTask(task, T0 + 15 * MIN, actorId);
     expect(next?.type).toBe("TASK_CREATED");
-    expect((next as Extract<DomainEvent, { type: "TASK_CREATED" }>).payload.dueAt).toBe(
+    expect((next as Extract<DomainEvent, { type: "TASK_CREATED" }>).payload.plannedFrom).toBe(
       T0 + 75 * MIN,
+    );
+    expect((next as Extract<DomainEvent, { type: "TASK_CREATED" }>).payload.plannedTo).toBe(
+      T0 + 85 * MIN,
     );
   });
 });
@@ -474,13 +504,13 @@ describe("missed tasks and recurring tasks", () => {
 describe("handover", () => {
   it("builds a bed handover from events and marks emergency minutes", () => {
     const events = [
-      created("done", 2, T0),
+      created("done", 2, T0, T0 + 10 * MIN),
       started("done", T0),
       completed("done", T0 + 5 * MIN),
-      created("pending", 3, T0),
-      created("deferred", 3, T0),
+      created("pending", 3, T0, T0 + 10 * MIN),
+      created("deferred", 3, T0, T0 + 10 * MIN),
       deferred("deferred", T0),
-      created("missed", 2, T0),
+      created("missed", 2, T0, T0 + 10 * MIN),
       missed("missed", T0 + 30 * MIN),
       ev("EMERGENCY_STARTED", T0 + 10 * MIN, { bedId }),
       ev("EMERGENCY_ENDED", T0 + 25 * MIN, { bedId }),
@@ -507,7 +537,7 @@ describe("handover", () => {
   });
 
   it("rejects revising a finalized handover", () => {
-    const snapshot = buildHandover([created("x", 1, T0)], { id: bedId, label: "Bed 1" });
+    const snapshot = buildHandover([created("x", 1, T0, T0 + 10 * MIN)], { id: bedId, label: "Bed 1" });
     const first = ev("HANDOVER_FINALIZED", T0 + MIN, {
       bedId,
       payload: { snapshot: snapshot as unknown as Record<string, unknown>, note: "" },
@@ -524,22 +554,22 @@ describe("shift summary", () => {
   it("matches a hand-built scenario", () => {
     const events = [
       ev("SHIFT_STARTED", T0, { payload: { shiftType: "day" } }),
-      created("t1", 1, T0 + 10 * MIN),
+      created("t1", 1, T0 + 10 * MIN, T0 + 20 * MIN),
       started("t1", T0 + 5 * MIN),
       completed("t1", T0 + 15 * MIN),
-      created("t2", 2, T0 + 20 * MIN),
+      created("t2", 2, T0 + 20 * MIN, T0 + 30 * MIN),
       started("t2", T0 + 15 * MIN),
       completed("t2", T0 + 19 * MIN),
-      created("t3", 3, T0 + 30 * MIN),
+      created("t3", 3, T0 + 30 * MIN, T0 + 40 * MIN),
       ev("EMERGENCY_STARTED", T0 + 20 * MIN, { bedId }),
       deferred("t3", T0 + 25 * MIN),
       ev("EMERGENCY_ENDED", T0 + 50 * MIN, { bedId }),
-      rescheduled("t3", T0 + 50 * MIN, T0 + 50 * MIN),
+      rescheduled("t3", T0 + 50 * MIN, T0 + 50 * MIN, T0 + 60 * MIN),
       started("t3", T0 + 50 * MIN),
       completed("t3", T0 + 55 * MIN),
-      created("t4", 2, T0 + 5 * MIN),
+      created("t4", 2, T0 + 5 * MIN, T0 + 15 * MIN),
       missed("t4", T0 + 60 * MIN, "shift_end"),
-      created("t5", 4, T0 + 30 * MIN),
+      created("t5", 4, T0 + 30 * MIN, T0 + 40 * MIN),
       completed("t5", T0 + 30 * MIN, true),
       ev("INTERRUPTION_LOGGED", T0 + 35 * MIN, {
         bedId,
@@ -559,7 +589,7 @@ describe("shift summary", () => {
     expect(s.tasksTotal).toBe(5);
     expect(s.tasksDone).toBe(4);
     expect(s.completionRate).toBe(0.8);
-    expect(s.tier12OnTimeRate).toBeCloseTo(1 / 3);
+    expect(s.tier12OnTimeRate).toBeCloseTo(2 / 3);
     expect(s.missedCount).toBe(1);
     expect(s.deferredCount).toBe(0);
     expect(s.tierBreakdown[1]).toEqual({ total: 1, done: 1 });

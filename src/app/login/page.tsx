@@ -105,7 +105,7 @@ export default function LoginPage() {
         <div className="relative flex items-center gap-3">
           <Logo size={44} light />
           <div>
-            <p className="text-lg font-extrabold tracking-tight">ICU TaskLog</p>
+            <p className="text-lg font-extrabold tracking-tight">TaskLog</p>
             <p className="text-xs font-medium text-white/60">Planning, timing &amp; handover aid</p>
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function LoginPage() {
             Keep the critical work visible when the shift gets interrupted.
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-white/70 sm:text-base">
-            Plan ICU tasks by priority, time care from timestamps, protect tier 1–2 work during emergencies,
+            Plan tasks by priority, time care from timestamps, protect tier 1–2 work during emergencies,
             and build a shift handover from what actually happened.
           </p>
           <div className="mt-7 grid grid-cols-2 gap-3 text-sm">
@@ -142,7 +142,7 @@ export default function LoginPage() {
       <section className="flex items-center justify-center px-4 py-8 sm:px-8">
         <div className="w-full max-w-md">
           <div className="mb-6 lg:hidden">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700">ICU TaskLog</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700">TaskLog</p>
             <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-ink">
               {mode === "login" ? "Welcome back" : "Create account"}
             </h2>

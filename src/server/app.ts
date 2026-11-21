@@ -682,7 +682,7 @@ app.get("/export", requireRole("head_nurse"), async (c) => {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="icu-tasklog-${type}.csv"`,
+      "Content-Disposition": `attachment; filename="tasklog-${type}.csv"`,
     },
   });
 });

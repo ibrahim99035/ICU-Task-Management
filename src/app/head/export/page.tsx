@@ -61,7 +61,7 @@ export default function ExportPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `icu-tasklog-${type}.csv`;
+      anchor.download = `tasklog-${type}.csv`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();

@@ -120,7 +120,7 @@ export function AppShell({
         <Link href={user.role === "head_nurse" ? "/head" : "/beds"} className="flex items-center gap-3 px-2">
           <Logo size={40} />
           <div>
-            <p className="text-[15px] font-extrabold tracking-tight text-ink">ICU TaskLog</p>
+            <p className="text-[15px] font-extrabold tracking-tight text-ink">TaskLog</p>
             <p className="text-[11px] font-medium text-slate-500">Planning &amp; handover aid</p>
           </div>
         </Link>
@@ -200,7 +200,7 @@ export function AppShell({
         <main className="mx-auto max-w-6xl px-4 pb-32 pt-4 sm:px-6 lg:pb-12">
           {children}
           <div className="mt-8 hidden rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-center text-[11px] leading-relaxed text-slate-500 lg:block">
-            ICU TaskLog is a planning and logging aid. It does not replace bedside monitors, alarms or official
+            TaskLog is a planning and logging aid. It does not replace bedside monitors, alarms or official
             orders. Every rating is written manually by the head nurse; the app does not rank staff.
           </div>
         </main>

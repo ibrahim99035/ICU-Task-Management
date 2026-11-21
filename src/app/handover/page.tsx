@@ -30,7 +30,7 @@ import { useApp } from "@/lib/store";
 
 function handoverText(snapshot: HandoverSnapshot, note: string): string {
   const lines = [
-    `ICU TaskLog handover — ${snapshot.bedLabel}`,
+    `TaskLog handover — ${snapshot.bedLabel}`,
     `Shift: ${snapshot.shiftId ? snapshot.shiftId.slice(0, 8) : "—"}`,
     `Done (${snapshot.done.length}): ${snapshot.done.map((t) => t.title).join(", ") || "none"}`,
     `Pending (${snapshot.pending.length}): ${snapshot.pending.map((t) => t.title).join(", ") || "none"}`,
@@ -89,8 +89,9 @@ function HandoverInner() {
 
   const bed = beds.find((b) => b.id === selectedBedId);
   const events = useMemo(
-    () => (data?.events ?? []).filter((e) => e.bedId === selectedBedId || !e.bedId),
-    [data?.events, selectedBedId],
+    () => (data?.events ?? []).filter(
+      (e) => e.bedId === selectedBedId || !e.bedId,
+    ), [data?.events, selectedBedId],
   );
 
   const snapshot = useMemo(() => {
@@ -101,7 +102,8 @@ function HandoverInner() {
   const existing = useLive(
     async (): Promise<HandoverRow | undefined> => {
       if (!selectedBedId) return undefined;
-      const rows = await db().handovers.where("bedId").equals(selectedBedId).toArray();
+    const selector = db().handovers.where("bedId").equals(selectedBedId).limit(50);
+    const rows = await selector.toArray();
       return rows.sort((a, b) => b.createdAt - a.createdAt)[0];
     },
     [selectedBedId],
@@ -396,7 +398,7 @@ function SnapshotSection({
                 tone === "default" && "text-slate-500",
               )}
             >
-              due {formatTime(task.dueAt)}
+              {formatTime(task.plannedFrom)} – {formatTime(task.plannedTo)}
             </span>
           </li>
         ))}

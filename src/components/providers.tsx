@@ -29,7 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <div className="fixed inset-0 z-50 grid place-items-center bg-mist">
         <div className="flex flex-col items-center gap-3 text-slate-500">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-teal-600" />
-          <p className="text-sm font-medium">Loading ICU TaskLog…</p>
+          <p className="text-sm font-medium">Loading TaskLog…</p>
         </div>
       </div>
     );

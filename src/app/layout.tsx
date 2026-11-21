@@ -3,10 +3,10 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
-  title: "ICU TaskLog — planning and handover aid",
+  title: "TaskLog — planning and handover aid",
   description:
-    "A planning and logging aid for ICU nurses. Practice data only. Not a medical device and not a replacement for bedside monitors, alarms or official orders.",
-  applicationName: "ICU TaskLog",
+    "A planning and logging aid for nurses. Practice data only. Not a medical device and not a replacement for bedside monitors, alarms or official orders.",
+  applicationName: "TaskLog",
 };
 
 export const viewport: Viewport = {
