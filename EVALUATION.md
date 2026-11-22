@@ -57,7 +57,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
 | Live CORS unit update | `OPTIONS /api/units/unit-a`, requested `PATCH` | **204**; `access-control-allow-methods` includes `PATCH`, `DELETE` |
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
-| Android CI build | GitHub Actions run `44917777448` | **success**; `app-debug.apk`, 5,616,993 bytes, SHA-256 `55dc67f52cb15c405538dbe342714932b9b48b874fa3c2a04e5a0a6bdf51c2eb` |
+| Android CI build | GitHub Actions run `45029176092` | **success**; `app-debug.apk`, 5,622,549 bytes, SHA-256 `0ac71a3120fa55a5d8c0f367cdacd1a6a1c93ad0777b5a91d46f71ef84f3efc5`; bundled JS contains task-edit UI strings and the Vercel API URL |
 
 ### Production deployment
 
@@ -66,7 +66,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 - Observed checks after the unit deployment: health 200, head login 200, units 200 (Unit A/Unit B), unit-filtered shifts 200 (7 Unit A shifts), unit analytics 200 (7 shifts, 81.0% completion), CORS `PATCH` preflight 204.
 - Nurse self-registration: live `POST /api/auth/register` returned 201, created a nurse account, and that account signed in successfully. Duplicate username returned 409 and a client-supplied `head_nurse` role returned 400. The verification accounts were removed after the checks.
 - Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors. The unit page was also opened live to capture `17-head-units.png`.
-- Android artifact: GitHub Actions run `44917777448` succeeded. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,616,993 bytes, SHA-256 above), and its bundled JavaScript contains `https://icu-tasklog.vercel.app`.
+- Android artifact: GitHub Actions run `45029176092` succeeded for `e7cec95`. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,622,549 bytes, SHA-256 above), and its bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
 - **NOT VERIFIED:** installing and opening the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 The simulation is deterministic and uses only bed labels and participant codes. It is demonstration data, not a study result.

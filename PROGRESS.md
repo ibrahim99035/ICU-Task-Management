@@ -36,7 +36,7 @@
 - Live self-registration observed earlier: `201` for a nurse account, login `200`, duplicate `409`, client role injection `400`; test accounts were removed.
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
 - `npm run build:mobile` verified locally: static export succeeds and `src/app/api` is restored.
-- GitHub Actions run `44917777448` succeeded: `app-debug.apk`, 5,616,993 bytes, SHA-256 `55dc67f52cb15c405538dbe342714932b9b48b874fa3c2a04e5a0a6bdf51c2eb`.
+- GitHub Actions run `45029176092` succeeded for task-edit commit `e7cec95`: `app-debug.apk`, 5,622,549 bytes, SHA-256 `0ac71a3120fa55a5d8c0f367cdacd1a6a1c93ad0777b5a91d46f71ef84f3efc5`. The artifact was downloaded and unpacked; the bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
 - Screenshots `02-shift-start.png`, `11-head-dashboard.png` and `17-head-units.png` were refreshed from the live deployment.
 - **NOT VERIFIED:** installation and opening of the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
