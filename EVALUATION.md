@@ -51,6 +51,9 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live unit shift filter | `GET /api/shifts?unitId=unit-a` on Vercel | **200**; 7 shifts, all `unitId=unit-a`, each with `unitName=Unit A` |
 | Live unit analytics | `GET /api/analytics/unit?days=30&unitId=unit-a` on Vercel | **200**; 7 shifts, completion 81.0% |
 | Live planned windows | `GET /api/shifts/sim-20261120-u-nurse-2` on Vercel | **200**; 36 `TASK_CREATED` events carry `plannedFrom`/`plannedTo`; no `dueAt` |
+| Live task-edit route deployed | `PATCH /api/shifts/does-not-exist/tasks/does-not-exist` on Vercel with head token | **404**; `{"error":"Shift not found"}` — the new route is present, not a generic 404 |
+| Live frozen-task guard | `PATCH /api/shifts/sim-20261120-u-nurse-2/tasks/...` on Vercel with head token | **409**; `{"error":"Completed or missed tasks cannot be altered"}` |
+| Live unauth task edit | `PATCH /api/shifts/.../tasks/...` on Vercel without token | **401**; `{"error":"Missing bearer token"}` |
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
 | Live CORS unit update | `OPTIONS /api/units/unit-a`, requested `PATCH` | **204**; `access-control-allow-methods` includes `PATCH`, `DELETE` |
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
@@ -59,6 +62,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 ### Production deployment
 
 - Web/API: <https://icu-tasklog.vercel.app> — one Vercel Next.js project; `/api/*` is served by the mounted Hono app.
+- Task-edit deployment `e7cec95` succeeded on Vercel. Live checks after deploy: health 200, head login 200, unauthenticated task-edit `PATCH` 401, unknown shift 404 `Shift not found`, and a frozen production task 409 `Completed or missed tasks cannot be altered`. The successful edit/note path was verified against disposable Postgres, not written into the production demo dataset.
 - Observed checks after the unit deployment: health 200, head login 200, units 200 (Unit A/Unit B), unit-filtered shifts 200 (7 Unit A shifts), unit analytics 200 (7 shifts, 81.0% completion), CORS `PATCH` preflight 204.
 - Nurse self-registration: live `POST /api/auth/register` returned 201, created a nurse account, and that account signed in successfully. Duplicate username returned 409 and a client-supplied `head_nurse` role returned 400. The verification accounts were removed after the checks.
 - Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors. The unit page was also opened live to capture `17-head-units.png`.

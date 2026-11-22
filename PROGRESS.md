@@ -31,6 +31,7 @@
 
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.
+- Task-edit deploy `e7cec95` succeeded on Vercel. Live checks after deploy: health `200`, head login `200`, unauthenticated `PATCH` `401`, unknown shift `404` with `{"error":"Shift not found"}`, and a frozen production task `409` with `{"error":"Completed or missed tasks cannot be altered"}`. Successful edit/note persistence was verified against the disposable Postgres suite (41 checks), not written into the production demo dataset.
 - Production checks observed after unit deployment: health `200`, head login `200`, units `200` (Unit A/Unit B), `GET /api/shifts?unitId=unit-a` `200` with 7 Unit A shifts, unit analytics `200` with 7 shifts, CORS `PATCH` preflight `204`.
 - Live self-registration observed earlier: `201` for a nurse account, login `200`, duplicate `409`, client role injection `400`; test accounts were removed.
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
