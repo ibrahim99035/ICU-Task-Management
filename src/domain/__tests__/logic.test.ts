@@ -92,6 +92,21 @@ function rescheduled(taskId: string, ts: number, plannedFrom: number, plannedTo:
     payload: { plannedFrom, plannedTo, reason: "emergency" },
   });
 }
+function edited(
+  taskId: string,
+  ts: number,
+  payload: {
+    title?: string;
+    tier?: 1 | 2 | 3 | 4;
+    category?: "direct_care" | "indirect_care";
+    plannedFrom?: number;
+    plannedTo?: number;
+    expectedMin?: number;
+    note?: string;
+  },
+) {
+  return ev("TASK_EDITED", ts, { taskId, bedId, payload });
+}
 
 function shiftEvents(extra: DomainEvent[]): DomainEvent[] {
   return [
@@ -165,6 +180,46 @@ describe("state machine", () => {
   it("requires tickOnly for completion from planned", () => {
     const events = [created("x", 4, T0, T0 + 10 * MIN), completed("x", T0 + MIN, false)];
     expect(() => reduce(events)).toThrow(DomainError);
+  });
+
+  it("edits an unfinished task and keeps a note", () => {
+    const events = [
+      created("x", 2, T0, T0 + 10 * MIN),
+      edited("x", T0 + MIN, {
+        title: "Updated vital signs",
+        tier: 3,
+        category: "indirect_care",
+        plannedFrom: T0 + 20 * MIN,
+        plannedTo: T0 + 35 * MIN,
+        expectedMin: 15,
+        note: "Recheck after the family update.",
+      }),
+    ];
+    const task = reduce(events).tasks.x;
+    expect(task.title).toBe("Updated vital signs");
+    expect(task.tier).toBe(3);
+    expect(task.category).toBe("indirect_care");
+    expect(task.plannedFrom).toBe(T0 + 20 * MIN);
+    expect(task.plannedTo).toBe(T0 + 35 * MIN);
+    expect(task.expectedMin).toBe(15);
+    expect(task.note).toBe("Recheck after the family update.");
+  });
+
+  it("rejects editing a finished task", () => {
+    const events = [
+      created("x", 4, T0, T0 + 10 * MIN),
+      completed("x", T0 + MIN, true),
+      edited("x", T0 + 2 * MIN, { note: "Too late" }),
+    ];
+    expect(() => reduce(events)).toThrow(/cannot be altered/);
+  });
+
+  it("rejects an edited window that ends before it starts", () => {
+    const events = [
+      created("x", 3, T0, T0 + 10 * MIN),
+      edited("x", T0 + MIN, { plannedFrom: T0 + 20 * MIN, plannedTo: T0 + 15 * MIN }),
+    ];
+    expect(() => reduce(events)).toThrow(/cannot be before/);
   });
 });
 
@@ -511,7 +566,7 @@ describe("handover", () => {
       created("done", 2, T0, T0 + 10 * MIN),
       started("done", T0),
       completed("done", T0 + 5 * MIN),
-      created("pending", 3, T0, T0 + 10 * MIN),
+      created("pending", 3, T0, T0 + 10 * MIN, T0, { note: "Handover note" }),
       created("deferred", 3, T0, T0 + 10 * MIN),
       deferred("deferred", T0),
       created("missed", 2, T0, T0 + 10 * MIN),
@@ -530,6 +585,7 @@ describe("handover", () => {
     const h = buildHandover(events, { id: bedId, label: "Bed 4, post-op" }, "Watch urine output");
     expect(h.done.map((t) => t.id)).toEqual(["done"]);
     expect(h.pending.map((t) => t.id)).toEqual(["pending"]);
+    expect(h.pending[0]?.note).toBe("Handover note");
     expect(h.deferred.map((t) => t.id)).toEqual(["deferred"]);
     expect(h.missed.map((t) => t.id)).toEqual(["missed"]);
     expect(h.interruptions).toEqual([

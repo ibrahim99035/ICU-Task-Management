@@ -12,7 +12,7 @@ The prototype deliberately excludes AI, automatic clinical decisions and nurse r
 
 - **Participants:** 6–10 ICU nurses for formative usability, plus 1–2 head nurses for review/export feedback. Convenience sample; thesis demo.
 - **Design:** within-subject, paper/shift-board baseline versus TaskLog, counterbalanced order if the sample allows.
-- **Tasks:** start a shift for six beds; identify the most critical open task; start and finish a task; log an interruption; handle an emergency on one bed; confirm deferred-task times; finalize a handover; end the shift; read the summary. Head nurse: find a shift, inspect the timeline, submit five manual ratings, export CSV.
+- **Tasks:** start a shift for six beds; identify the most critical open task; start and finish a task; edit an unfinished task and add a note; log an interruption; handle an emergency on one bed; confirm deferred-task times; finalize a handover; end the shift; read the summary. Head nurse: find a shift, inspect the timeline, edit an unfinished task or add a note, submit five manual ratings, export CSV.
 - **Measures:**
   - SUS after the app session (paper version may be collected for comparison only if the protocol is approved).
   - Raw NASA-TLX after a simulated emergency/handover scenario.
@@ -28,10 +28,11 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 
 | Check | Command | Observed result |
 | --- | --- | --- |
-| Domain tests | `./node_modules/.bin/vitest run` | **25 passed** |
+| Domain tests | `./node_modules/.bin/vitest run` | **28 passed** |
 | TypeScript | `./node_modules/.bin/tsc --noEmit` | clean |
-| Product-rule lint | `npm run lint` | passed, 46 source files / 5 domain files |
-| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **36 checks passed** |
+| Product-rule lint | `npm run lint` | passed, 47 source files / 5 domain files |
+| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **41 checks passed** |
+| Task edit + note | domain reducer and API tests | observed: both roles edit an unfinished task; `TASK_EDITED` is appended; done task returns 409; note survives pull; handover projection carries note |
 | Dynamic units | head `POST/PATCH/DELETE /api/units`, nurse assignment, `GET /api/units`, unit filters | observed: create 201, duplicate 409, nurse create 403, assignment 200, nurse sees assigned unit, shift carries `unitId` |
 | Nurse self-registration | `POST /api/auth/register` | **201**; role forced to `nurse`, PIN hashed, duplicate username 409, client role injection 400 |
 | Playwright auth/role/privacy/units | `npm run test:e2e` | **7 passed** |

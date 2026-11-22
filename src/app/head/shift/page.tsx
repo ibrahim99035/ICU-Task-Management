@@ -14,6 +14,7 @@ import {
   Loader2,
   MessageSquare,
   PauseCircle,
+  Pencil,
   Play,
   Siren,
   Star,
@@ -24,15 +25,19 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { BarRow, DonutChart } from "@/components/charts";
-import { EmptyState, InlineAlert, Spinner, StatCard } from "@/components/ui";
+import { TaskEditModal } from "@/components/task-edit-modal";
+import { EmptyState, InlineAlert, Spinner, StatCard, TierBadge } from "@/components/ui";
 import {
   buildShiftSummary,
   INTERRUPTION_LABELS,
+  isTaskEditable,
+  reduce,
   type DomainEvent,
   type ShiftSummary,
+  type Task,
   type TaskStatus,
 } from "@/domain";
-import { fetchShiftDetail, type ShiftDetail } from "@/lib/api";
+import { fetchShiftDetail, patchTask, type ShiftDetail } from "@/lib/api";
 import { cn, formatDateTime, formatMinutes, formatPercent, formatTime } from "@/lib/format";
 import { useApp } from "@/lib/store";
 
@@ -42,9 +47,11 @@ function ShiftInner() {
   const id = params.get("id") ?? "";
   const user = useApp((s) => s.user);
   const token = useApp((s) => s.token);
+  const notify = useApp((s) => s.notify);
   const [detail, setDetail] = useState<ShiftDetail | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   useEffect(() => {
     if (user && user.role !== "head_nurse") router.replace("/beds");
@@ -70,15 +77,22 @@ function ShiftInner() {
     }
   }, [detail]);
 
+  const tasks = useMemo(() => {
+    if (!detail) return [] as Task[];
+    try {
+      return Object.values(reduce(detail.events as DomainEvent[]).tasks).sort(
+        (a, b) => a.tier - b.tier || a.plannedFrom - b.plannedFrom || a.title.localeCompare(b.title),
+      );
+    } catch {
+      return [];
+    }
+  }, [detail]);
+
   const taskTitles = useMemo(() => {
     const map = new Map<string, string>();
-    for (const event of detail?.events ?? []) {
-      if (event.type === "TASK_CREATED" && (event.payload as { title?: string }).title) {
-        map.set(event.taskId ?? "", (event.payload as { title?: string }).title ?? "Task");
-      }
-    }
+    for (const task of tasks) map.set(task.id, task.title);
     return map;
-  }, [detail]);
+  }, [tasks]);
 
   const bedMap = useMemo(
     () => new Map((detail?.beds ?? []).map((bed) => [bed.id, bed.alias])),
@@ -182,6 +196,81 @@ function ShiftInner() {
                 );
               })}
             </ol>
+          </section>
+
+          <section className="card p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-ink">Tasks</h2>
+                <p className="text-xs text-slate-500">
+                  Edit unfinished tasks or add a note. Finished tasks stay frozen.
+                </p>
+              </div>
+              <span className="pill bg-slate-100 text-slate-600">{tasks.length}</span>
+            </div>
+            {tasks.length ? (
+              <ul className="mt-3 max-h-[28rem] space-y-1.5 overflow-y-auto pr-1">
+                {tasks.map((task) => {
+                  const editable = isTaskEditable(task.status);
+                  return (
+                    <li key={task.id} className="flex items-start gap-2 rounded-xl border border-slate-100 p-2.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <TierBadge tier={task.tier} compact />
+                          <span
+                            className={cn(
+                              "pill capitalize",
+                              task.status === "done"
+                                ? "bg-teal-50 text-teal-800"
+                                : task.status === "missed"
+                                  ? "bg-danger-50 text-danger-700"
+                                  : task.status === "deferred"
+                                    ? "bg-violet-50 text-violet-700"
+                                    : task.status === "in_progress"
+                                      ? "bg-teal-50 text-teal-700"
+                                      : "bg-slate-100 text-slate-600",
+                            )}
+                          >
+                            {task.status.replace("_", " ")}
+                          </span>
+                          {task.note ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700">
+                              <MessageSquare className="h-3 w-3" /> Note
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 truncate text-sm font-semibold text-slate-800">{task.title}</p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          {bedMap.get(task.bedId) ?? "Bed"} · {formatTime(task.plannedFrom)} – {formatTime(task.plannedTo)}
+                        </p>
+                        {task.note ? (
+                          <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-[11px] italic leading-relaxed text-amber-800">
+                            {task.note}
+                          </p>
+                        ) : null}
+                      </div>
+                      {editable ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditingTask(task)}
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-ink"
+                          aria-label={`Edit ${task.title}`}
+                          title="Edit task or add a note"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <span className="shrink-0 px-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-300">
+                          Locked
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-slate-500">No task events on this shift.</p>
+            )}
           </section>
 
           <section className="card p-5">
@@ -307,6 +396,20 @@ function ShiftInner() {
           </div>
         </div>
       </div>
+
+      <TaskEditModal
+        open={Boolean(editingTask)}
+        task={editingTask}
+        onClose={() => setEditingTask(null)}
+        onSave={async (patch) => {
+          if (!editingTask) return;
+          if (!token) throw new Error("Your session expired. Sign in again.");
+          await patchTask(token, shift.id, editingTask.id, patch);
+          const next = await fetchShiftDetail(token, shift.id);
+          setDetail(next);
+          notify("Task updated. The change is in the event log.", "success");
+        }}
+      />
     </AppShell>
   );
 }
@@ -337,6 +440,7 @@ function eventIcon(type: string) {
   if (type === "TASK_COMPLETED") return CheckCircle2;
   if (type === "TASK_MISSED") return XCircle;
   if (type === "TASK_DEFERRED" || type === "TASK_RESCHEDULED") return TimerReset;
+  if (type === "TASK_EDITED") return Pencil;
   if (type === "EMERGENCY_STARTED" || type === "EMERGENCY_ENDED") return Siren;
   if (type === "INTERRUPTION_LOGGED") return MessageSquare;
   if (type === "HANDOVER_FINALIZED") return ClipboardCheck;
@@ -357,6 +461,7 @@ function eventLabel(event: DomainEvent, titles: Map<string, string>): string {
     case "TASK_COMPLETED": return `Completed: ${task}${payload.tickOnly ? " (tick-only)" : ""}`;
     case "TASK_DEFERRED": return `Deferred: ${task}`;
     case "TASK_RESCHEDULED": return `Rescheduled: ${task}`;
+    case "TASK_EDITED": return `Edited task: ${task}${typeof payload.note === "string" && payload.note ? " (note added)" : ""}`;
     case "TASK_MISSED": return `Missed: ${task} (${String(payload.reason ?? "")})`;
     case "INTERRUPTION_LOGGED": return `Interruption: ${INTERRUPTION_LABELS[payload.reason as keyof typeof INTERRUPTION_LABELS] ?? String(payload.reason ?? "")}`;
     case "EMERGENCY_STARTED": return "Emergency started";

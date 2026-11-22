@@ -13,8 +13,9 @@ The production deployment serves the Next.js app and the Hono API from the same 
 ## What it does
 
 - **Dynamic units:** head nurses create or archive units, assign nurses, and filter the dashboard, shift list and exports by unit. A nurse can belong to multiple units; each shift belongs to one unit and tasks inherit it.
-- **Nurse flow:** create an account or sign in, choose an assigned unit at shift start, work a tier-sorted task queue, start/pause/finish tasks, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary.
-- **Head-nurse flow:** unit management, unit-filtered dashboard, shift list, shift detail with event timeline, five manual 1–5 ratings, CSV export.
+- **Nurse flow:** create an account or sign in, choose an assigned unit at shift start, work a tier-sorted task queue, start/pause/finish tasks, edit an unfinished task and add a note, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary.
+- **Head-nurse flow:** unit management, unit-filtered dashboard, shift list, shift detail with event timeline, edit an unfinished task or add a note, five manual 1–5 ratings, CSV export.
+- **Audited task alteration:** both roles can edit unfinished task fields and notes. Each change is a `TASK_EDITED` event; completed and missed tasks are frozen.
 - **Offline unit cache:** the nurse's assigned units are cached in Dexie after sync, so shift start still works offline.
 - **Offline-first nurse actions:** every action is written to Dexie first and pushed later through an outbox. Timers are computed from stored event timestamps, never from in-memory counters.
 - **Rule-based only:** no AI/ML, no computed nurse score, no ranking or leaderboard. Tier 1–2 tasks are never auto-deferred; only planned tier 3–4 tasks are deferred during an emergency, and a nurse confirms every new time.
@@ -67,7 +68,7 @@ Useful commands:
 
 ```bash
 npm run typecheck         # tsc --noEmit
-npm test                  # 25 domain tests
+npm test                  # 28 domain tests
 npm run lint              # product-rule guard (no AI, no IDs, pure domain)
 npm run build             # web production build (webpack)
 npm run build:mobile      # static export for the APK

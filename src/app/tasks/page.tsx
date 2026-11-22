@@ -10,6 +10,7 @@ import {
   Clock3,
   ListChecks,
   Loader2,
+  Pencil,
   Plus,
   Radio,
   Search,
@@ -23,10 +24,12 @@ import { ActiveTaskBar } from "@/components/active-bar";
 import { InterruptionSheet } from "@/components/interruption-sheet";
 import { ConfirmDialog, Modal } from "@/components/modal";
 import { TaskCard } from "@/components/task-card";
+import { TaskEditModal } from "@/components/task-edit-modal";
 import { EmptyState, InlineAlert, Spinner, TierBadge } from "@/components/ui";
 import {
   computeDurations,
   isOverdue,
+  isTaskEditable,
   sortTasks,
   type DomainEvent,
   type Task,
@@ -37,6 +40,7 @@ import {
   addQuickTask,
   completeTask,
   correctEventTime,
+  editTask,
   pauseTask,
   pinTask,
   resumeTask,
@@ -91,6 +95,7 @@ function TasksInner() {
   const [interruptOpen, setInterruptOpen] = useState(false);
   const [interruptTask, setInterruptTask] = useState<Task | undefined>();
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<Task | null>(null);
   const [tickTarget, setTickTarget] = useState<Task | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -343,6 +348,7 @@ function TasksInner() {
         onDone={() => detail && guard(async () => { await completeTask(detail.id); setDetailId(null); })}
         onTickDone={() => detail && (setTickTarget(detail), setDetailId(null))}
         onPin={() => detail && guard(() => pinTask(detail.id, !detail.pinned))}
+        onEdit={() => detail && setEditTarget(detail)}
         onCorrect={(eventId, value) =>
           detail
             ? guard(async () => {
@@ -351,6 +357,18 @@ function TasksInner() {
               })
             : undefined
         }
+      />
+
+      <TaskEditModal
+        open={Boolean(editTarget)}
+        task={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSave={async (patch) => {
+          if (!editTarget) return;
+          await editTask(editTarget.id, patch);
+          setDetailId(null);
+          notify("Task updated. The change is in the event log.", "success");
+        }}
       />
     </AppShell>
   );
@@ -534,6 +552,7 @@ function TaskDetail({
   onDone,
   onTickDone,
   onPin,
+  onEdit,
   onCorrect,
 }: {
   task?: Task;
@@ -550,6 +569,7 @@ function TaskDetail({
   onDone: () => void;
   onTickDone: () => void;
   onPin: () => void;
+  onEdit: () => void;
   onCorrect: (eventId: string, value: string) => void;
 }) {
   const [eventId, setEventId] = useState("");
@@ -606,6 +626,13 @@ function TaskDetail({
         </p>
       ) : null}
 
+      {task.note ? (
+        <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Task note</p>
+          <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-amber-900">{task.note}</p>
+        </div>
+      ) : null}
+
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {task.status === "planned" ? (
           <>
@@ -621,6 +648,11 @@ function TaskDetail({
         ) : null}
         {paused ? (
           <button className="btn-primary" onClick={onResume} disabled={busy}>Resume</button>
+        ) : null}
+        {isTaskEditable(task.status) ? (
+          <button className="btn-secondary" onClick={onEdit} disabled={busy}>
+            <Pencil className="h-4 w-4" /> Edit / note
+          </button>
         ) : null}
         <button className="btn-ghost" onClick={onPin} disabled={busy}>
           <Star className={cn("h-4 w-4", task.pinned && "fill-amber-400 text-amber-500")} /> {task.pinned ? "Unpin" : "Pin"}

@@ -5,6 +5,7 @@ import {
   buildShiftSummary,
   confirmReschedule as confirmRescheduleEvent,
   endEmergency as endEmergencyDomain,
+  isTaskEditable,
   newId,
   nextRecurringTask,
   reduce,
@@ -16,6 +17,7 @@ import {
   type ShiftSummary,
   type Task,
   type TaskCategory,
+  type TaskEditPatch,
   type Tier,
 } from "@/domain";
 import { postHandover, postSummary } from "./api";
@@ -156,6 +158,20 @@ export async function startShift(
 
 export async function getTask(taskId: string): Promise<Task | undefined> {
   return db().tasks.get(taskId);
+}
+
+export async function editTask(taskId: string, patch: TaskEditPatch): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task) throw new Error("Task not found");
+  if (!isTaskEditable(task.status)) throw new Error("Completed or missed tasks cannot be altered");
+  const nextFrom = patch.plannedFrom ?? task.plannedFrom;
+  const nextTo = patch.plannedTo ?? task.plannedTo;
+  if (nextTo < nextFrom) throw new Error("Task end time cannot be before its start time");
+  const shift = await db().shifts.get(task.shiftId);
+  if (!shift) throw new Error("Shift not found");
+  await appendEvents([
+    base("TASK_EDITED", shift, Date.now(), patch, { bedId: task.bedId, taskId: task.id }),
+  ]);
 }
 
 export async function startTask(taskId: string): Promise<void> {

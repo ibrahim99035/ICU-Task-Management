@@ -9,8 +9,11 @@ import { getDb, hasDatabase, schema } from "@/db";
 import {
   buildShiftSummary,
   domainEventSchema,
+  isTaskEditable,
+  reduce,
   scoreRawTLX,
   scoreSUS,
+  taskEditedPayload,
   type DomainEvent,
   type ShiftSummary,
 } from "@/domain";
@@ -648,6 +651,101 @@ app.get("/shifts/:id", requireRole("head_nurse"), async (c) => {
   const handovers = await db.select().from(schema.handoverReports).where(eq(schema.handoverReports.shiftId, id));
   const [review] = await db.select().from(schema.shiftReviews).where(eq(schema.shiftReviews.shiftId, id)).limit(1);
   return c.json({ shift, events: eventRows, beds, handovers, review: review ?? null });
+});
+
+app.patch("/shifts/:shiftId/tasks/:taskId", async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const shiftId = c.req.param("shiftId");
+  const taskId = c.req.param("taskId");
+  const patch = taskEditedPayload.parse(await c.req.json());
+  const [shift] = await db
+    .select()
+    .from(schema.shifts)
+    .where(eq(schema.shifts.id, shiftId))
+    .limit(1);
+  if (!shift) return c.json({ error: "Shift not found" }, 404);
+  if (auth.role === "nurse" && shift.userId !== auth.id) {
+    return c.json({ error: "A nurse cannot alter another nurse's task" }, 403);
+  }
+
+  const rows = await db
+    .select()
+    .from(schema.events)
+    .where(eq(schema.events.shiftId, shiftId))
+    .orderBy(asc(schema.events.serverSeq));
+  const events = rows.map((row) => ({
+    id: row.id,
+    shiftId: row.shiftId,
+    bedId: row.bedId ?? undefined,
+    taskId: row.taskId ?? undefined,
+    actorId: row.actorId,
+    type: row.type,
+    payload: row.payload,
+    clientTs: row.clientTs,
+    serverTs: row.serverTs,
+    serverSeq: row.serverSeq,
+  })) as DomainEvent[];
+
+  let task;
+  try {
+    task = reduce(events).tasks[taskId];
+  } catch {
+    return c.json({ error: "This shift's event log could not be reduced" }, 409);
+  }
+  if (!task) return c.json({ error: "Task not found" }, 404);
+  if (!isTaskEditable(task.status)) {
+    return c.json({ error: "Completed or missed tasks cannot be altered" }, 409);
+  }
+
+  const nextFrom = patch.plannedFrom ?? task.plannedFrom;
+  const nextTo = patch.plannedTo ?? task.plannedTo;
+  if (nextTo < nextFrom) {
+    return c.json({ error: "Task end time cannot be before its start time" }, 400);
+  }
+
+  const now = Date.now();
+  const event: DomainEvent = {
+    id: randomUUID(),
+    shiftId,
+    bedId: task.bedId,
+    taskId,
+    actorId: auth.id,
+    type: "TASK_EDITED",
+    clientTs: now,
+    payload: patch,
+  };
+
+  let summary: ShiftSummary;
+  try {
+    summary = buildShiftSummary([...events, event]);
+  } catch {
+    return c.json({ error: "That task change is not valid" }, 400);
+  }
+
+  await db.insert(schema.events).values({
+    id: event.id,
+    shiftId,
+    bedId: task.bedId,
+    taskId,
+    actorId: auth.id,
+    type: event.type,
+    payload: patch,
+    clientTs: now,
+    serverTs: now,
+  });
+
+  if (shift.endedAt) {
+    await db
+      .update(schema.shifts)
+      .set({ summary })
+      .where(eq(schema.shifts.id, shiftId));
+  }
+
+  return c.json({
+    event: { ...event, serverTs: now },
+    summary: shift.endedAt ? summary : null,
+  });
 });
 
 app.post("/shifts/:id/summary", requireRole("nurse"), async (c) => {

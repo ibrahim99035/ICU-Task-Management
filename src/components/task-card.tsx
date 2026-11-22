@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
+  MessageSquare,
   Pause,
   Play,
   Star,
@@ -97,6 +98,11 @@ export function TaskCard({
             </span>
           ) : null}
           {task.pinned ? <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" aria-label="Pinned" /> : null}
+          {task.note ? (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700">
+              <MessageSquare className="h-3 w-3" aria-hidden /> Note
+            </span>
+          ) : null}
         </div>
         <p className={cn("mt-1 truncate text-[15px] font-semibold leading-tight text-ink", (completed || missed) && "line-through decoration-slate-300")}>
           {task.title}

@@ -732,7 +732,8 @@
             <p>
               A head nurse creates units and assigns nurses. The nurse starts a shift inside one unit. Every task
               created in that shift belongs to the same unit, so the head nurse can filter shifts, analytics and
-              exports by unit.
+              exports by unit. Both roles can correct an unfinished task and add a note; the change is appended to
+              the event log.
             </p>
           </div>
           <div class="card blue-card">
@@ -791,8 +792,8 @@
             <h3>Nurse</h3>
             <p class="tagline">The person working the shift and logging care.</p>
             <ul>
-              <li><strong>Can:</strong> start/end a shift in an assigned unit, manage tasks, log interruptions, handle emergencies, reschedule tier 3–4 work, finalize handover, read own summary and reviews, complete surveys.</li>
-              <li><strong>Cannot:</strong> create units, assign nurses, see other nurses’ shifts, rate anyone, or export unit data.</li>
+              <li><strong>Can:</strong> start/end a shift in an assigned unit, manage tasks, edit unfinished task details, write a note on an unfinished task, log interruptions, handle emergencies, reschedule tier 3–4 work, finalize handover, read own summary and reviews, complete surveys.</li>
+              <li><strong>Cannot:</strong> create units, assign nurses, see other nurses’ shifts, rate anyone, export unit data, or alter a completed/missed task.</li>
               <li><strong>Lands on:</strong> <code>/beds</code> when a shift is active; otherwise <code>/shift-start</code>.</li>
             </ul>
           </article>
@@ -803,10 +804,10 @@
               <span class="role-badge">head_nurse</span>
             </div>
             <h3>Head nurse</h3>
-            <p class="tagline">The person who configures units and reviews finished shifts.</p>
+            <p class="tagline">The person who configures units, reviews shifts and can correct unfinished tasks.</p>
             <ul>
-              <li><strong>Can:</strong> create/archive units, assign nurses, filter dashboard/shifts/exports by unit, inspect shift timelines, write five manual ratings, export CSV.</li>
-              <li><strong>Cannot:</strong> run the nurse shift flow, start or edit tasks, or change a nurse’s event log.</li>
+              <li><strong>Can:</strong> create/archive units, assign nurses, filter dashboard/shifts/exports by unit, inspect shift timelines, edit unfinished task details, write a note on an unfinished task, write five manual ratings, export CSV.</li>
+              <li><strong>Cannot:</strong> run the nurse shift flow, start, pause, complete or end a nurse’s task, alter a completed/missed task, log interruptions, finalize a handover, or rewrite the event log.</li>
               <li><strong>Lands on:</strong> <code>/head</code>.</li>
             </ul>
           </article>
@@ -814,8 +815,9 @@
 
         <div class="callout blue" style="margin-top:16px">
           <strong>Important distinction</strong>
-          The head nurse is not a “super nurse” inside the same screens. The head-nurse screens are read/analyse
-          screens plus unit configuration and manual review. The nurse flow is a separate, offline-first workspace.
+          The head nurse is not a “super nurse” inside the same screens. The head-nurse screens are analysis,
+          unit configuration and manual review, plus a narrow correction path for unfinished tasks. The nurse flow
+          is a separate, offline-first workspace.
         </div>
       </section>
 
@@ -846,6 +848,9 @@
               <tr><td>Choose unit when starting shift</td><td class="no">—</td><td class="own">Assigned active units</td><td class="no">—</td></tr>
               <tr><td>Create, start, pause, finish tasks</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
               <tr><td>Quick-add a task</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
+              <tr><td>Edit unfinished task details (title, tier, category, planned time)</td><td class="no">—</td><td class="own">Own shift</td><td class="yes">Any open task</td></tr>
+              <tr><td>Write a note on an unfinished task</td><td class="no">—</td><td class="own">Own shift</td><td class="yes">Any open task</td></tr>
+              <tr><td>Alter a completed or missed task</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
               <tr><td>Log interruptions and emergency time</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
               <tr><td>Confirm new times for deferred tier 3–4 work</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
               <tr><td>Finalize handover snapshot</td><td class="no">—</td><td class="own">Own shift</td><td class="no">—</td></tr>
@@ -864,8 +869,8 @@
         </div>
         <p class="small" style="margin-top:10px">
           Legend: <span class="yes">yes</span> · <span class="own">own data only</span> · <span class="read">read-only</span> ·
-          <span class="no">not available</span>. The API repeats the check with <code>requireRole</code>; hiding a
-          button in the client is not the only protection.
+          <span class="no">not available</span>. The API repeats the check with role guards or per-shift ownership
+          checks; hiding a button in the client is not the only protection.
         </p>
       </section>
 
@@ -928,8 +933,8 @@
             <h3>Purpose of the role</h3>
             <p>
               The nurse plans and logs the shift: choose an assigned unit, start with demo beds, work the tier-sorted
-              queue, record interruptions and emergencies, confirm new times for deferred work, finalize a handover,
-              and end the shift.
+              queue, edit unfinished tasks and add notes, record interruptions and emergencies, confirm new times for
+              deferred work, finalize a handover, and end the shift.
             </p>
             <div class="pill-row">
               <span class="pill teal">Beds</span>
@@ -942,6 +947,7 @@
             <h3>Role boundary</h3>
             <ul class="mini-list">
               <li><strong>Sees:</strong> own active shift, own beds, own tasks, own handovers, own summary, own reviews.</li>
+              <li><strong>Can alter:</strong> unfinished task details and notes in the nurse’s own shift only. Completed and missed tasks are frozen.</li>
               <li><strong>Does not see:</strong> other nurses’ shifts, unit-wide analytics, export screens, unit management.</li>
               <li><strong>Offline:</strong> the nurse flow is the only flow that is designed to continue offline.</li>
               <li><strong>Routing:</strong> if no shift is active, nurse screens redirect to <code>/shift-start</code>.</li>
@@ -969,7 +975,7 @@
           </div>
           <div class="card tight no-shadow">
             <h4><code>/tasks</code> · Task queue</h4>
-            <p class="small">Tier-sorted work, filters, timers, quick add, interruption logging.</p>
+            <p class="small">Tier-sorted work, filters, timers, quick add, edit/note on unfinished tasks, interruption logging.</p>
           </div>
           <div class="card tight no-shadow">
             <h4><code>/review-deferred</code> · Confirm new times</h4>
@@ -1112,6 +1118,24 @@
         <details class="scenario">
           <summary>
             <span class="snum">N7</span>
+            <span class="stitle"><strong>Edit a task and write a note</strong><span>The task needs a clearer title, a new tier or time, or context for the next nurse.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open an unfinished task from <code>/tasks</code> and choose <strong>Edit / note</strong>.</li>
+              <li>Change the title, tier, category, planned start/end or expected minutes.</li>
+              <li>Write a short note for the next nurse. Do not enter names, MRNs or other patient identifiers.</li>
+              <li>Save. The task updates and a <code>TASK_EDITED</code> event is appended; the earlier events stay in the log.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the task queue, task detail, head-nurse task list and a later handover snapshot use the edited values. The note is visible on the task and in the handover.</div>
+            <div class="rule-note"><strong>Rule:</strong> only planned, in-progress, paused or deferred tasks can be altered. Done and missed tasks are frozen so the historical record stays stable.</div>
+          </div>
+        </details>
+
+        <details class="scenario">
+          <summary>
+            <span class="snum">N8</span>
             <span class="stitle"><strong>Log an interruption</strong><span> Care is interrupted by a physician request, missing equipment, family/visitor, other staff or another reason.</span></span>
             <span class="caret">›</span>
           </summary>
@@ -1130,7 +1154,7 @@
 
         <details class="scenario">
           <summary>
-            <span class="snum">N8</span>
+            <span class="snum">N9</span>
             <span class="stitle"><strong>Start and end an emergency</strong><span>A bed needs immediate attention and the nurse must protect critical work.</span></span>
             <span class="caret">›</span>
           </summary>
@@ -1150,7 +1174,7 @@
 
         <details class="scenario">
           <summary>
-            <span class="snum">N9</span>
+            <span class="snum">N10</span>
             <span class="stitle"><strong>Finalize a handover</strong><span>The nurse needs a shift handover built from what actually happened.</span></span>
             <span class="caret">›</span>
           </summary>
@@ -1170,7 +1194,7 @@
 
         <details class="scenario">
           <summary>
-            <span class="snum">N10</span>
+            <span class="snum">N11</span>
             <span class="stitle"><strong>End the shift and read the summary</strong><span>Care is complete; the nurse wants a timestamp-based record.</span></span>
           </summary>
           <div class="scenario-body">
@@ -1189,7 +1213,7 @@
 
         <details class="scenario">
           <summary>
-            <span class="snum">N11</span>
+            <span class="snum">N12</span>
             <span class="stitle"><strong>Surveys, privacy and sign-out</strong><span>The participant finishes or wants to understand the data.</span></span>
             <span class="caret">›</span>
           </summary>
@@ -1208,8 +1232,8 @@
         <div class="callout danger" style="margin-top:16px">
           <strong>What the nurse cannot do</strong>
           The nurse cannot create units, assign other nurses, open the head dashboard, rate themselves or anyone
-          else, inspect another nurse’s shifts, or export the unit dataset. A direct URL to a head-nurse screen
-          redirects, and the API also rejects the request.
+          else, inspect another nurse’s shifts, export the unit dataset, or alter a completed/missed task. A direct
+          URL to a head-nurse screen redirects, and the API also rejects the request.
         </div>
       </section>
 
@@ -1218,7 +1242,7 @@
           <div class="section-kicker">07</div>
           <div>
             <h2>Head nurse role</h2>
-            <p>The head nurse configures the organisational layer and reviews the evidence after shifts finish.</p>
+            <p>The head nurse configures the organisational layer, reviews the evidence, and can correct an unfinished task during or after a shift.</p>
           </div>
         </div>
 
@@ -1227,7 +1251,8 @@
             <h3>Purpose of the role</h3>
             <p>
               The head nurse creates units, assigns nurses, monitors unit-level facts, opens an individual shift to
-              see what happened, writes five manual ratings, and exports CSV files for analysis.
+              see what happened, can correct an unfinished task or add a note, writes five manual ratings, and
+              exports CSV files for analysis.
             </p>
             <div class="pill-row">
               <span class="pill violet">Dashboard</span>
@@ -1241,7 +1266,8 @@
             <h3>Role boundary</h3>
             <ul class="mini-list">
               <li><strong>Sees:</strong> all units, all nurses’ finished and open shifts, unit analytics, event timelines, reviews and exports.</li>
-              <li><strong>Does not see:</strong> a “super nurse” task workspace. Head screens are read/analyse plus unit configuration.</li>
+              <li><strong>Can alter:</strong> unfinished task details and notes from a shift detail, including shifts that are still open. Every change is appended as an event with the head nurse as actor.</li>
+              <li><strong>Does not see:</strong> a full “super nurse” workspace. The head nurse cannot start, pause, complete, miss, defer or reschedule a task, log interruptions, finalize handovers, or edit completed/missed tasks.</li>
               <li><strong>Offline:</strong> head-nurse screens require a connection. Nurse logging remains offline on the nurse device.</li>
               <li><strong>Routing:</strong> if a nurse opens a head URL, the app redirects to <code>/beds</code>.</li>
             </ul>
@@ -1272,7 +1298,7 @@
           </div>
           <div class="card tight no-shadow">
             <h4><code>/head/shift</code> · Shift detail</h4>
-            <p class="small">Summary facts, task breakdown, interruptions, emergency timeline and event log.</p>
+            <p class="small">Summary facts, task list with edit/note on unfinished tasks, interruptions, emergency timeline and event log.</p>
           </div>
           <div class="card tight no-shadow">
             <h4><code>/head/review</code> · Manual review</h4>
@@ -1402,8 +1428,8 @@
               <li>Inspect tier breakdown, task list, interruptions and emergency timeline.</li>
               <li>Review the event log for the stored sequence.</li>
             </ol>
-            <div class="result"><strong>Result:</strong> the head nurse can trace the shift from summary facts back to the event log.</div>
-            <div class="rule-note"><strong>Rule:</strong> the detail is read-only. The head nurse cannot change the nurse’s events.</div>
+            <div class="result"><strong>Result:</strong> the head nurse can trace the shift from summary facts back to the event log and see which tasks are still editable.</div>
+            <div class="rule-note"><strong>Rule:</strong> the event log is append-only. The head nurse cannot rewrite or delete an event; editing an unfinished task adds a new <code>TASK_EDITED</code> event.</div>
           </div>
         </details>
 
@@ -1455,10 +1481,30 @@
           </div>
         </details>
 
+        <details class="scenario">
+          <summary>
+            <span class="snum">H9</span>
+            <span class="stitle"><strong>Edit an unfinished task or add a note</strong><span>The head nurse sees a task that needs a correction or context for the next nurse.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open a shift from the dashboard or <strong>Shifts</strong> list.</li>
+              <li>Find the <strong>Tasks</strong> card in the shift detail.</li>
+              <li>Tap the pencil on any unfinished task. Finished tasks show <strong>Locked</strong>.</li>
+              <li>Change the title, tier, category, planned start/end or expected minutes, and/or write a short note.</li>
+              <li>Save. The change is appended as a <code>TASK_EDITED</code> event with the head nurse as actor.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> the task list and timeline update immediately. The assigned nurse receives the new event on the next sync and the projection is rebuilt. A note also appears in a handover snapshot created after the edit.</div>
+            <div class="rule-note"><strong>Rule:</strong> the head nurse can alter only unfinished tasks. The head nurse cannot start, pause, complete, miss, defer or reschedule a task, or log an interruption. Completed and missed tasks stay frozen. If the nurse and head nurse edit the same task, the later event wins; there is no three-way merge in this demo.</div>
+          </div>
+        </details>
+
         <div class="callout danger" style="margin-top:16px">
           <strong>What the head nurse cannot do</strong>
-          The head nurse cannot start a nurse shift, create or edit tasks, log interruptions, finalize a nurse’s
-          handover, or change an event timeline. The role is configuration + review, not a second clinical operator.
+          The head nurse cannot start a nurse shift, start/pause/complete a task, log interruptions, finalize a
+          nurse’s handover, alter a completed/missed task, or delete an event. The role stays configuration + review
+          plus a narrow, audited correction path for unfinished tasks.
         </div>
       </section>
 
@@ -1658,7 +1704,7 @@
               <tr><td><code>/login</code></td><td>Visitor / both</td><td>Entry, disclaimer, create account, offline resume</td><td>Sign in, register nurse, resume offline</td></tr>
               <tr><td><code>/shift-start</code></td><td>Nurse</td><td>Choose unit, shift type and demo beds</td><td>Start shift, end existing shift</td></tr>
               <tr><td><code>/beds</code></td><td>Nurse</td><td>Bed overview and shift status</td><td>Open tasks, start/end emergency, end shift</td></tr>
-              <tr><td><code>/tasks</code></td><td>Nurse</td><td>Tier-sorted task queue</td><td>Start/pause/resume/done, pin, quick add, interrupt</td></tr>
+              <tr><td><code>/tasks</code></td><td>Nurse</td><td>Tier-sorted task queue</td><td>Start/pause/resume/done, pin, quick add, edit/note unfinished task, interrupt</td></tr>
               <tr><td><code>/review-deferred</code></td><td>Nurse</td><td>Confirm new times after emergency</td><td>Edit time, confirm one, confirm all</td></tr>
               <tr><td><code>/handover</code></td><td>Nurse</td><td>Snapshot from event log</td><td>Choose bed, add note, finalize, copy/share/print</td></tr>
               <tr><td><code>/summary</code></td><td>Nurse</td><td>Frozen shift summary</td><td>Read facts, optionally end open shift</td></tr>
@@ -1668,7 +1714,7 @@
               <tr><td><code>/head</code></td><td>Head</td><td>Unit dashboard</td><td>Filter days/unit, open shifts</td></tr>
               <tr><td><code>/head/units</code></td><td>Head</td><td>Unit configuration</td><td>Create, edit, archive, restore, delete, assign nurses</td></tr>
               <tr><td><code>/head/shifts</code></td><td>Head</td><td>All shifts</td><td>Filter date/unit/nurse, search, open</td></tr>
-              <tr><td><code>/head/shift</code></td><td>Head</td><td>Shift detail and timeline</td><td>Read summary, tasks, events</td></tr>
+              <tr><td><code>/head/shift</code></td><td>Head</td><td>Shift detail and timeline</td><td>Read summary/events, edit/note unfinished tasks</td></tr>
               <tr><td><code>/head/review</code></td><td>Head</td><td>Manual review</td><td>Five ratings, comment, support flag</td></tr>
               <tr><td><code>/head/export</code></td><td>Head</td><td>CSV export</td><td>Choose type/unit, download</td></tr>
             </tbody>
@@ -1793,7 +1839,7 @@
             <li><strong>Create/assign:</strong> “A nurse can belong to more than one unit. A shift belongs to one unit.”</li>
             <li><strong>Nurse login:</strong> “Public signup creates nurse accounts only. Head-nurse accounts are provisioned.”</li>
             <li><strong>Shift start:</strong> “The assigned unit is a precondition. The shift writes locally first.”</li>
-            <li><strong>Task queue:</strong> “Sorting is by tier then time. The timer is derived from events.”</li>
+            <li><strong>Task queue:</strong> “Sorting is by tier then time. The timer is derived from events. Both roles can correct an unfinished task and leave a note, but finished tasks stay frozen.”</li>
             <li><strong>Emergency:</strong> “Tier 1–2 stay visible; only tier 3–4 get proposed times, and the nurse confirms.”</li>
             <li><strong>Handover:</strong> “The snapshot is generated from the event log and frozen when finalized.”</li>
             <li><strong>Summary:</strong> “All durations come from stored timestamps, not an in-memory counter.”</li>
@@ -1820,6 +1866,10 @@
           <details>
             <summary>Can a nurse see another nurse’s shift?</summary>
             <div class="a"><p>No. The nurse pull is scoped to the signed-in nurse. Unit-wide shift lists, analytics and exports are head-nurse screens.</p></div>
+          </details>
+          <details>
+            <summary>Who can alter a task or write a note on an unfinished task?</summary>
+            <div class="a"><p>Every authenticated user has a task-alteration path within the role boundary. A nurse can edit unfinished tasks and notes in the nurse’s own shift. A head nurse can edit unfinished tasks and notes from any shift detail. Every change is an append-only <code>TASK_EDITED</code> event. Completed and missed tasks are frozen for both roles; the head nurse still cannot start, pause, complete, miss, defer or reschedule a task.</p></div>
           </details>
           <details>
             <summary>Is the head-nurse rating a performance score?</summary>
@@ -1930,6 +1980,7 @@
               <tr><td><strong>Bed</strong></td><td>A numbered demo bed with a short nickname and preset tasks. No patient identity.</td></tr>
               <tr><td><strong>Task tier</strong></td><td>1 = immediate, 2 = urgent, 3 = scheduled, 4 = indirect/flexible. Tier 1–2 are never auto-deferred.</td></tr>
               <tr><td><strong>Event</strong></td><td>An append-only record of something that happened (task started, paused, emergency, handover, etc.).</td></tr>
+              <tr><td><strong>Task edit</strong></td><td>A <code>TASK_EDITED</code> event that changes title, tier, category, planned time, expected minutes or note on an unfinished task. Earlier events are preserved.</td></tr>
               <tr><td><strong>Projection</strong></td><td>The current UI state computed from the event log.</td></tr>
               <tr><td><strong>Outbox</strong></td><td>The local queue of events waiting to be pushed to the API.</td></tr>
               <tr><td><strong>Deferred</strong></td><td>A tier 3–4 task moved to a proposed new time after an emergency, pending nurse confirmation.</td></tr>

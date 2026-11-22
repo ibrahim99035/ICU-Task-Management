@@ -33,9 +33,9 @@ function handoverText(snapshot: HandoverSnapshot, note: string): string {
     `TaskLog handover — ${snapshot.bedLabel}`,
     `Shift: ${snapshot.shiftId ? snapshot.shiftId.slice(0, 8) : "—"}`,
     `Done (${snapshot.done.length}): ${snapshot.done.map((t) => t.title).join(", ") || "none"}`,
-    `Pending (${snapshot.pending.length}): ${snapshot.pending.map((t) => t.title).join(", ") || "none"}`,
-    `Deferred (${snapshot.deferred.length}): ${snapshot.deferred.map((t) => t.title).join(", ") || "none"}`,
-    `Missed (${snapshot.missed.length}): ${snapshot.missed.map((t) => t.title).join(", ") || "none"}`,
+    `Pending (${snapshot.pending.length}): ${snapshot.pending.map((t) => t.note ? `${t.title} — ${t.note}` : t.title).join(", ") || "none"}`,
+    `Deferred (${snapshot.deferred.length}): ${snapshot.deferred.map((t) => t.note ? `${t.title} — ${t.note}` : t.title).join(", ") || "none"}`,
+    `Missed (${snapshot.missed.length}): ${snapshot.missed.map((t) => t.note ? `${t.title} — ${t.note}` : t.title).join(", ") || "none"}`,
     `Interruptions: ${snapshot.interruptions.map((i) => `${i.label} ${i.minutes}m`).join(", ") || "none"}`,
     `Emergency: ${formatMinutes(snapshot.emergencyMinutes)}`,
     `Note: ${note || "none"}`,
@@ -384,14 +384,21 @@ function SnapshotSection({
       <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{title} ({tasks.length})</p>
       <ul className="mt-1.5 space-y-1.5">
         {tasks.map((task) => (
-          <li key={task.id} className="flex items-center justify-between gap-2 text-sm">
-            <span className="flex min-w-0 items-center gap-1.5">
-              <TierBadge tier={task.tier} compact />
-              <span className="truncate text-slate-700">{task.title}</span>
+          <li key={task.id} className="flex items-start justify-between gap-2 text-sm">
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <TierBadge tier={task.tier} compact />
+                <span className="truncate text-slate-700">{task.title}</span>
+              </span>
+              {task.note ? (
+                <span className="mt-0.5 block whitespace-pre-wrap text-[11px] italic leading-relaxed text-amber-800">
+                  {task.note}
+                </span>
+              ) : null}
             </span>
             <span
               className={cn(
-                "shrink-0 text-[11px] font-medium",
+                "shrink-0 pt-0.5 text-[11px] font-medium",
                 tone === "danger" && "text-danger-700",
                 tone === "teal" && "text-teal-700",
                 tone === "violet" && "text-violet-700",

@@ -73,6 +73,7 @@ export const EVENT_TYPES = [
   "TASK_COMPLETED",
   "TASK_DEFERRED",
   "TASK_RESCHEDULED",
+  "TASK_EDITED",
   "TASK_MISSED",
   "TIME_CORRECTED",
   "INTERRUPTION_LOGGED",
@@ -128,6 +129,21 @@ export const taskRescheduledPayload = z
     message: "plannedTo must be >= plannedFrom",
     path: ["plannedTo"],
   });
+export const taskEditedPayload = z
+  .object({
+    title: z.string().trim().min(1).max(120).optional(),
+    category: z.enum(["direct_care", "indirect_care"]).optional(),
+    tier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+    plannedFrom: iso.optional(),
+    plannedTo: iso.optional(),
+    expectedMin: z.number().int().min(0).max(720).optional(),
+    note: z.string().max(300).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one task field must change",
+    path: ["title"],
+  });
+export type TaskEditPatch = z.infer<typeof taskEditedPayload>;
 export const taskMissedPayload = z.object({ reason: z.enum(["timeout", "shift_end"]) });
 export const timeCorrectedPayload = z.object({
   targetEventId: z.string().min(1),
@@ -168,6 +184,13 @@ export const domainEventSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("TASK_COMPLETED"), payload: z.object({ tickOnly: z.boolean().optional() }) }),
   z.object({ ...base, type: z.literal("TASK_DEFERRED"), payload: taskDeferredPayload }),
   z.object({ ...base, type: z.literal("TASK_RESCHEDULED"), payload: taskRescheduledPayload }),
+  z.object({
+    ...base,
+    type: z.literal("TASK_EDITED"),
+    payload: taskEditedPayload,
+    taskId: z.string().min(1),
+    bedId: z.string().min(1),
+  }),
   z.object({ ...base, type: z.literal("TASK_MISSED"), payload: taskMissedPayload }),
   z.object({ ...base, type: z.literal("TIME_CORRECTED"), payload: timeCorrectedPayload }),
   z.object({ ...base, type: z.literal("INTERRUPTION_LOGGED"), payload: interruptionPayload }),
@@ -259,6 +282,7 @@ export type HandoverTask = {
   plannedTo: number;
   completedAt?: number;
   category: TaskCategory;
+  note?: string;
 };
 
 export type ReducedState = {

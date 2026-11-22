@@ -368,6 +368,84 @@ async function main() {
   const headForbidden = await req("/api/analytics/unit", { headers: { Authorization: `Bearer ${nurse.token}` } });
   check("nurse cannot use head analytics", headForbidden.status === 403, headForbidden.status);
 
+  const editStart = now - 2 * 3_600_000;
+  const editShiftId = "api-edit-shift";
+  const editTaskId = "api-edit-task";
+  const editEvents: DomainEvent[] = [
+    {
+      ...base,
+      shiftId: editShiftId,
+      id: "api-edit-e1",
+      type: "SHIFT_STARTED",
+      payload: { shiftType: "day", unitId, unitName: "API Unit", bedLabels: ["Bed 1"] },
+      clientTs: editStart,
+    },
+    {
+      ...base,
+      shiftId: editShiftId,
+      id: "api-edit-e2",
+      type: "TASK_CREATED",
+      bedId: "api-edit-bed-1",
+      taskId: editTaskId,
+      payload: {
+        title: "Original task",
+        category: "direct_care",
+        tier: 2,
+        plannedFrom: editStart + 5 * 60_000,
+        plannedTo: editStart + 15 * 60_000,
+        expectedMin: 10,
+        unitId,
+        bedLabel: "Bed 1",
+      },
+      clientTs: editStart + 60_000,
+    },
+  ];
+  const editPush = await req("/api/sync/push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nurse.token}` },
+    body: JSON.stringify({ events: editEvents }),
+  });
+  check("push accepts an editable shift", editPush.status === 200, editPush.status);
+
+  const nursePatch = await req(`/api/shifts/${editShiftId}/tasks/${editTaskId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nurse.token}` },
+    body: JSON.stringify({ title: "Nurse-edited task", note: "Nurse note on an unfinished task" }),
+  });
+  check("nurse can alter own unfinished task", nursePatch.status === 200, nursePatch.status);
+
+  const headPatch = await req(`/api/shifts/${editShiftId}/tasks/${editTaskId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({
+      tier: 3,
+      plannedFrom: editStart + 20 * 60_000,
+      plannedTo: editStart + 35 * 60_000,
+      note: "Head-nurse note on an unfinished task",
+    }),
+  });
+  check("head can alter an unfinished task", headPatch.status === 200, headPatch.status);
+
+  const finishedPatch = await req(`/api/shifts/api-test-shift/tasks/api-task-1`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({ note: "Too late" }),
+  });
+  check("finished tasks reject edits", finishedPatch.status === 409, finishedPatch.status);
+
+  const editPull = await req("/api/sync/pull?cursor=0", {
+    headers: { Authorization: `Bearer ${nurse.token}` },
+  });
+  const editPullBody = await json<{ events: DomainEvent[] }>(editPull);
+  const editEventsPulled = editPullBody.events.filter(
+    (event) => event.type === "TASK_EDITED" && event.taskId === editTaskId,
+  );
+  check(
+    "nurse pull includes edits made by both roles",
+    editPull.status === 200 && editEventsPulled.length === 2,
+    editEventsPulled.length,
+  );
+
   await pool.query("TRUNCATE survey_responses, shift_reviews, handover_reports, events, beds, shifts, task_templates, config, users CASCADE");
   console.log(failures ? `\n${failures} API check(s) failed.` : "\nAll API checks passed.");
   await pool.end();

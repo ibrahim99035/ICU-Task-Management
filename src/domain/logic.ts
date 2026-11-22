@@ -91,6 +91,11 @@ export function canTransition(status: TaskStatus, event: DomainEvent["type"]): b
   return Boolean(TRANSITIONS[status]?.[event]);
 }
 
+/** A task can be altered only while it is still open. Done and missed tasks are frozen. */
+export function isTaskEditable(status: TaskStatus): boolean {
+  return status === "planned" || status === "in_progress" || status === "paused" || status === "deferred";
+}
+
 export function assertTransition(task: Task, event: DomainEvent): void {
   if (!canTransition(task.status, event.type)) {
     throw new DomainError(`Invalid transition ${task.status} -> ${event.type} for task ${task.id}`);
@@ -123,6 +128,7 @@ const EVENT_PRIORITY: Record<DomainEvent["type"], number> = {
   SHIFT_STARTED: 0,
   TASK_CREATED: 1,
   TASK_RESCHEDULED: 2,
+  TASK_EDITED: 2,
   EMERGENCY_STARTED: 2,
   TASK_STARTED: 3,
   TASK_RESUMED: 3,
@@ -271,6 +277,26 @@ export function reduce(input: DomainEvent[]): ReducedState {
             task.missedAt = ts;
             break;
         }
+        break;
+      }
+      case "TASK_EDITED": {
+        const task = event.taskId ? state.tasks[event.taskId] : undefined;
+        if (!task) throw new DomainError(`Unknown task ${event.taskId ?? "(none)"}`);
+        if (!isTaskEditable(task.status)) {
+          throw new DomainError("Completed or missed tasks cannot be altered");
+        }
+        const nextFrom = event.payload.plannedFrom ?? task.plannedFrom;
+        const nextTo = event.payload.plannedTo ?? task.plannedTo;
+        if (nextTo < nextFrom) {
+          throw new DomainError("Task end time cannot be before its start time");
+        }
+        if (event.payload.title !== undefined) task.title = event.payload.title;
+        if (event.payload.category !== undefined) task.category = event.payload.category;
+        if (event.payload.tier !== undefined) task.tier = event.payload.tier;
+        if (event.payload.expectedMin !== undefined) task.expectedMin = event.payload.expectedMin;
+        if (event.payload.plannedFrom !== undefined) task.plannedFrom = event.payload.plannedFrom;
+        if (event.payload.plannedTo !== undefined) task.plannedTo = event.payload.plannedTo;
+        if (event.payload.note !== undefined) task.note = event.payload.note;
         break;
       }
       case "TIME_CORRECTED":
@@ -665,6 +691,7 @@ function toHandoverTask(task: Task): HandoverTask {
     plannedTo: task.plannedTo,
     completedAt: task.completedAt,
     category: task.category,
+    note: task.note,
   };
 }
 

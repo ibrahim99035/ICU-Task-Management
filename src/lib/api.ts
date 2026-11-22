@@ -1,6 +1,6 @@
 "use client";
 
-import type { DomainEvent, ShiftSummary, Unit } from "@/domain";
+import type { DomainEvent, ShiftSummary, TaskEditPatch, Unit } from "@/domain";
 import type { HandoverSnapshot } from "@/domain";
 
 export class ApiError extends Error {
@@ -192,6 +192,22 @@ export async function pullRequest(token: string, cursor: number): Promise<PullRe
 
 export async function postSummary(token: string, shiftId: string): Promise<{ summary: ShiftSummary }> {
   return apiFetch(`/shifts/${encodeURIComponent(shiftId)}/summary`, { method: "POST", token });
+}
+
+export async function patchTask(
+  token: string,
+  shiftId: string,
+  taskId: string,
+  patch: TaskEditPatch,
+): Promise<{ event: DomainEvent; summary: ShiftSummary | null }> {
+  return apiFetch(
+    `/shifts/${encodeURIComponent(shiftId)}/tasks/${encodeURIComponent(taskId)}`,
+    {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(patch),
+    },
+  );
 }
 
 export async function postHandover(
