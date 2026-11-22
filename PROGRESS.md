@@ -25,6 +25,7 @@
 - `scripts/simulate.ts` creates 14 deterministic finished shifts, 1,369 events, 28 handovers, 11 reviews and 9 surveys using bed labels and participant codes only.
 - `scripts/api-test.ts`: 42 checks against disposable Docker Postgres, including self-registration, PIN hashing, duplicate username, role injection, unit CRUD, assignment, unit filters, CSV unit columns, nurse/head task edits, frozen finished tasks and nullable event-id normalization on shift detail.
 - Playwright auth/role/privacy/unit suite: `7` passing, including account creation, assigned-unit selection and head-nurse unit management.
+- Local browser task-edit check against the production web build and disposable Postgres: nurse started a shift and added a note; the note badge and task detail updated. Head nurse opened the same shift, saw all 41 tasks, the nurse note, and edited the note. The timeline then showed two `TASK_EDITED` events. No page errors.
 - `scripts/flow-check.mjs`: emergency → reschedule → timer → quick add → handover → shift end verified end to end.
 - Product-rule lint (`npm run lint`), typecheck, web build and mobile static export all pass.
 - Final web build: all app routes plus the API route. Mobile export: 19 static pages, no API route.
@@ -32,11 +33,12 @@
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.
 - Task-edit deploy `e7cec95` succeeded on Vercel. Live checks after deploy: health `200`, head login `200`, unauthenticated `PATCH` `401`, unknown shift `404` with `{"error":"Shift not found"}`, and a frozen production task `409` with `{"error":"Completed or missed tasks cannot be altered"}`. Successful edit/note persistence was verified against the disposable Postgres suite (42 checks), not written into the production demo dataset.
+- Null-ID fix deploy `501b9af` succeeded on Vercel. The live head shift detail now renders 36 tasks instead of 0, and the page shows the finished-task lock instead of a `ZodError`.
 - Production checks observed after unit deployment: health `200`, head login `200`, units `200` (Unit A/Unit B), `GET /api/shifts?unitId=unit-a` `200` with 7 Unit A shifts, unit analytics `200` with 7 shifts, CORS `PATCH` preflight `204`.
 - Live self-registration observed earlier: `201` for a nurse account, login `200`, duplicate `409`, client role injection `400`; test accounts were removed.
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
 - `npm run build:mobile` verified locally: static export succeeds and `src/app/api` is restored.
-- GitHub Actions run `45029176092` succeeded for task-edit commit `e7cec95`: `app-debug.apk`, 5,622,549 bytes, SHA-256 `0ac71a3120fa55a5d8c0f367cdacd1a6a1c93ad0777b5a91d46f71ef84f3efc5`. The artifact was downloaded and unpacked; the bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
+- GitHub Actions run `45031515210` succeeded for the null-ID fix commit `501b9af`: `app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`. The artifact was downloaded and unpacked; the bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
 - Screenshots `02-shift-start.png`, `11-head-dashboard.png` and `17-head-units.png` were refreshed from the live deployment.
 - **NOT VERIFIED:** installation and opening of the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 

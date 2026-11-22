@@ -51,22 +51,25 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live unit shift filter | `GET /api/shifts?unitId=unit-a` on Vercel | **200**; 7 shifts, all `unitId=unit-a`, each with `unitName=Unit A` |
 | Live unit analytics | `GET /api/analytics/unit?days=30&unitId=unit-a` on Vercel | **200**; 7 shifts, completion 81.0% |
 | Live planned windows | `GET /api/shifts/sim-20261120-u-nurse-2` on Vercel | **200**; 36 `TASK_CREATED` events carry `plannedFrom`/`plannedTo`; no `dueAt` |
+| Live head task list after null-ID fix | head shift detail for `sim-20261120-u-nurse-2` on Vercel | **rendered 36 tasks** (previously 0); finished-task lock shown; no `ZodError` |
 | Live task-edit route deployed | `PATCH /api/shifts/does-not-exist/tasks/does-not-exist` on Vercel with head token | **404**; `{"error":"Shift not found"}` — the new route is present, not a generic 404 |
 | Live frozen-task guard | `PATCH /api/shifts/sim-20261120-u-nurse-2/tasks/...` on Vercel with head token | **409**; `{"error":"Completed or missed tasks cannot be altered"}` |
 | Live unauth task edit | `PATCH /api/shifts/.../tasks/...` on Vercel without token | **401**; `{"error":"Missing bearer token"}` |
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
 | Live CORS unit update | `OPTIONS /api/units/unit-a`, requested `PATCH` | **204**; `access-control-allow-methods` includes `PATCH`, `DELETE` |
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
-| Android CI build | GitHub Actions run `45029176092` | **success**; `app-debug.apk`, 5,622,549 bytes, SHA-256 `0ac71a3120fa55a5d8c0f367cdacd1a6a1c93ad0777b5a91d46f71ef84f3efc5`; bundled JS contains task-edit UI strings and the Vercel API URL |
+| Local browser task edit (both roles) | production web build + disposable Docker Postgres | nurse started a shift, added a note; note badge and task detail updated. Head nurse saw all 41 tasks and the note, edited the note; timeline showed two `TASK_EDITED` events. No page errors |
+| Android CI build | GitHub Actions run `45031515210` | **success**; `app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`; bundled JS contains task-edit UI strings and the Vercel API URL |
 
 ### Production deployment
 
 - Web/API: <https://icu-tasklog.vercel.app> — one Vercel Next.js project; `/api/*` is served by the mounted Hono app.
 - Task-edit deployment `e7cec95` succeeded on Vercel. Live checks after deploy: health 200, head login 200, unauthenticated task-edit `PATCH` 401, unknown shift 404 `Shift not found`, and a frozen production task 409 `Completed or missed tasks cannot be altered`. The successful edit/note path was verified against disposable Postgres, not written into the production demo dataset.
+- Null-ID fix deployment `501b9af` succeeded on Vercel. The live head shift detail now renders 36 tasks (previously 0) and shows the finished-task lock, so the `ZodError` path is gone.
 - Observed checks after the unit deployment: health 200, head login 200, units 200 (Unit A/Unit B), unit-filtered shifts 200 (7 Unit A shifts), unit analytics 200 (7 shifts, 81.0% completion), CORS `PATCH` preflight 204.
 - Nurse self-registration: live `POST /api/auth/register` returned 201, created a nurse account, and that account signed in successfully. Duplicate username returned 409 and a client-supplied `head_nurse` role returned 400. The verification accounts were removed after the checks.
 - Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors. The unit page was also opened live to capture `17-head-units.png`.
-- Android artifact: GitHub Actions run `45029176092` succeeded for `e7cec95`. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,622,549 bytes, SHA-256 above), and its bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
+- Android artifact: GitHub Actions run `45031515210` succeeded for `501b9af`. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,622,705 bytes, SHA-256 above), and its bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
 - **NOT VERIFIED:** installing and opening the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 The simulation is deterministic and uses only bed labels and participant codes. It is demonstration data, not a study result.
