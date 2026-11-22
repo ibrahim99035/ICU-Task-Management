@@ -80,7 +80,12 @@ function ShiftInner() {
   const tasks = useMemo(() => {
     if (!detail) return [] as Task[];
     try {
-      return Object.values(reduce(detail.events as DomainEvent[]).tasks).sort(
+      const events = detail.events.map((event) => ({
+        ...event,
+        bedId: event.bedId ?? undefined,
+        taskId: event.taskId ?? undefined,
+      })) as DomainEvent[];
+      return Object.values(reduce(events).tasks).sort(
         (a, b) => a.tier - b.tier || a.plannedFrom - b.plannedFrom || a.title.localeCompare(b.title),
       );
     } catch {

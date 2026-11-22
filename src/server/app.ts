@@ -647,10 +647,22 @@ app.get("/shifts/:id", requireRole("head_nurse"), async (c) => {
     .from(schema.events)
     .where(eq(schema.events.shiftId, id))
     .orderBy(asc(schema.events.clientTs), asc(schema.events.serverSeq));
+  const events = eventRows.map((row) => ({
+    id: row.id,
+    shiftId: row.shiftId,
+    bedId: row.bedId ?? undefined,
+    taskId: row.taskId ?? undefined,
+    actorId: row.actorId,
+    type: row.type,
+    payload: row.payload,
+    clientTs: row.clientTs,
+    serverTs: row.serverTs,
+    serverSeq: row.serverSeq,
+  }));
   const beds = await db.select().from(schema.beds).where(eq(schema.beds.shiftId, id));
   const handovers = await db.select().from(schema.handoverReports).where(eq(schema.handoverReports.shiftId, id));
   const [review] = await db.select().from(schema.shiftReviews).where(eq(schema.shiftReviews.shiftId, id)).limit(1);
-  return c.json({ shift, events: eventRows, beds, handovers, review: review ?? null });
+  return c.json({ shift, events, beds, handovers, review: review ?? null });
 });
 
 app.patch("/shifts/:shiftId/tasks/:taskId", async (c) => {

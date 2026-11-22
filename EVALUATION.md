@@ -31,7 +31,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Domain tests | `./node_modules/.bin/vitest run` | **28 passed** |
 | TypeScript | `./node_modules/.bin/tsc --noEmit` | clean |
 | Product-rule lint | `npm run lint` | passed, 47 source files / 5 domain files |
-| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **41 checks passed** |
+| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **42 checks passed** |
 | Task edit + note | domain reducer and API tests | observed: both roles edit an unfinished task; `TASK_EDITED` is appended; done task returns 409; note survives pull; handover projection carries note |
 | Dynamic units | head `POST/PATCH/DELETE /api/units`, nurse assignment, `GET /api/units`, unit filters | observed: create 201, duplicate 409, nurse create 403, assignment 200, nurse sees assigned unit, shift carries `unitId` |
 | Nurse self-registration | `POST /api/auth/register` | **201**; role forced to `nurse`, PIN hashed, duplicate username 409, client role injection 400 |

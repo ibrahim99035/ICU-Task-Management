@@ -312,8 +312,13 @@ async function main() {
   check("unassigned filter is empty for this unit shift", unassignedShifts.status === 200 && unassignedList.shifts.length === 0, unassignedList);
 
   const detail = await req("/api/shifts/api-test-shift", { headers: { Authorization: `Bearer ${head.token}` } });
-  const detailBody = await json<{ events: unknown[]; review: unknown }>(detail);
+  const detailBody = await json<{ events: { bedId?: string | null; taskId?: string | null }[]; review: unknown }>(detail);
   check("head can open shift detail", detail.status === 200 && detailBody.events.length === 5 && detailBody.review === null, detail.status);
+  check(
+    "shift detail normalizes nullable event ids for reduction",
+    detailBody.events.every((event) => event.bedId !== null && event.taskId !== null),
+    detailBody.events,
+  );
 
   const analytics = await req("/api/analytics/unit?days=30", { headers: { Authorization: `Bearer ${head.token}` } });
   const analyticsBody = await json<{ shifts: number; avgCompletionRate: number }>(analytics);
