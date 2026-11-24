@@ -76,6 +76,7 @@ export const shifts = pgTable(
       .references(() => users.id),
     unitId: text("unit_id").references(() => units.id),
     type: text("type").notNull(),
+    kind: text("kind", { enum: ["nurse", "head_nurse"] }).notNull().default("nurse"),
     startedAt: bigint("started_at", { mode: "number" }).notNull(),
     endedAt: bigint("ended_at", { mode: "number" }),
     summary: jsonb("summary"),
@@ -109,6 +110,8 @@ export const taskTemplates = pgTable("task_templates", {
   expectedMin: integer("expected_min").notNull(),
   offsetMin: integer("offset_min").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  role: text("role", { enum: ["nurse", "head_nurse"] }).notNull().default("nurse"),
+  scope: text("scope", { enum: ["bed", "shift"] }).notNull().default("bed"),
 });
 
 export const events = pgTable(

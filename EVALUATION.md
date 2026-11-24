@@ -28,16 +28,18 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 
 | Check | Command | Observed result |
 | --- | --- | --- |
-| Domain tests | `./node_modules/.bin/vitest run` | **28 passed** |
+| Domain tests | `./node_modules/.bin/vitest run` | **32 passed** |
 | TypeScript | `./node_modules/.bin/tsc --noEmit` | clean |
-| Product-rule lint | `npm run lint` | passed, 47 source files / 5 domain files |
-| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **42 checks passed** |
+| Product-rule lint | `npm run lint` | passed, 50 source files / 5 domain files |
+| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **52 checks passed** |
 | Task edit + note | domain reducer and API tests | observed: both roles edit an unfinished task; `TASK_EDITED` is appended; done task returns 409; note survives pull; handover projection carries note |
+| To Do + Time Log | domain reducer, API checks, Playwright | observed: future To Do creation; time-only past interval resolves on the shift date; time log marks done and records duration; second log rejected; missed/live-timer logs rejected; tick-only task can receive a later log |
+| Shift tasks | domain reducer, API checks, Playwright | observed: nurse shift creates 12 shift-level tasks plus 41 bed tasks; head shift creates 14 tasks; shift tasks have no bed; head-nurse shifts excluded from nurse analytics/export |
 | Dynamic units | head `POST/PATCH/DELETE /api/units`, nurse assignment, `GET /api/units`, unit filters | observed: create 201, duplicate 409, nurse create 403, assignment 200, nurse sees assigned unit, shift carries `unitId` |
 | Nurse self-registration | `POST /api/auth/register` | **201**; role forced to `nurse`, PIN hashed, duplicate username 409, client role injection 400 |
-| Playwright auth/role/privacy/units | `npm run test:e2e` | **7 passed** |
-| Web build | `npm run build` | success; all app routes + `ƒ /api/[[...route]]`, including `/head/units` |
-| Mobile build | `npm run build:mobile` | success; **19 static pages**, no API route; `src/app/api` restored |
+| Playwright auth/role/privacy/units/planning | `npm run test:e2e` | **9 passed** |
+| Web build | `npm run build` | success; all app routes + `ƒ /api/[[...route]]`, including `/plan` and `/head/tasks` |
+| Mobile build | `npm run build:mobile` | success; **21 static pages**, no API route; `src/app/api` restored |
 | Full nurse flow | `node scripts/flow-check.mjs` | emergency banner, 4 reschedule proposals confirmed, task timer/finish, quick add, handover finalized, shift ended, no active shift |
 | Demo data | `npm run simulate:reset` | 14 finished shifts across 2 units, 1,369 events, 28 handovers, 11 reviews, 9 surveys |
 | Head analytics | `GET /api/analytics/unit?days=30` | 14 shifts, completion 79.4%, tier 1–2 on-time 59.1%, direct care 4h 18m, indirect 1h 6m, interruptions 44m, emergency 8m |
@@ -58,7 +60,8 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
 | Live CORS unit update | `OPTIONS /api/units/unit-a`, requested `PATCH` | **204**; `access-control-allow-methods` includes `PATCH`, `DELETE` |
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
-| Local browser task edit (both roles) | production web build + disposable Docker Postgres | nurse started a shift, added a note; note badge and task detail updated. Head nurse saw all 41 tasks and the note, edited the note; timeline showed two `TASK_EDITED` events. No page errors |
+| Local browser task edit (both roles) | production web build + disposable Docker Postgres | nurse started a shift, added a note; note badge and task detail updated. Head nurse saw all 41 bed tasks and the note, edited the note; timeline showed two `TASK_EDITED` events. No page errors |
+| Local browser To Do/Time Log | production web build + disposable Docker Postgres + Playwright | nurse `yara` saw the 12 shift tasks, planned a future task, logged a past interval and ended the shift; head nurse started a head-nurse shift, saw the 14 tasks, planned a task and ended the shift. No page errors |
 | Android CI build | GitHub Actions run `45031515210` | **success**; `app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`; bundled JS contains task-edit UI strings and the Vercel API URL |
 
 ### Production deployment
@@ -133,8 +136,9 @@ Final captures are in `evaluation/screenshots/`:
 - **Nurse self-registration is open.** Anyone who can reach the deployment can create a nurse account; head-nurse accounts remain controlled. There is no email verification, rate limit or PIN recovery. Account creation requires connectivity, and this is acceptable only for the thesis demo.
 - **Small single-centre sample.** Results will not generalise.
 - **Neon/network variability.** Transient DNS/timeouts were observed locally; nurse actions remain in Dexie, but login and head screens need connectivity.
-- **On-device APK behaviour is not measured.** The Vercel deployment and the GitHub Actions APK build were observed, but the APK was not installed or opened on a physical Android device in this workspace.
+- **On-device APK behaviour is not measured.** The Vercel deployment and the GitHub Actions APK build were observed, but the APK was not installed or opened on a physical Android device in this workspace. The latest inspected APK predates the To Do/Time Log feature; that feature is **NOT VERIFIED** on Android.
 - **Demo backdating** makes overdue states visible immediately; it is not a real shift timestamp and is labelled in the UI.
+- **Head-nurse task list is online-only.** The 14 head-nurse tasks and To Do/Time Log actions need the API; the nurse offline Dexie/outbox flow is unchanged.
 
 ## 6. Reproduction commands
 

@@ -7,7 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { InlineAlert } from "@/components/ui";
 import { fetchUnits } from "@/lib/api";
 import { activeShift, cachedUnits, setCachedUnits, type ShiftRow } from "@/lib/db";
-import { DEMO_BEDS } from "@/lib/demo-data";
+import { DEMO_BEDS, DEMO_TEMPLATES } from "@/lib/demo-data";
 import { cn } from "@/lib/format";
 import { useLive } from "@/lib/hooks";
 import { endShift, startShift } from "@/lib/actions";
@@ -80,7 +80,11 @@ export default function ShiftStartPage() {
     [selected],
   );
   const selectedUnit = units.find((unit) => unit.id === unitId);
-  const taskCount = selectedBeds.reduce((sum, bed) => sum + bed.templateIds.length, 0);
+  const bedTaskCount = selectedBeds.reduce((sum, bed) => sum + bed.templateIds.length, 0);
+  const shiftTaskCount = DEMO_TEMPLATES.filter(
+    (template) => template.role === "nurse" && template.scope === "shift" && template.active,
+  ).length;
+  const taskCount = bedTaskCount + shiftTaskCount;
 
   async function begin() {
     if (!user) return;

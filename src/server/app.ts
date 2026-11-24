@@ -10,10 +10,12 @@ import {
   buildShiftSummary,
   domainEventSchema,
   isTaskEditable,
+  nextRecurringTask,
   reduce,
   scoreRawTLX,
   scoreSUS,
   taskEditedPayload,
+  taskTimeLoggedPayload,
   type DomainEvent,
   type ShiftSummary,
 } from "@/domain";
@@ -27,6 +29,26 @@ function dbOrThrow() {
   const db = getDb();
   if (!db) throw new HTTPException(503, { message: "Database is not configured" });
   return db;
+}
+
+async function loadShiftEvents(db: ReturnType<typeof dbOrThrow>, shiftId: string): Promise<DomainEvent[]> {
+  const rows = await db
+    .select()
+    .from(schema.events)
+    .where(eq(schema.events.shiftId, shiftId))
+    .orderBy(asc(schema.events.serverSeq));
+  return rows.map((row) => ({
+    id: row.id,
+    shiftId: row.shiftId,
+    bedId: row.bedId ?? undefined,
+    taskId: row.taskId ?? undefined,
+    actorId: row.actorId,
+    type: row.type,
+    payload: row.payload,
+    clientTs: row.clientTs,
+    serverTs: row.serverTs,
+    serverSeq: row.serverSeq,
+  })) as DomainEvent[];
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -584,12 +606,19 @@ app.get("/sync/pull", async (c) => {
 /* ------------------------------------------------------------------ */
 
 app.get("/shifts", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
   const db = dbOrThrow();
   const nurseId = c.req.query("nurseId");
   const from = c.req.query("from");
   const to = c.req.query("to");
   const unitId = c.req.query("unitId");
+  const kind = c.req.query("kind") ?? "nurse";
   const conditions = [];
+  if (kind === "head_nurse") {
+    conditions.push(eq(schema.shifts.kind, "head_nurse"), eq(schema.shifts.userId, auth.id));
+  } else {
+    conditions.push(eq(schema.shifts.kind, "nurse"));
+  }
   if (nurseId) conditions.push(eq(schema.shifts.userId, nurseId));
   if (from) conditions.push(gte(schema.shifts.startedAt, new Date(`${from}T00:00:00`).getTime()));
   if (to) conditions.push(lte(schema.shifts.startedAt, new Date(`${to}T23:59:59`).getTime()));
@@ -600,6 +629,7 @@ app.get("/shifts", requireRole("head_nurse"), async (c) => {
       id: schema.shifts.id,
       userId: schema.shifts.userId,
       type: schema.shifts.type,
+      kind: schema.shifts.kind,
       unitId: schema.shifts.unitId,
       unitName: schema.units.name,
       startedAt: schema.shifts.startedAt,
@@ -628,6 +658,7 @@ app.get("/shifts/:id", requireRole("head_nurse"), async (c) => {
       id: schema.shifts.id,
       userId: schema.shifts.userId,
       type: schema.shifts.type,
+      kind: schema.shifts.kind,
       unitId: schema.shifts.unitId,
       unitName: schema.units.name,
       startedAt: schema.shifts.startedAt,
@@ -758,6 +789,317 @@ app.patch("/shifts/:shiftId/tasks/:taskId", async (c) => {
     event: { ...event, serverTs: now },
     summary: shift.endedAt ? summary : null,
   });
+});
+
+/* ------------------------------------------------------------------ */
+/* Head-nurse shifts and tasks                                         */
+/* ------------------------------------------------------------------ */
+
+app.post("/head-shifts", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const body = z
+    .object({
+      unitId: z.string().min(1),
+      type: z.enum(["day", "night", "custom"]),
+      startedAt: z.number().int().optional(),
+      backdateMin: z.number().int().min(0).max(720).optional(),
+    })
+    .parse(await c.req.json());
+  const [unit] = await db.select().from(schema.units).where(eq(schema.units.id, body.unitId)).limit(1);
+  if (!unit || unit.status !== "active") return c.json({ error: "Active unit not found" }, 404);
+  const [existing] = await db
+    .select()
+    .from(schema.shifts)
+    .where(
+      and(
+        eq(schema.shifts.userId, auth.id),
+        eq(schema.shifts.kind, "head_nurse"),
+        isNull(schema.shifts.endedAt),
+      ),
+    )
+    .limit(1);
+  if (existing) return c.json({ error: "A head-nurse shift is already active", shiftId: existing.id }, 409);
+  const now = Date.now();
+  const startedAt = body.startedAt ?? now - (body.backdateMin ?? 0) * 60_000;
+  if (startedAt > now + 5 * 60_000) return c.json({ error: "Shift start cannot be in the future" }, 400);
+  const shiftId = randomUUID();
+  const shift = {
+    id: shiftId,
+    userId: auth.id,
+    unitId: unit.id,
+    type: body.type,
+    kind: "head_nurse" as const,
+    startedAt,
+    endedAt: null,
+    summary: null,
+  };
+  const templates = await db
+    .select()
+    .from(schema.taskTemplates)
+    .where(
+      and(
+        eq(schema.taskTemplates.role, "head_nurse"),
+        eq(schema.taskTemplates.scope, "shift"),
+        eq(schema.taskTemplates.active, true),
+      ),
+    )
+    .orderBy(asc(schema.taskTemplates.offsetMin));
+  const events: DomainEvent[] = [
+    {
+      id: randomUUID(),
+      shiftId,
+      actorId: auth.id,
+      type: "SHIFT_STARTED",
+      clientTs: startedAt,
+      payload: { shiftType: body.type, kind: "head_nurse", unitId: unit.id, unitName: unit.name },
+    },
+    ...templates.map((template) => {
+      const plannedFrom = startedAt + template.offsetMin * 60_000;
+      return {
+        id: randomUUID(),
+        shiftId,
+        taskId: randomUUID(),
+        actorId: auth.id,
+        type: "TASK_CREATED" as const,
+        clientTs: startedAt,
+        payload: {
+          title: template.name,
+          category: template.category as "direct_care" | "indirect_care",
+          tier: template.tier as 1 | 2 | 3 | 4,
+          plannedFrom,
+          plannedTo: plannedFrom + template.expectedMin * 60_000,
+          expectedMin: template.expectedMin,
+          intervalMin: template.intervalMin || undefined,
+          unitId: unit.id,
+          templateId: template.id,
+          scope: "shift" as const,
+        },
+      };
+    }),
+  ];
+  await db.insert(schema.shifts).values(shift);
+  await db.insert(schema.events).values(
+    events.map((event) => ({
+      id: event.id,
+      shiftId: event.shiftId,
+      bedId: null,
+      taskId: event.taskId ?? null,
+      actorId: event.actorId,
+      type: event.type,
+      payload: event.payload,
+      clientTs: event.clientTs,
+      serverTs: now,
+    })),
+  );
+  return c.json({ shift, events });
+});
+
+app.post("/head-shifts/:id/end", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const id = c.req.param("id");
+  const [shift] = await db.select().from(schema.shifts).where(eq(schema.shifts.id, id)).limit(1);
+  if (!shift) return c.json({ error: "Shift not found" }, 404);
+  if (shift.userId !== auth.id || shift.kind !== "head_nurse") {
+    return c.json({ error: "Not your head-nurse shift" }, 403);
+  }
+  if (shift.endedAt) return c.json({ error: "Shift already ended" }, 409);
+  const events = await loadShiftEvents(db, id);
+  const state = reduce(events);
+  const now = Date.now();
+  const newEvents: DomainEvent[] = [];
+  for (const task of Object.values(state.tasks)) {
+    if (["planned", "in_progress", "paused"].includes(task.status)) {
+      newEvents.push({
+        id: randomUUID(),
+        shiftId: id,
+        bedId: task.bedId,
+        taskId: task.id,
+        actorId: auth.id,
+        type: "TASK_MISSED",
+        clientTs: now,
+        payload: { reason: "shift_end" },
+      });
+    }
+  }
+  const note = z.object({ note: z.string().max(1000).optional() }).parse(await c.req.json().catch(() => ({})));
+  newEvents.push({
+    id: randomUUID(),
+    shiftId: id,
+    actorId: auth.id,
+    type: "SHIFT_ENDED",
+    clientTs: now,
+    payload: { note: note.note },
+  });
+  const summary = buildShiftSummary([...events, ...newEvents]);
+  await db.insert(schema.events).values(
+    newEvents.map((event) => ({
+      id: event.id,
+      shiftId: event.shiftId,
+      bedId: event.bedId ?? null,
+      taskId: event.taskId ?? null,
+      actorId: event.actorId,
+      type: event.type,
+      payload: event.payload,
+      clientTs: event.clientTs,
+      serverTs: now,
+    })),
+  );
+  await db
+    .update(schema.shifts)
+    .set({ endedAt: summary.endedAt ?? now, summary })
+    .where(eq(schema.shifts.id, id));
+  return c.json({ summary });
+});
+
+app.post("/head-shifts/:id/tasks", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const id = c.req.param("id");
+  const [shift] = await db.select().from(schema.shifts).where(eq(schema.shifts.id, id)).limit(1);
+  if (!shift) return c.json({ error: "Shift not found" }, 404);
+  if (shift.userId !== auth.id || shift.kind !== "head_nurse") {
+    return c.json({ error: "Not your head-nurse shift" }, 403);
+  }
+  if (shift.endedAt) return c.json({ error: "Shift is already ended" }, 409);
+  const body = z
+    .object({
+      title: z.string().trim().min(1).max(120),
+      category: z.enum(["direct_care", "indirect_care"]),
+      tier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+      plannedFrom: z.number().int(),
+      plannedTo: z.number().int(),
+      expectedMin: z.number().int().min(0).max(720).optional(),
+      note: z.string().max(300).optional(),
+    })
+    .parse(await c.req.json());
+  if (body.plannedTo < body.plannedFrom) return c.json({ error: "Task end cannot be before its start" }, 400);
+  if (body.plannedFrom < Date.now() - 5 * 60_000) return c.json({ error: "To Do tasks must be planned for the future" }, 400);
+  const now = Date.now();
+  const event: DomainEvent = {
+    id: randomUUID(),
+    shiftId: id,
+    taskId: randomUUID(),
+    actorId: auth.id,
+    type: "TASK_CREATED",
+    clientTs: now,
+    payload: {
+      title: body.title,
+      category: body.category,
+      tier: body.tier,
+      plannedFrom: body.plannedFrom,
+      plannedTo: body.plannedTo,
+      expectedMin: body.expectedMin ?? Math.round((body.plannedTo - body.plannedFrom) / 60_000),
+      unitId: shift.unitId ?? undefined,
+      scope: "shift",
+      note: body.note,
+    },
+  };
+  await db.insert(schema.events).values({
+    id: event.id,
+    shiftId: id,
+    bedId: null,
+    taskId: event.taskId ?? null,
+    actorId: auth.id,
+    type: event.type,
+    payload: event.payload,
+    clientTs: now,
+    serverTs: now,
+  });
+  return c.json({ event: { ...event, serverTs: now } });
+});
+
+app.post("/head-shifts/:id/tasks/:taskId/complete", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const id = c.req.param("id");
+  const taskId = c.req.param("taskId");
+  const [shift] = await db.select().from(schema.shifts).where(eq(schema.shifts.id, id)).limit(1);
+  if (!shift) return c.json({ error: "Shift not found" }, 404);
+  if (shift.userId !== auth.id || shift.kind !== "head_nurse") {
+    return c.json({ error: "Not your head-nurse shift" }, 403);
+  }
+  const events = await loadShiftEvents(db, id);
+  const task = reduce(events).tasks[taskId];
+  if (!task) return c.json({ error: "Task not found" }, 404);
+  if (!isTaskEditable(task.status)) return c.json({ error: "Completed or missed tasks cannot be altered" }, 409);
+  const now = Date.now();
+  const event: DomainEvent = {
+    id: randomUUID(),
+    shiftId: id,
+    bedId: task.bedId,
+    taskId,
+    actorId: auth.id,
+    type: "TASK_COMPLETED",
+    clientTs: now,
+    payload: { tickOnly: true },
+  };
+  const next = nextRecurringTask(task, now, auth.id);
+  const newEvents = next ? [event, next] : [event];
+  await db.insert(schema.events).values(
+    newEvents.map((item) => ({
+      id: item.id,
+      shiftId: id,
+      bedId: item.bedId ?? null,
+      taskId: item.taskId ?? null,
+      actorId: auth.id,
+      type: item.type,
+      payload: item.payload,
+      clientTs: now,
+      serverTs: now,
+    })),
+  );
+  return c.json({ event: { ...event, serverTs: now } });
+});
+
+app.post("/head-shifts/:id/tasks/:taskId/time-log", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const id = c.req.param("id");
+  const taskId = c.req.param("taskId");
+  const body = taskTimeLoggedPayload.parse(await c.req.json());
+  const [shift] = await db.select().from(schema.shifts).where(eq(schema.shifts.id, id)).limit(1);
+  if (!shift) return c.json({ error: "Shift not found" }, 404);
+  if (shift.userId !== auth.id || shift.kind !== "head_nurse") {
+    return c.json({ error: "Not your head-nurse shift" }, 403);
+  }
+  const events = await loadShiftEvents(db, id);
+  const task = reduce(events).tasks[taskId];
+  if (!task) return c.json({ error: "Task not found" }, 404);
+  if (task.status === "missed") return c.json({ error: "Missed tasks cannot receive a time log" }, 409);
+  if (task.durationRecorded) return c.json({ error: "This task already has a recorded duration" }, 409);
+  if (task.status === "in_progress" || task.status === "paused") {
+    return c.json({ error: "Finish the live timer before logging a past interval" }, 409);
+  }
+  if (body.endedAt > Date.now() + 5 * 60_000) return c.json({ error: "Time log cannot end in the future" }, 400);
+  const now = Date.now();
+  const event: DomainEvent = {
+    id: randomUUID(),
+    shiftId: id,
+    bedId: task.bedId,
+    taskId,
+    actorId: auth.id,
+    type: "TASK_TIME_LOGGED",
+    clientTs: now,
+    payload: body,
+  };
+  const next = task.status === "done" ? null : nextRecurringTask(task, body.endedAt, auth.id);
+  const newEvents = next ? [event, next] : [event];
+  await db.insert(schema.events).values(
+    newEvents.map((item) => ({
+      id: item.id,
+      shiftId: id,
+      bedId: item.bedId ?? null,
+      taskId: item.taskId ?? null,
+      actorId: auth.id,
+      type: item.type,
+      payload: item.payload,
+      clientTs: now,
+      serverTs: now,
+    })),
+  );
+  return c.json({ event: { ...event, serverTs: now } });
 });
 
 app.post("/shifts/:id/summary", requireRole("nurse"), async (c) => {
@@ -893,7 +1235,7 @@ app.get("/analytics/unit", requireRole("head_nurse"), async (c) => {
   const days = Math.min(90, Math.max(1, Number(c.req.query("days") ?? 30) || 30));
   const since = Date.now() - days * 86_400_000;
   const unitId = c.req.query("unitId");
-  const conditions = [gte(schema.shifts.startedAt, since)];
+  const conditions = [eq(schema.shifts.kind, "nurse"), gte(schema.shifts.startedAt, since)];
   if (unitId === "unassigned") conditions.push(isNull(schema.shifts.unitId));
   else if (unitId) conditions.push(eq(schema.shifts.unitId, unitId));
   const rows = await db
@@ -971,6 +1313,9 @@ app.get("/export", requireRole("head_nurse"), async (c) => {
       : unitId
         ? eq(schema.shifts.unitId, unitId)
         : undefined;
+  const exportConditions = unitCondition
+    ? and(eq(schema.shifts.kind, "nurse"), unitCondition)
+    : eq(schema.shifts.kind, "nurse");
   let header: string[] = [];
   let rows: (string | number | boolean | null | undefined)[][] = [];
   if (type === "events") {
@@ -991,7 +1336,7 @@ app.get("/export", requireRole("head_nurse"), async (c) => {
       .from(schema.events)
       .innerJoin(schema.shifts, eq(schema.shifts.id, schema.events.shiftId))
       .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
-      .where(unitCondition)
+      .where(exportConditions)
       .orderBy(asc(schema.events.serverSeq));
     header = ["id", "shift_id", "unit_id", "unit_name", "bed_id", "task_id", "actor_id", "type", "client_ts", "server_ts", "payload"];
     rows = data.map((r) => [r.id, r.shiftId, r.unitId, r.unitName, r.bedId, r.taskId, r.actorId, r.type, r.clientTs, r.serverTs, JSON.stringify(r.payload)]);
@@ -1000,7 +1345,7 @@ app.get("/export", requireRole("head_nurse"), async (c) => {
       .select({ id: schema.shifts.id, userId: schema.shifts.userId, type: schema.shifts.type, unitId: schema.shifts.unitId, unitName: schema.units.name, startedAt: schema.shifts.startedAt, endedAt: schema.shifts.endedAt, summary: schema.shifts.summary })
       .from(schema.shifts)
       .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
-      .where(unitCondition)
+      .where(exportConditions)
       .orderBy(desc(schema.shifts.startedAt));
     header = ["shift_id", "nurse_id", "unit_id", "unit_name", "shift_type", "started_at", "ended_at", "direct_care_min", "indirect_care_min", "interruption_min", "emergency_min", "completion_rate", "tier12_on_time_rate", "missed", "deferred"];
     rows = data.map((r) => {
@@ -1028,7 +1373,7 @@ app.get("/export", requireRole("head_nurse"), async (c) => {
       .from(schema.shiftReviews)
       .innerJoin(schema.shifts, eq(schema.shifts.id, schema.shiftReviews.shiftId))
       .leftJoin(schema.units, eq(schema.units.id, schema.shifts.unitId))
-      .where(unitCondition)
+      .where(exportConditions)
       .orderBy(desc(schema.shiftReviews.createdAt));
     header = ["id", "shift_id", "unit_id", "unit_name", "nurse_id", "reviewer_id", "scores", "comment", "needs_support", "created_at"];
     rows = data.map((r) => [r.id, r.shiftId, r.unitId, r.unitName, r.nurseId, r.reviewerId, JSON.stringify(r.scores), r.comment, r.needsSupport, r.createdAt]);

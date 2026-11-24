@@ -33,7 +33,7 @@ import {
   type ShiftRow,
   type SessionUser,
 } from "./db";
-import { DEMO_TEMPLATES } from "./demo-data";
+import { DEMO_TEMPLATES, DEMO_TEMPLATES_VERSION } from "./demo-data";
 import { rebuildTasks } from "./projection";
 import { useApp } from "./store";
 import { scheduleSync } from "./sync";
@@ -73,6 +73,13 @@ async function appendEvents(events: DomainEvent[]): Promise<void> {
 }
 
 export async function ensureTemplates(): Promise<void> {
+  const version = await getSessionValue<number>("templatesVersion");
+  if (version !== DEMO_TEMPLATES_VERSION) {
+    await db().templates.clear();
+    await db().templates.bulkPut(DEMO_TEMPLATES);
+    await setSessionValue("templatesVersion", DEMO_TEMPLATES_VERSION);
+    return;
+  }
   if ((await db().templates.count()) === 0) {
     await db().templates.bulkPut(DEMO_TEMPLATES);
   }
@@ -95,7 +102,7 @@ export async function startShift(
   const templates = await db().templates.toArray();
   const templateMap = new Map(templates.map((t) => [t.id, t]));
   const events: DomainEvent[] = [];
-  const shift: ShiftRow = { id: shiftId, actorId: user.id, type, unitId: unit.id, unitName: unit.name, startedAt };
+  const shift: ShiftRow = { id: shiftId, actorId: user.id, type, kind: "nurse", unitId: unit.id, unitName: unit.name, startedAt };
   const bedRows: BedRow[] = [];
 
   events.push({
@@ -104,7 +111,7 @@ export async function startShift(
     actorId: user.id,
     type: "SHIFT_STARTED",
     clientTs: startedAt,
-    payload: { shiftType: type, unitId: unit.id, unitName: unit.name, bedLabels: beds.map((b) => b.alias) },
+    payload: { shiftType: type, kind: "nurse", unitId: unit.id, unitName: unit.name, bedLabels: beds.map((b) => b.alias) },
   });
 
   for (const bed of beds) {
@@ -112,7 +119,7 @@ export async function startShift(
     const bedId = bedRows[bedRows.length - 1].id;
     for (const templateId of bed.templateIds) {
       const template = templateMap.get(templateId);
-      if (!template) continue;
+      if (!template || template.role !== "nurse" || template.scope !== "bed") continue;
       const taskId = newId();
       events.push({
         id: newId(),
@@ -133,9 +140,33 @@ export async function startShift(
           unitId: unit.id,
           templateId: template.id,
           bedLabel: bed.alias,
+          scope: "bed",
         },
       });
     }
+  }
+
+  for (const template of templates.filter((t) => t.role === "nurse" && t.scope === "shift" && t.active)) {
+    events.push({
+      id: newId(),
+      shiftId,
+      taskId: newId(),
+      actorId: user.id,
+      type: "TASK_CREATED",
+      clientTs: startedAt,
+      payload: {
+        title: template.name,
+        category: template.category,
+        tier: template.tier,
+        plannedFrom: startedAt + template.offsetMin * MIN,
+        plannedTo: startedAt + template.offsetMin * MIN + template.expectedMin * MIN,
+        expectedMin: template.expectedMin,
+        intervalMin: template.intervalMin,
+        unitId: unit.id,
+        templateId: template.id,
+        scope: "shift",
+      },
+    });
   }
 
   await db().transaction(
@@ -419,9 +450,88 @@ export async function addQuickTask(input: {
         expectedMin: 10,
         unitId: shift.unitId,
         bedLabel: bed?.alias,
+        scope: "bed",
       },
     },
   ]);
+}
+
+export async function addPlannedTask(input: {
+  shiftId: string;
+  scope: "bed" | "shift";
+  bedId?: string;
+  title: string;
+  tier: Tier;
+  category: Exclude<TaskCategory, "interruption">;
+  plannedFrom: number;
+  plannedTo: number;
+  expectedMin?: number;
+  note?: string;
+}): Promise<string> {
+  const shift = await db().shifts.get(input.shiftId);
+  if (!shift) throw new Error("Shift not found");
+  if (input.scope === "bed" && !input.bedId) throw new Error("Choose a bed for this task");
+  if (input.plannedTo < input.plannedFrom) throw new Error("Task end time cannot be before its start time");
+  if (input.plannedFrom < Date.now() - 5 * MIN) throw new Error("To Do tasks must be planned for the future");
+  const bed = input.bedId ? await db().beds.get(input.bedId) : undefined;
+  const taskId = newId();
+  await appendEvents([
+    {
+      id: newId(),
+      shiftId: input.shiftId,
+      bedId: input.scope === "bed" ? input.bedId : undefined,
+      taskId,
+      actorId: shift.actorId,
+      type: "TASK_CREATED",
+      clientTs: Date.now(),
+      payload: {
+        title: input.title.trim(),
+        category: input.category,
+        tier: input.tier,
+        plannedFrom: input.plannedFrom,
+        plannedTo: input.plannedTo,
+        expectedMin: input.expectedMin ?? Math.round((input.plannedTo - input.plannedFrom) / MIN),
+        unitId: shift.unitId,
+        bedLabel: bed?.alias,
+        scope: input.scope,
+        note: input.note,
+      },
+    },
+  ]);
+  return taskId;
+}
+
+export async function logTaskTime(
+  taskId: string,
+  startedAt: number,
+  endedAt: number,
+  note = "",
+): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task) throw new Error("Task not found");
+  const shift = await db().shifts.get(task.shiftId);
+  if (!shift) throw new Error("Shift not found");
+  if (endedAt < startedAt) throw new Error("Time log end must be after its start");
+  if (endedAt > Date.now() + 5 * MIN) throw new Error("Time log cannot end in the future");
+  if (task.status === "missed") throw new Error("Missed tasks cannot receive a time log");
+  if (task.durationRecorded) throw new Error("This task already has a recorded duration");
+  if (task.status === "in_progress" || task.status === "paused") {
+    throw new Error("Finish the live timer before logging a past interval");
+  }
+  const events: DomainEvent[] = [
+    base(
+      "TASK_TIME_LOGGED",
+      shift,
+      Date.now(),
+      { startedAt, endedAt, note: note.trim() || undefined },
+      { bedId: task.bedId, taskId: task.id },
+    ),
+  ];
+  if (task.status !== "done") {
+    const next = nextRecurringTask(task, endedAt, shift.actorId);
+    if (next) events.push(next);
+  }
+  await appendEvents(events);
 }
 
 export async function finalizeHandover(

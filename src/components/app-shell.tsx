@@ -27,6 +27,7 @@ import { Logo } from "./ui";
 const NURSE_NAV = [
   { href: "/beds", label: "Beds", Icon: LayoutGrid },
   { href: "/tasks", label: "Tasks", Icon: ListChecks },
+  { href: "/plan", label: "Plan", Icon: CalendarDays },
   { href: "/handover", label: "Handover", Icon: ClipboardCheck },
   { href: "/me", label: "Me", Icon: UserRound },
 ];
@@ -34,6 +35,7 @@ const HEAD_NAV = [
   { href: "/head", label: "Dashboard", Icon: BarChart3 },
   { href: "/head/units", label: "Units", Icon: Building2 },
   { href: "/head/shifts", label: "Shifts", Icon: CalendarDays },
+  { href: "/head/tasks", label: "My tasks", Icon: ListChecks },
   { href: "/head/export", label: "Export", Icon: Download },
   { href: "/me", label: "Me", Icon: UserRound },
 ];

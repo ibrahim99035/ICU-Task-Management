@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { DomainEvent } from "../src/domain";
+import { reduce, type DomainEvent } from "../src/domain";
 import { DEMO_TEMPLATES } from "../src/lib/demo-data";
 
 const url = process.env.DATABASE_URL;
@@ -51,8 +51,8 @@ async function main() {
   }
   for (const template of DEMO_TEMPLATES) {
     await pool.query(
-      "INSERT INTO task_templates (id, name, category, tier, interval_min, expected_min, offset_min, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-      [template.id, template.name, template.category, template.tier, template.intervalMin, template.expectedMin, template.offsetMin, template.active],
+      "INSERT INTO task_templates (id, name, category, tier, interval_min, expected_min, offset_min, active, role, scope) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+      [template.id, template.name, template.category, template.tier, template.intervalMin, template.expectedMin, template.offsetMin, template.active, template.role, template.scope],
     );
   }
   await pool.query(
@@ -166,7 +166,7 @@ async function main() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username: "head", pin: "9999" }),
   });
-  const head = await json<{ token: string }>(headLogin);
+  const head = await json<{ token: string; user: { id: string } }>(headLogin);
   check("head login returns a token", headLogin.status === 200 && head.token.length > 20, headLogin.status);
 
   const createUnit = await req("/api/units", {
@@ -222,7 +222,7 @@ async function main() {
       ...base,
       id: "api-test-e1",
       type: "SHIFT_STARTED",
-      payload: { shiftType: "day", unitId, unitName: "API Unit", bedLabels: ["Bed 1"] },
+      payload: { shiftType: "day", kind: "nurse", unitId, unitName: "API Unit", bedLabels: ["Bed 1"] },
       clientTs: start,
     },
     {
@@ -382,7 +382,7 @@ async function main() {
       shiftId: editShiftId,
       id: "api-edit-e1",
       type: "SHIFT_STARTED",
-      payload: { shiftType: "day", unitId, unitName: "API Unit", bedLabels: ["Bed 1"] },
+      payload: { shiftType: "day", kind: "nurse", unitId, unitName: "API Unit", bedLabels: ["Bed 1"] },
       clientTs: editStart,
     },
     {
@@ -450,6 +450,100 @@ async function main() {
     editPull.status === 200 && editEventsPulled.length === 2,
     editEventsPulled.length,
   );
+
+
+  const headShiftStart = await req("/api/head-shifts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({ unitId, type: "day" }),
+  });
+  const headShiftBody = await json<{ shift: { id: string; kind: string }; events: DomainEvent[] }>(headShiftStart);
+  check(
+    "head starts a head-nurse shift with 14 tasks",
+    headShiftStart.status === 200 && headShiftBody.shift.kind === "head_nurse" && headShiftBody.events.length === 15,
+    { status: headShiftStart.status, events: headShiftBody.events.length },
+  );
+  const headShiftId = headShiftBody.shift.id;
+
+  const headList = await req(`/api/shifts?kind=head_nurse&nurseId=${encodeURIComponent(head.user.id)}`, {
+    headers: { Authorization: `Bearer ${head.token}` },
+  });
+  const headListBody = await json<{ shifts: { id: string; kind: string }[] }>(headList);
+  check(
+    "head shift list contains only the head-nurse shift",
+    headList.status === 200 && headListBody.shifts.length === 1 && headListBody.shifts[0]?.id === headShiftId,
+    headListBody,
+  );
+
+  const nurseList = await req("/api/shifts?kind=nurse", { headers: { Authorization: `Bearer ${head.token}` } });
+  const nurseListBody = await json<{ shifts: { id: string; kind: string }[] }>(nurseList);
+  check(
+    "nurse shift list excludes head-nurse shifts",
+    nurseList.status === 200 && nurseListBody.shifts.every((shift) => shift.kind === "nurse" && shift.id !== headShiftId),
+    nurseListBody,
+  );
+
+  const headDetail = await req(`/api/shifts/${headShiftId}`, { headers: { Authorization: `Bearer ${head.token}` } });
+  const headDetailBody = await json<{ events: DomainEvent[] }>(headDetail);
+  const headState = reduce(headDetailBody.events);
+  const headTasks = Object.values(headState.tasks);
+  check(
+    "head shift detail reduces to 14 shift tasks",
+    headDetail.status === 200 && headTasks.length === 14 && headTasks.every((task) => task.scope === "shift" && !task.bedId),
+    { status: headDetail.status, tasks: headTasks.length },
+  );
+
+  const manualHeadTask = await req(`/api/head-shifts/${headShiftId}/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({
+      title: "API head-nurse planning task",
+      category: "indirect_care",
+      tier: 3,
+      plannedFrom: now + 10 * 60_000,
+      plannedTo: now + 40 * 60_000,
+      expectedMin: 30,
+      note: "Future To Do task",
+    }),
+  });
+  const manualHeadBody = await json<{ event: DomainEvent & { taskId?: string } }>(manualHeadTask);
+  check("head can create a future To Do task", manualHeadTask.status === 200 && Boolean(manualHeadBody.event.taskId), manualHeadTask.status);
+
+  const firstHeadTaskId = headTasks.sort((a, b) => a.plannedFrom - b.plannedFrom)[0]?.id;
+  const secondHeadTaskId = headTasks.sort((a, b) => a.plannedFrom - b.plannedFrom)[1]?.id;
+  const headTimeLog = await req(`/api/head-shifts/${headShiftId}/tasks/${firstHeadTaskId}/time-log`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({ startedAt: now - 20 * 60_000, endedAt: now - 10 * 60_000, note: "Past interval" }),
+  });
+  check("head can log a past time interval", headTimeLog.status === 200, headTimeLog.status);
+
+  const headComplete = await req(`/api/head-shifts/${headShiftId}/tasks/${secondHeadTaskId}/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({}),
+  });
+  check("head can mark a task done without a timer", headComplete.status === 200, headComplete.status);
+
+  const headEnd = await req(`/api/head-shifts/${headShiftId}/end`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({}),
+  });
+  const headEndBody = await json<{ summary: { tasksTotal: number; tasksDone: number; missedCount: number } }>(headEnd);
+  check(
+    "head shift end records a summary and misses unfinished tasks",
+    headEnd.status === 200 && headEndBody.summary.tasksTotal === 15 && headEndBody.summary.tasksDone === 2 && headEndBody.summary.missedCount === 13,
+    headEndBody.summary,
+  );
+
+  const analyticsAfterHead = await req("/api/analytics/unit?days=30", { headers: { Authorization: `Bearer ${head.token}` } });
+  const analyticsAfterHeadBody = await json<{ shifts: number }>(analyticsAfterHead);
+  check("head-nurse shifts are excluded from nurse analytics", analyticsAfterHeadBody.shifts === 1, analyticsAfterHeadBody);
+
+  const csvAfterHead = await req("/api/export?type=summaries", { headers: { Authorization: `Bearer ${head.token}` } });
+  const csvAfterHeadText = await csvAfterHead.text();
+  check("head-nurse shifts are excluded from CSV export", csvAfterHead.status === 200 && !csvAfterHeadText.includes(headShiftId), csvAfterHeadText.slice(0, 200));
 
   await pool.query("TRUNCATE survey_responses, shift_reviews, handover_reports, events, beds, shifts, task_templates, config, users CASCADE");
   console.log(failures ? `\n${failures} API check(s) failed.` : "\nAll API checks passed.");

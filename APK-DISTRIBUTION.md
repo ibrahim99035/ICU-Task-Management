@@ -2,9 +2,11 @@
 
 This guide explains how to get the latest debug APK, share it with the group, install it on Android, and create accounts.
 
+> **Current status:** the APK linked below was built before the To Do / Time Log / head-nurse **My tasks** release. The new feature is verified on the web build but is **NOT VERIFIED** on Android until a fresh APK is built from the current commit. The steps below still work for the older APK; rebuild the artifact for the new feature.
+
 ## 1. Get the APK file
 
-The latest APK was downloaded to:
+The latest inspected APK (task-edit release, before To Do/Time Log) was downloaded to:
 
 ```text
 /tmp/icu-apk-final/app-debug.apk

@@ -154,6 +154,8 @@ export type PullResponse = {
     expectedMin: number;
     offsetMin: number;
     active: boolean;
+    role: "nurse" | "head_nurse";
+    scope: "bed" | "shift";
   }[];
   config: Record<string, unknown> | null;
   units: Unit[];
@@ -166,6 +168,7 @@ export type PullResponse = {
     startedAt: number;
     endedAt: number | null;
     summary: unknown;
+    kind?: "nurse" | "head_nurse";
   }[];
   beds: { id: string; shiftId: string; label: string; alias: string }[];
   events: (DomainEvent & { serverSeq?: number })[];
@@ -260,6 +263,7 @@ export type HeadShift = {
   id: string;
   userId: string;
   type: string;
+  kind?: "nurse" | "head_nurse";
   unitId: string | null;
   unitName: string | null;
   startedAt: number;
@@ -273,14 +277,73 @@ export type HeadShift = {
 
 export async function fetchShifts(
   token: string,
-  filters: { nurseId?: string; from?: string; to?: string; unitId?: string } = {},
+  filters: { nurseId?: string; from?: string; to?: string; unitId?: string; kind?: "nurse" | "head_nurse" } = {},
 ): Promise<{ shifts: HeadShift[] }> {
   const params = new URLSearchParams();
   if (filters.nurseId) params.set("nurseId", filters.nurseId);
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (filters.unitId) params.set("unitId", filters.unitId);
+  if (filters.kind) params.set("kind", filters.kind);
   return apiFetch(`/shifts?${params.toString()}`, { token });
+}
+
+export async function startHeadShift(
+  token: string,
+  input: { unitId: string; type: "day" | "night" | "custom"; backdateMin?: number },
+): Promise<{ shift: HeadShift; events: DomainEvent[] }> {
+  return apiFetch("/head-shifts", { method: "POST", token, body: JSON.stringify(input) });
+}
+
+export async function endHeadShift(token: string, shiftId: string): Promise<{ summary: ShiftSummary }> {
+  return apiFetch(`/head-shifts/${encodeURIComponent(shiftId)}/end`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({}),
+  });
+}
+
+export async function createHeadTask(
+  token: string,
+  shiftId: string,
+  input: {
+    title: string;
+    category: "direct_care" | "indirect_care";
+    tier: 1 | 2 | 3 | 4;
+    plannedFrom: number;
+    plannedTo: number;
+    expectedMin?: number;
+    note?: string;
+  },
+): Promise<{ event: DomainEvent }> {
+  return apiFetch(`/head-shifts/${encodeURIComponent(shiftId)}/tasks`, {
+    method: "POST",
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export async function completeHeadTask(
+  token: string,
+  shiftId: string,
+  taskId: string,
+): Promise<{ event: DomainEvent }> {
+  return apiFetch(
+    `/head-shifts/${encodeURIComponent(shiftId)}/tasks/${encodeURIComponent(taskId)}/complete`,
+    { method: "POST", token, body: JSON.stringify({}) },
+  );
+}
+
+export async function logHeadTaskTime(
+  token: string,
+  shiftId: string,
+  taskId: string,
+  input: { startedAt: number; endedAt: number; note?: string },
+): Promise<{ event: DomainEvent }> {
+  return apiFetch(
+    `/head-shifts/${encodeURIComponent(shiftId)}/tasks/${encodeURIComponent(taskId)}/time-log`,
+    { method: "POST", token, body: JSON.stringify(input) },
+  );
 }
 
 export type ShiftDetail = {

@@ -4,6 +4,8 @@ export type Role = "nurse" | "head_nurse";
 export type Tier = 1 | 2 | 3 | 4;
 export type TaskCategory = "direct_care" | "indirect_care" | "interruption";
 export type TaskStatus = "planned" | "in_progress" | "paused" | "done" | "deferred" | "missed";
+export type TaskScope = "bed" | "shift";
+export type ShiftKind = "nurse" | "head_nurse";
 
 export type UnitStatus = "active" | "inactive";
 
@@ -74,6 +76,7 @@ export const EVENT_TYPES = [
   "TASK_DEFERRED",
   "TASK_RESCHEDULED",
   "TASK_EDITED",
+  "TASK_TIME_LOGGED",
   "TASK_MISSED",
   "TIME_CORRECTED",
   "INTERRUPTION_LOGGED",
@@ -87,6 +90,7 @@ const iso = z.number().int().nonnegative();
 
 export const shiftStartedPayload = z.object({
   shiftType: z.enum(SHIFT_TYPES),
+  kind: z.enum(["nurse", "head_nurse"]).optional(),
   unitId: z.string().min(1).max(80).optional(),
   unitName: z.string().min(1).max(80).optional(),
   bedLabels: z.array(z.string().min(1).max(60)).max(12).optional(),
@@ -105,6 +109,7 @@ export const taskCreatedPayload = z
     unitId: z.string().min(1).max(80).optional(),
     templateId: z.string().max(80).optional(),
     bedLabel: z.string().max(60).optional(),
+    scope: z.enum(["bed", "shift"]).optional(),
     note: z.string().max(300).optional(),
   })
   .refine((d) => d.plannedTo >= d.plannedFrom, {
@@ -144,6 +149,16 @@ export const taskEditedPayload = z
     path: ["title"],
   });
 export type TaskEditPatch = z.infer<typeof taskEditedPayload>;
+export const taskTimeLoggedPayload = z
+  .object({
+    startedAt: iso,
+    endedAt: iso,
+    note: z.string().max(300).optional(),
+  })
+  .refine((value) => value.endedAt >= value.startedAt, {
+    message: "Time log end must be after its start",
+    path: ["endedAt"],
+  });
 export const taskMissedPayload = z.object({ reason: z.enum(["timeout", "shift_end"]) });
 export const timeCorrectedPayload = z.object({
   targetEventId: z.string().min(1),
@@ -177,7 +192,7 @@ const base = {
 export const domainEventSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("SHIFT_STARTED"), payload: shiftStartedPayload }),
   z.object({ ...base, type: z.literal("SHIFT_ENDED"), payload: shiftEndedPayload }),
-  z.object({ ...base, type: z.literal("TASK_CREATED"), payload: taskCreatedPayload, taskId: z.string().min(1), bedId: z.string().min(1) }),
+  z.object({ ...base, type: z.literal("TASK_CREATED"), payload: taskCreatedPayload, taskId: z.string().min(1) }),
   z.object({ ...base, type: z.literal("TASK_STARTED"), payload: z.object({}) }),
   z.object({ ...base, type: z.literal("TASK_PAUSED"), payload: z.object({ reason: z.string().max(120).optional() }) }),
   z.object({ ...base, type: z.literal("TASK_RESUMED"), payload: z.object({}) }),
@@ -189,7 +204,12 @@ export const domainEventSchema = z.discriminatedUnion("type", [
     type: z.literal("TASK_EDITED"),
     payload: taskEditedPayload,
     taskId: z.string().min(1),
-    bedId: z.string().min(1),
+  }),
+  z.object({
+    ...base,
+    type: z.literal("TASK_TIME_LOGGED"),
+    payload: taskTimeLoggedPayload,
+    taskId: z.string().min(1),
   }),
   z.object({ ...base, type: z.literal("TASK_MISSED"), payload: taskMissedPayload }),
   z.object({ ...base, type: z.literal("TIME_CORRECTED"), payload: timeCorrectedPayload }),
@@ -202,10 +222,17 @@ export const domainEventSchema = z.discriminatedUnion("type", [
 export type DomainEvent = z.infer<typeof domainEventSchema>;
 export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
 
+export type TaskTimeLog = {
+  startedAt: number;
+  endedAt: number;
+  note?: string;
+};
+
 export type Task = {
   id: string;
   shiftId: string;
-  bedId: string;
+  bedId?: string;
+  scope?: TaskScope;
   unitId?: string; // NEW: optional unit assignment
   title: string;
   category: Exclude<TaskCategory, "interruption">;
@@ -223,6 +250,7 @@ export type Task = {
   missedAt?: number;
   rescheduledAt?: number;
   durationRecorded: boolean;
+  timeLogs?: TaskTimeLog[];
   pinned: boolean;
   needsAttention: boolean;
   note?: string;
@@ -232,6 +260,7 @@ export type ShiftState = {
   id: string;
   actorId: string;
   type: ShiftType;
+  kind?: ShiftKind;
   unitId?: string;
   unitName?: string;
   startedAt: number;
@@ -267,6 +296,7 @@ export type HandoverSnapshot = {
   pending: HandoverTask[];
   deferred: HandoverTask[];
   missed: HandoverTask[];
+  shiftTasks?: HandoverTask[];
   interruptions: { reason: InterruptionReason; label: string; count: number; minutes: number }[];
   note: string;
   generatedAt: number;

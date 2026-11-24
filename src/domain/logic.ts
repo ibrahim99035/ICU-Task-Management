@@ -69,6 +69,7 @@ const TRANSITIONS: Record<string, Partial<Record<DomainEvent["type"], TaskStatus
     TASK_STARTED: "in_progress",
     TASK_DEFERRED: "deferred",
     TASK_COMPLETED: "done", // tick-only completion
+    TASK_TIME_LOGGED: "done",
     TASK_MISSED: "missed",
   },
   in_progress: {
@@ -82,8 +83,11 @@ const TRANSITIONS: Record<string, Partial<Record<DomainEvent["type"], TaskStatus
   },
   deferred: {
     TASK_RESCHEDULED: "planned",
+    TASK_TIME_LOGGED: "done",
   },
-  done: {},
+  done: {
+    TASK_TIME_LOGGED: "done",
+  },
   missed: {},
 };
 
@@ -129,6 +133,7 @@ const EVENT_PRIORITY: Record<DomainEvent["type"], number> = {
   TASK_CREATED: 1,
   TASK_RESCHEDULED: 2,
   TASK_EDITED: 2,
+  TASK_TIME_LOGGED: 2,
   EMERGENCY_STARTED: 2,
   TASK_STARTED: 3,
   TASK_RESUMED: 3,
@@ -198,6 +203,7 @@ export function reduce(input: DomainEvent[]): ReducedState {
           id: event.shiftId,
           actorId: event.actorId,
           type: event.payload.shiftType,
+          kind: event.payload.kind ?? "nurse",
           unitId: event.payload.unitId,
           unitName: event.payload.unitName,
           startedAt: ts,
@@ -210,12 +216,15 @@ export function reduce(input: DomainEvent[]): ReducedState {
         state.shift.note = event.payload.note ?? state.shift.note;
         break;
       case "TASK_CREATED": {
-        if (!event.taskId || !event.bedId) throw new DomainError("Task events need a task and bed id");
+        if (!event.taskId) throw new DomainError("Task events need a task id");
         if (state.tasks[event.taskId]) throw new DomainError(`Duplicate task ${event.taskId}`);
+        const scope = event.payload.scope ?? (event.bedId ? "bed" : "shift");
+        if (scope === "bed" && !event.bedId) throw new DomainError("Bed tasks need a bed id");
         state.tasks[event.taskId] = {
           id: event.taskId,
           shiftId: event.shiftId,
           bedId: event.bedId,
+          scope,
           unitId: event.payload.unitId,
           title: event.payload.title,
           category: event.payload.category,
@@ -229,6 +238,7 @@ export function reduce(input: DomainEvent[]): ReducedState {
           note: event.payload.note,
           createdAt: ts,
           durationRecorded: false,
+          timeLogs: [],
           pinned: false,
           needsAttention: false,
         };
@@ -277,6 +287,28 @@ export function reduce(input: DomainEvent[]): ReducedState {
             task.missedAt = ts;
             break;
         }
+        break;
+      }
+      case "TASK_TIME_LOGGED": {
+        const task = event.taskId ? state.tasks[event.taskId] : undefined;
+        if (!task) throw new DomainError(`Unknown task ${event.taskId ?? "(none)"}`);
+        if (task.status === "missed") throw new DomainError("Missed tasks cannot receive a time log");
+        if (task.durationRecorded) throw new DomainError("This task already has a recorded duration");
+        if (task.status === "in_progress" || task.status === "paused") {
+          throw new DomainError("Finish the live timer before logging a past interval");
+        }
+        if (event.payload.endedAt < event.payload.startedAt) {
+          throw new DomainError("Time log end precedes start");
+        }
+        task.status = "done";
+        task.startedAt ??= event.payload.startedAt;
+        task.completedAt = event.payload.endedAt;
+        task.durationRecorded = true;
+        (task.timeLogs ??= []).push({
+          startedAt: event.payload.startedAt,
+          endedAt: event.payload.endedAt,
+          note: event.payload.note,
+        });
         break;
       }
       case "TASK_EDITED": {
@@ -418,6 +450,7 @@ export function nextRecurringTask(
       intervalMin: task.intervalMin,
       unitId: task.unitId,
       templateId: task.templateId,
+      scope: task.scope,
       note: task.note,
     },
   };
@@ -585,7 +618,8 @@ export function computeDurations(events: DomainEvent[], now = Date.now()): Durat
     tasks.set(event.taskId, {
       id: event.taskId,
       shiftId: event.shiftId,
-      bedId: event.bedId ?? "",
+      bedId: event.bedId,
+      scope: event.payload.scope ?? (event.bedId ? "bed" : "shift"),
       title: event.payload.title,
       category: event.payload.category,
       tier: event.payload.tier,
@@ -597,6 +631,7 @@ export function computeDurations(events: DomainEvent[], now = Date.now()): Durat
       templateId: event.payload.templateId,
       createdAt: effectiveTs(event, corrections),
       durationRecorded: false,
+      timeLogs: [],
       pinned: false,
       needsAttention: false,
     });
@@ -627,6 +662,8 @@ export function computeDurations(events: DomainEvent[], now = Date.now()): Durat
           minutes += Math.max(0, ts - open) / MINUTE;
           open = undefined;
         }
+      } else if (event.type === "TASK_TIME_LOGGED") {
+        minutes += Math.max(0, event.payload.endedAt - event.payload.startedAt) / MINUTE;
       }
     }
     const hasStart = taskEvents.some(({ event }) => event.type === "TASK_STARTED" || event.type === "TASK_RESUMED");
@@ -707,6 +744,10 @@ export function buildHandover(
     Object.values(state.tasks).filter((t) => t.bedId === bed.id),
     now,
   );
+  const shiftTasks = sortTasks(
+    Object.values(state.tasks).filter((t) => t.scope === "shift"),
+    now,
+  );
   const interruptions = state.interruptions.filter((i) => i.bedId === bed.id);
   const grouped = new Map<InterruptionReason, { count: number; minutes: number }>();
   for (const item of interruptions) {
@@ -730,6 +771,7 @@ export function buildHandover(
     pending: range(["planned", "in_progress", "paused"]),
     deferred: range(["deferred"]),
     missed: range(["missed"]),
+    shiftTasks: shiftTasks.map(toHandoverTask),
     interruptions: [...grouped.entries()].map(([reason, v]) => ({
       reason,
       label: INTERRUPTION_LABELS[reason],

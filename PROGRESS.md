@@ -2,7 +2,7 @@
 
 ## P1 — Domain core (done)
 - Pure TypeScript domain in `src/domain`: Zod event schema, reducer/state machine, emergency planning, rescheduling, timestamp durations, missed rule, recurring tasks, handover, shift summary, SUS/raw TLX.
-- `28` Vitest tests passing, including unit propagation, legacy no-unit events and audited task edits.
+- `32` Vitest tests passing, including unit propagation, legacy no-unit events, audited task edits, time logs and shift-scoped tasks.
 - TypeScript clean.
 
 ## P2 — Offline nurse flow (done)
@@ -23,12 +23,22 @@
 
 ## P4 — Evaluation data and automation (done)
 - `scripts/simulate.ts` creates 14 deterministic finished shifts, 1,369 events, 28 handovers, 11 reviews and 9 surveys using bed labels and participant codes only.
-- `scripts/api-test.ts`: 42 checks against disposable Docker Postgres, including self-registration, PIN hashing, duplicate username, role injection, unit CRUD, assignment, unit filters, CSV unit columns, nurse/head task edits, frozen finished tasks and nullable event-id normalization on shift detail.
-- Playwright auth/role/privacy/unit suite: `7` passing, including account creation, assigned-unit selection and head-nurse unit management.
+- `scripts/api-test.ts`: 52 checks against disposable Docker Postgres, including self-registration, PIN hashing, duplicate username, role injection, unit CRUD, assignment, unit filters, CSV unit columns, nurse/head task edits, frozen finished tasks, nullable event-id normalization, head-nurse shift start/end, 14 head tasks, To Do creation, time logging, completion, analytics/export exclusion.
+- Playwright auth/role/privacy/unit/planning suite: `9` passing, including account creation, assigned-unit selection, head-nurse unit management, nurse To Do/Time Log and head-nurse My tasks.
 - Local browser task-edit check against the production web build and disposable Postgres: nurse started a shift and added a note; the note badge and task detail updated. Head nurse opened the same shift, saw all 41 tasks, the nurse note, and edited the note. The timeline then showed two `TASK_EDITED` events. No page errors.
 - `scripts/flow-check.mjs`: emergency → reschedule → timer → quick add → handover → shift end verified end to end.
 - Product-rule lint (`npm run lint`), typecheck, web build and mobile static export all pass.
 - Final web build: all app routes plus the API route. Mobile export: 19 static pages, no API route.
+
+## P6 — To Do, Time Log and head-nurse own shift (done)
+- Added task `scope` (`bed` or `shift`), optional `bedId`, `TASK_TIME_LOGGED` event, task `timeLogs`, and shift `kind` (`nurse` or `head_nurse`).
+- Added 12 staff-nurse shift tasks alongside the existing 41 bed tasks; a nurse shift now creates 53 tasks. Shift tasks have no bed and appear in the queue, plan board and handover data.
+- Added a nurse **Plan** page with To do and Time log tabs, future-only manual planning, time-only past intervals resolved on the shift date, overnight support, tick-only completion and audited edit/note reuse.
+- Added a separate head-nurse shift and `/head/tasks` **My tasks** page with 14 head-nurse tasks, start/end, To Do, Time Log, complete and edit/note. Head-nurse task management is online-only.
+- Head-nurse shifts are excluded from nurse analytics, reviews and CSV export. Head nurses still cannot execute nurse tasks.
+- Added `role`/`scope` to task templates, `kind` to shifts, schema SQL migration, seed updates and a local template version so Dexie refreshes templates without deleting task data.
+- Evidence: TypeScript clean; product-rule lint passed 50 source files / 5 domain files; 32 domain tests; 52 API checks; 9 Playwright tests; web build; mobile static export (21 pages).
+- **NOT VERIFIED:** the APK has not been rebuilt for this release and on-device To Do/Time Log behaviour has not been tested.
 
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.

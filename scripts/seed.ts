@@ -71,6 +71,8 @@ for (const template of DEMO_TEMPLATES) {
         expectedMin: template.expectedMin,
         offsetMin: template.offsetMin,
         active: template.active,
+        role: template.role,
+        scope: template.scope,
       },
     });
 }

@@ -35,14 +35,19 @@ CREATE TABLE IF NOT EXISTS shifts (
   user_id text NOT NULL REFERENCES users(id),
   unit_id text REFERENCES units(id),
   type text NOT NULL,
+  kind text NOT NULL DEFAULT 'nurse' CHECK (kind IN ('nurse', 'head_nurse')),
   started_at bigint NOT NULL,
   ended_at bigint,
   summary jsonb
 );
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS unit_id text REFERENCES units(id);
+ALTER TABLE shifts ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'nurse';
+ALTER TABLE shifts DROP CONSTRAINT IF EXISTS shifts_kind_check;
+ALTER TABLE shifts ADD CONSTRAINT shifts_kind_check CHECK (kind IN ('nurse', 'head_nurse'));
 CREATE INDEX IF NOT EXISTS shifts_user_idx ON shifts (user_id);
 CREATE INDEX IF NOT EXISTS shifts_started_idx ON shifts (started_at);
 CREATE INDEX IF NOT EXISTS shifts_unit_idx ON shifts (unit_id);
+CREATE INDEX IF NOT EXISTS shifts_kind_idx ON shifts (kind);
 
 CREATE TABLE IF NOT EXISTS beds (
   id text PRIMARY KEY,
@@ -60,8 +65,16 @@ CREATE TABLE IF NOT EXISTS task_templates (
   interval_min integer NOT NULL,
   expected_min integer NOT NULL,
   offset_min integer NOT NULL DEFAULT 0,
-  active boolean NOT NULL DEFAULT true
+  active boolean NOT NULL DEFAULT true,
+  role text NOT NULL DEFAULT 'nurse' CHECK (role IN ('nurse', 'head_nurse')),
+  scope text NOT NULL DEFAULT 'bed' CHECK (scope IN ('bed', 'shift'))
 );
+ALTER TABLE task_templates ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'nurse';
+ALTER TABLE task_templates ADD COLUMN IF NOT EXISTS scope text NOT NULL DEFAULT 'bed';
+ALTER TABLE task_templates DROP CONSTRAINT IF EXISTS task_templates_role_check;
+ALTER TABLE task_templates ADD CONSTRAINT task_templates_role_check CHECK (role IN ('nurse', 'head_nurse'));
+ALTER TABLE task_templates DROP CONSTRAINT IF EXISTS task_templates_scope_check;
+ALTER TABLE task_templates ADD CONSTRAINT task_templates_scope_check CHECK (scope IN ('bed', 'shift'));
 
 CREATE TABLE IF NOT EXISTS events (
   id text PRIMARY KEY,

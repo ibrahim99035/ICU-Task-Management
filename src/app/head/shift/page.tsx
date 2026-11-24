@@ -246,7 +246,7 @@ function ShiftInner() {
                         </div>
                         <p className="mt-1 truncate text-sm font-semibold text-slate-800">{task.title}</p>
                         <p className="mt-0.5 text-[11px] text-slate-500">
-                          {bedMap.get(task.bedId) ?? "Bed"} · {formatTime(task.plannedFrom)} – {formatTime(task.plannedTo)}
+                          {task.bedId ? bedMap.get(task.bedId) ?? "Bed" : "Shift task"} · {formatTime(task.plannedFrom)} – {formatTime(task.plannedTo)}
                         </p>
                         {task.note ? (
                           <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-[11px] italic leading-relaxed text-amber-800">

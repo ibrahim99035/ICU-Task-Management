@@ -14,6 +14,7 @@ export type ShiftRow = {
   id: string;
   actorId: string;
   type: ShiftType;
+  kind?: "nurse" | "head_nurse";
   unitId?: string;
   unitName?: string;
   startedAt: number;
@@ -39,6 +40,8 @@ export type TemplateRow = {
   expectedMin: number;
   offsetMin: number;
   active: boolean;
+  role: "nurse" | "head_nurse";
+  scope: "bed" | "shift";
 };
 
 export type ReviewRow = {

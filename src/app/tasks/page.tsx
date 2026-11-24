@@ -256,7 +256,7 @@ function TasksInner() {
               key={task.id}
               task={task}
               now={now}
-              bedLabel={bedFilter ? undefined : bedMap.get(task.bedId)}
+              bedLabel={bedFilter || !task.bedId ? undefined : bedMap.get(task.bedId)}
               elapsedMs={runningElapsed(events, task, now)}
               onStart={() => guard(() => startTask(task.id))}
               onPause={() => guard(() => pauseTask(task.id))}
@@ -335,7 +335,7 @@ function TasksInner() {
 
       <TaskDetail
         task={detail}
-        bedLabel={detail ? bedMap.get(detail.bedId) : undefined}
+        bedLabel={detail?.bedId ? bedMap.get(detail.bedId) : undefined}
         events={detailEvents}
         payableEvents={payableEvents}
         durations={durations.byTask[detail?.id ?? ""]}
@@ -594,7 +594,7 @@ function TaskDetail({
       onClose={onClose}
       wide
       title={task.title}
-      description={`${bedLabel ?? "Bed"} · ${task.category === "direct_care" ? "Direct care" : "Indirect care"} · ${formatTime(task.plannedFrom)} – ${formatTime(task.plannedTo)}`}
+      description={`${bedLabel ?? (task.bedId ? "Bed" : "Shift task")} · ${task.category === "direct_care" ? "Direct care" : "Indirect care"} · ${formatTime(task.plannedFrom)} – ${formatTime(task.plannedTo)}`}
     >
       <div className="flex flex-wrap items-center gap-2">
         <TierBadge tier={task.tier} />

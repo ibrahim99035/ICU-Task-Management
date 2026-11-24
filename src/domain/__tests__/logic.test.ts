@@ -85,6 +85,13 @@ function missed(taskId: string, ts: number, reason: "timeout" | "shift_end" = "t
 function deferred(taskId: string, ts: number) {
   return ev("TASK_DEFERRED", ts, { taskId, bedId, payload: { reason: "emergency" } });
 }
+function timeLogged(taskId: string, startedAt: number, endedAt: number, note?: string) {
+  return ev("TASK_TIME_LOGGED", endedAt, {
+    taskId,
+    bedId,
+    payload: { startedAt, endedAt, note },
+  });
+}
 function rescheduled(taskId: string, ts: number, plannedFrom: number, plannedTo: number) {
   return ev("TASK_RESCHEDULED", ts, {
     taskId,
@@ -557,6 +564,74 @@ describe("missed tasks and recurring tasks", () => {
     expect((next as Extract<DomainEvent, { type: "TASK_CREATED" }>).payload.plannedTo).toBe(
       T0 + 85 * MIN,
     );
+  });
+});
+
+describe("time logs and shift-scoped tasks", () => {
+  it("records a past interval, marks the task done and counts its duration", () => {
+    const events = [
+      created("logged", 2, T0, T0 + 10 * MIN),
+      timeLogged("logged", T0 + 2 * MIN, T0 + 8 * MIN, "Past interval"),
+    ];
+    const state = reduce(events);
+    expect(state.tasks.logged.status).toBe("done");
+    expect(state.tasks.logged.durationRecorded).toBe(true);
+    expect(state.tasks.logged.timeLogs).toEqual([
+      { startedAt: T0 + 2 * MIN, endedAt: T0 + 8 * MIN, note: "Past interval" },
+    ]);
+    const durations = computeDurations(events);
+    expect(durations.byTask.logged.minutes).toBe(6);
+    expect(durations.directCareMin).toBe(6);
+    expect(durations.tickOnlyTaskIds).not.toContain("logged");
+  });
+
+  it("rejects a second time log when a duration is already recorded", () => {
+    expect(() =>
+      reduce([
+        created("double", 2, T0, T0 + 10 * MIN),
+        timeLogged("double", T0, T0 + 5 * MIN),
+        timeLogged("double", T0, T0 + 10 * MIN),
+      ]),
+    ).toThrow(/already has a recorded duration/);
+  });
+
+  it("rejects a time log for missed or live-timer tasks", () => {
+    expect(() =>
+      reduce([
+        created("missed", 2, T0, T0 + 10 * MIN),
+        missed("missed", T0 + 20 * MIN),
+        timeLogged("missed", T0 + 25 * MIN, T0 + 30 * MIN),
+      ]),
+    ).toThrow(/Missed tasks/);
+    expect(() =>
+      reduce([
+        created("running", 2, T0, T0 + 10 * MIN),
+        started("running", T0),
+        timeLogged("running", T0, T0 + 10 * MIN),
+      ]),
+    ).toThrow(/live timer/);
+  });
+
+  it("keeps a shift-scoped task without a bed", () => {
+    const state = reduce([
+      ev("TASK_CREATED", T0, {
+        bedId: undefined,
+        taskId: "shift-task",
+        payload: {
+          title: "Shift report",
+          category: "indirect_care",
+          tier: 2,
+          plannedFrom: T0,
+          plannedTo: T0 + 15 * MIN,
+          expectedMin: 15,
+          scope: "shift",
+        },
+      }),
+    ]);
+    expect(state.tasks["shift-task"].scope).toBe("shift");
+    expect(state.tasks["shift-task"].bedId).toBeUndefined();
+    const snapshot = buildHandover([], { id: bedId, label: "Bed 1" });
+    expect(snapshot.shiftTasks).toEqual([]);
   });
 });
 

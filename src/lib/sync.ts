@@ -65,6 +65,8 @@ async function runSync(): Promise<void> {
               expectedMin: t.expectedMin,
               offsetMin: t.offsetMin ?? 0,
               active: t.active,
+              role: t.role,
+              scope: t.scope,
             })),
           );
         }

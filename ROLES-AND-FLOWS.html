@@ -792,7 +792,7 @@
             <h3>Nurse</h3>
             <p class="tagline">The person working the shift and logging care.</p>
             <ul>
-              <li><strong>Can:</strong> start/end a shift in an assigned unit, manage tasks, edit unfinished task details, write a note on an unfinished task, log interruptions, handle emergencies, reschedule tier 3–4 work, finalize handover, read own summary and reviews, complete surveys.</li>
+              <li><strong>Can:</strong> start/end a shift in an assigned unit, manage bed tasks and 12 shift-level tasks, plan future work in <strong>To do</strong>, log past intervals in <strong>Time log</strong>, edit unfinished task details, write a note on an unfinished task, log interruptions, handle emergencies, reschedule tier 3–4 work, finalize handover, read own summary and reviews, complete surveys.</li>
               <li><strong>Cannot:</strong> create units, assign nurses, see other nurses’ shifts, rate anyone, export unit data, or alter a completed/missed task.</li>
               <li><strong>Lands on:</strong> <code>/beds</code> when a shift is active; otherwise <code>/shift-start</code>.</li>
             </ul>
@@ -806,8 +806,8 @@
             <h3>Head nurse</h3>
             <p class="tagline">The person who configures units, reviews shifts and can correct unfinished tasks.</p>
             <ul>
-              <li><strong>Can:</strong> create/archive units, assign nurses, filter dashboard/shifts/exports by unit, inspect shift timelines, edit unfinished task details, write a note on an unfinished task, write five manual ratings, export CSV.</li>
-              <li><strong>Cannot:</strong> run the nurse shift flow, start, pause, complete or end a nurse’s task, alter a completed/missed task, log interruptions, finalize a handover, or rewrite the event log.</li>
+              <li><strong>Can:</strong> create/archive units, assign nurses, filter dashboard/shifts/exports by unit, inspect shift timelines, edit unfinished task details, write a note on an unfinished task, write five manual ratings, export CSV, and start a separate head-nurse shift with 14 own tasks in <strong>My tasks</strong>.</li>
+              <li><strong>Cannot:</strong> run the nurse shift flow, start, pause, complete or end a nurse’s task, alter a completed/missed nurse task, log interruptions, finalize a nurse handover, or rewrite the event log. Head-nurse tasks are managed only in the head-nurse’s own shift and are excluded from nurse analytics/exports.</li>
               <li><strong>Lands on:</strong> <code>/head</code>.</li>
             </ul>
           </article>
@@ -978,6 +978,10 @@
             <p class="small">Tier-sorted work, filters, timers, quick add, edit/note on unfinished tasks, interruption logging.</p>
           </div>
           <div class="card tight no-shadow">
+            <h4><code>/plan</code> · To do and Time log</h4>
+            <p class="small">Future planned windows with duration, past actual intervals, shift-level tasks, and audited edit/note.</p>
+          </div>
+          <div class="card tight no-shadow">
             <h4><code>/review-deferred</code> · Confirm new times</h4>
             <p class="small">After an emergency, confirm suggested times for tier 3–4 tasks.</p>
           </div>
@@ -1052,7 +1056,7 @@
               <li>Choose shift type: <strong>Day</strong>, <strong>Night</strong> or <strong>Custom</strong>.</li>
               <li>Choose the demo beds. The default is all six beds with their preset tasks.</li>
               <li>Optionally keep <strong>Demo: start 2 hours ago</strong> to make overdue and tier-ordering states visible immediately.</li>
-              <li>Tap <strong>Start day shift · [unit] · 6 beds · 41 tasks</strong>.</li>
+              <li>Tap <strong>Start day shift · [unit] · 6 beds · 53 tasks</strong> (41 bed tasks + 12 shift tasks).</li>
             </ol>
             <div class="result"><strong>Result:</strong> a local shift row is created with <code>unitId</code> and <code>unitName</code>; beds, preset tasks and a <code>SHIFT_STARTED</code> event are written to Dexie first.</div>
             <div class="rule-note"><strong>Rule:</strong> one shift has exactly one unit. If no unit is selected, the start button is disabled. Tasks created in the shift inherit that unit.</div>
@@ -1229,6 +1233,25 @@
           </div>
         </details>
 
+        <details class="scenario">
+          <summary>
+            <span class="snum">N13</span>
+            <span class="stitle"><strong>Plan future work and log past time</strong><span>The nurse needs a To Do list for later and a Time Log for work already done.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <code>/plan</code>. The <strong>To do</strong> tab lists unfinished bed and shift tasks by planned start.</li>
+              <li>Tap <strong>Plan a task</strong>, choose a bed or the whole shift, set a future start and a duration such as 30 minutes, then save.</li>
+              <li>Open the <strong>Time log</strong> tab to see completed tasks and their actual intervals.</li>
+              <li>For a task with no recorded duration, tap <strong>Log time</strong> and enter a past interval such as 07:00–07:30. Time-only input resolves on the shift date; an end before the start rolls to the next day for overnight shifts.</li>
+              <li>Save. The task becomes done, the actual interval is stored and the duration summary uses the stored times.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> To Do is a future plan; Time Log is a past record. A second time log is rejected, and a task with a live/paused timer must be finished before a past interval can be logged.</div>
+            <div class="rule-note"><strong>Rule:</strong> manual To Do tasks must start in the future. A tick-only completed task can receive a time log later. Every edit and note remains an auditable event.</div>
+          </div>
+        </details>
+
         <div class="callout danger" style="margin-top:16px">
           <strong>What the nurse cannot do</strong>
           The nurse cannot create units, assign other nurses, open the head dashboard, rate themselves or anyone
@@ -1295,6 +1318,10 @@
           <div class="card tight no-shadow">
             <h4><code>/head/shifts</code> · Nurse shifts</h4>
             <p class="small">Date, unit and nurse filters; search; review status.</p>
+          </div>
+          <div class="card tight no-shadow">
+            <h4><code>/head/tasks</code> · My tasks</h4>
+            <p class="small">Start/end a head-nurse shift, 14 own tasks, To do, Time log, complete and edit/note. Online-only.</p>
           </div>
           <div class="card tight no-shadow">
             <h4><code>/head/shift</code> · Shift detail</h4>
@@ -1500,6 +1527,25 @@
           </div>
         </details>
 
+        <details class="scenario">
+          <summary>
+            <span class="snum">H10</span>
+            <span class="stitle"><strong>Use My tasks for the head-nurse shift</strong><span>The head nurse needs their own 14-task list, separate from nurse shifts.</span></span>
+            <span class="caret">›</span>
+          </summary>
+          <div class="scenario-body">
+            <ol>
+              <li>Open <strong>My tasks</strong> in the head navigation.</li>
+              <li>Choose a unit and tap <strong>Start head-nurse shift</strong>. The app creates 14 head-nurse tasks from the templates.</li>
+              <li>Use <strong>To do</strong> to plan a future task, or <strong>Time log</strong> to record a past interval such as 07:00–07:30.</li>
+              <li>Mark a task done without a timer, or add a time log later. Edit/note works only on unfinished tasks.</li>
+              <li>Tap <strong>End shift</strong>. Unfinished tasks are marked missed and the head-nurse summary is stored.</li>
+            </ol>
+            <div class="result"><strong>Result:</strong> head-nurse work is recorded separately. It is excluded from nurse analytics, reviews and CSV export, and the head nurse still cannot execute nurse tasks.</div>
+            <div class="rule-note"><strong>Rule:</strong> head-nurse task management is online-only. The nurse offline Dexie/outbox flow is unchanged.</div>
+          </div>
+        </details>
+
         <div class="callout danger" style="margin-top:16px">
           <strong>What the head nurse cannot do</strong>
           The head nurse cannot start a nurse shift, start/pause/complete a task, log interruptions, finalize a
@@ -1521,7 +1567,7 @@
           <div class="flow-step"><span class="n">1</span><strong>Head creates unit</strong><span>Unit A is configured.</span></div>
           <div class="flow-step"><span class="n">2</span><strong>Head assigns nurse</strong><span>Amina is added to Unit A.</span></div>
           <div class="flow-step"><span class="n">3</span><strong>Nurse signs in</strong><span>Unit A is pulled and cached.</span></div>
-          <div class="flow-step"><span class="n">4</span><strong>Nurse starts shift</strong><span>One unit, six demo beds, 41 tasks.</span></div>
+          <div class="flow-step"><span class="n">4</span><strong>Nurse starts shift</strong><span>One unit, six beds, 53 tasks (41 bed + 12 shift).</span></div>
           <div class="flow-step"><span class="n">5</span><strong>Nurse works</strong><span>Timers, interruptions, emergency, handover.</span></div>
           <div class="flow-step"><span class="n">6</span><strong>Shift ends</strong><span>Summary freezes from events.</span></div>
           <div class="flow-step"><span class="n">7</span><strong>Sync</strong><span>Outbox pushes events to the API.</span></div>
@@ -1920,13 +1966,13 @@
             <thead><tr><th>Check</th><th>Observed result</th></tr></thead>
             <tbody>
               <tr><td>TypeScript</td><td>clean</td></tr>
-              <tr><td>Domain tests</td><td><strong>28 passed</strong></td></tr>
+              <tr><td>Domain tests</td><td><strong>32 passed</strong></td></tr>
               <tr><td>Product-rule lint</td><td>passed, 47 source files</td></tr>
-              <tr><td>API integration</td><td><strong>42 checks passed</strong> against disposable Docker Postgres</td></tr>
+              <tr><td>API integration</td><td><strong>52 checks passed</strong> against disposable Docker Postgres</td></tr>
               <tr><td>Task edit + note</td><td>both roles edited unfinished tasks in a browser run; <code>TASK_EDITED</code> is appended; finished tasks return 409; note survives pull and handover</td></tr>
-              <tr><td>Playwright</td><td><strong>7 passed</strong>: auth, role routing, privacy, unit selection, unit management</td></tr>
+              <tr><td>Playwright</td><td><strong>9 passed</strong>: auth, role routing, privacy, unit selection/management, nurse To Do/Time Log, head My tasks</td></tr>
               <tr><td>Web build</td><td>success, all app routes plus <code>/api/[[...route]]</code></td></tr>
-              <tr><td>Mobile export</td><td>success, 19 static pages, API route restored</td></tr>
+              <tr><td>Mobile export</td><td>success, 21 static pages, API route restored</td></tr>
               <tr><td>Live deployment</td><td>health 200; head login 200; live head shift detail renders 36 tasks; task-edit route 404 for unknown shift, 409 for frozen task, 401 without token</td></tr>
               <tr><td>Android CI</td><td>run <code>45031515210</code> success; APK 5,622,705 bytes; SHA-256 <code>a5ff98ce…524a1</code></td></tr>
             </tbody>

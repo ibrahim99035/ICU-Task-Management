@@ -1,6 +1,6 @@
 # TaskLog
 
-A thesis demo for nurses in dynamic care units: plan a shift by task priority, time care from stored timestamps, protect tier 1–2 work during emergencies, and build a handover from what actually happened. Units are not hard-coded to ICU; a head nurse creates them and assigns nurses.
+A thesis demo for nurses in dynamic care units: plan future work in a **To Do** list, record past work in a **Time Log**, time care from stored timestamps, protect tier 1–2 work during emergencies, and build a handover from what actually happened. Units are not hard-coded to ICU; a head nurse creates them and assigns nurses.
 
 > **Not a medical device.** This is a planning and logging aid for practice data. It does not replace bedside monitors, alarms, official orders or the clinical handover process. Do not enter patient names, MRNs, dates of birth or other identifiers.
 
@@ -13,8 +13,9 @@ The production deployment serves the Next.js app and the Hono API from the same 
 ## What it does
 
 - **Dynamic units:** head nurses create or archive units, assign nurses, and filter the dashboard, shift list and exports by unit. A nurse can belong to multiple units; each shift belongs to one unit and tasks inherit it.
-- **Nurse flow:** create an account or sign in, choose an assigned unit at shift start, work a tier-sorted task queue, start/pause/finish tasks, edit an unfinished task and add a note, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary.
-- **Head-nurse flow:** unit management, unit-filtered dashboard, shift list, shift detail with event timeline, edit an unfinished task or add a note, five manual 1–5 ratings, CSV export.
+- **Nurse flow:** create an account or sign in, choose an assigned unit at shift start, work a tier-sorted task queue, start/pause/finish tasks, edit an unfinished task and add a note, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary. A nurse shift also creates 12 shift-level staff-nurse tasks alongside the bed tasks.
+- **Head-nurse flow:** unit management, unit-filtered dashboard, shift list, shift detail with event timeline, edit an unfinished task or add a note, five manual 1–5 ratings, CSV export, plus a separate head-nurse shift with 14 own tasks and its own To Do/Time Log. Head-nurse tasks are online-only and never appear in nurse analytics or exports.
+- **To Do vs Time Log:** To Do is a future planned start plus duration. Time Log is a past actual interval such as 07:00–07:30. Time-only input resolves on the shift date and supports overnight intervals. A time log marks the task done and records the duration; a tick-only completion can receive a time log later.
 - **Audited task alteration:** both roles can edit unfinished task fields and notes. Each change is a `TASK_EDITED` event; completed and missed tasks are frozen.
 - **Offline unit cache:** the nurse's assigned units are cached in Dexie after sync, so shift start still works offline.
 - **Offline-first nurse actions:** every action is written to Dexie first and pushed later through an outbox. Timers are computed from stored event timestamps, never from in-memory counters.
@@ -32,7 +33,7 @@ The production deployment serves the Next.js app and the Hono API from the same 
 
 Demo unit assignments: `amina` → Unit A, `yara` → Unit A and Unit B, `omar` → Unit B. The head-nurse demo account can create more units and change these assignments.
 
-The shift-start screen has a demo option that backdates the shift by two hours, so overdue and tier-ordering states are visible immediately. Turn it off for a live practice shift.
+The shift-start screen has a demo option that backdates the shift by two hours, so overdue and tier-ordering states are visible immediately. Turn it off for a live practice shift. A shift creates 41 bed tasks plus 12 shift-level staff-nurse tasks. The head-nurse account can start a separate head-nurse shift from **My tasks**; that shift creates 14 head-nurse tasks.
 
 Nurses can also create their own account from the login screen. Self-registration creates **nurse accounts only**; head-nurse accounts are provisioned by the study team. There is no email recovery, and account creation requires a network connection. After the first sign-in, the normal offline nurse flow is available.
 
@@ -68,14 +69,14 @@ Useful commands:
 
 ```bash
 npm run typecheck         # tsc --noEmit
-npm test                  # 28 domain tests
+npm test                  # 32 domain tests
 npm run lint              # product-rule guard (no AI, no IDs, pure domain)
 npm run build             # web production build (webpack)
 npm run build:mobile      # static export for the APK
 npm run simulate:reset    # deterministic 14-shift demo dataset
 npm run db:reset-shifts -- --yes  # delete non-simulated UI-test shifts
 npm run test:api          # disposable Docker Postgres required
-npm run test:e2e          # Playwright auth, role, privacy and unit-flow checks
+npm run test:e2e          # Playwright auth, role, privacy, unit and To Do/Time Log checks
 ```
 
 ### API tests
@@ -139,7 +140,7 @@ The APK is built by `.github/workflows/android.yml`:
 
 The workflow installs dependencies, runs `npm run build:mobile`, adds the Android platform with Capacitor, generates icons/splash, and runs `./gradlew assembleDebug`.
 
-The workflow has produced the debug artifact successfully. Run `45031515210` built `app-debug.apk` for the task-edit release (5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`). The artifact was downloaded and inspected as a signed Android package; its bundled JavaScript contains the task-edit UI and the Vercel API URL. Installation on a physical device is still unverified.
+The workflow has produced the debug artifact successfully. Run `45031515210` built `app-debug.apk` for the task-edit release (5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`). The artifact was downloaded and inspected as a signed Android package; its bundled JavaScript contains the task-edit UI and the Vercel API URL. **The APK has not been rebuilt for the To Do/Time Log release yet**, so its on-device behaviour for this feature is **NOT VERIFIED**. Installation on a physical device is still unverified.
 
 Debug signing is automatic. The APK is for demonstration, not Play Store distribution. `NEXT_PUBLIC_API_URL` is compiled into the bundle, so rebuild after changing the deployment URL.
 
@@ -149,5 +150,6 @@ Debug signing is automatic. The APK is for demonstration, not Play Store distrib
 - No patient records, photos, EHR integration, biometric/OAuth login, push notifications, iOS build, Arabic/RTL, admin screens, template editor UI, weighted TLX, TAM or AI.
 - Head-nurse ratings are five manual criteria. No composite score or leaderboard is calculated.
 - Demo task content and intervals require ICU clinical review before any real use.
+- The 14 head-nurse and 12 staff-nurse shift task templates are demo content, not an official assignment policy.
 
 See `ASSUMPTIONS.md`, `PROGRESS.md` and `EVALUATION.md` for decisions and evidence.

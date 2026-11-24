@@ -1,0 +1,72 @@
+import { expect, test } from "@playwright/test";
+import { signIn } from "./helpers";
+
+function clock(ms: number): string {
+  return new Date(ms).toTimeString().slice(0, 5);
+}
+
+test.describe("To Do and Time Log", () => {
+  test("nurse sees shift tasks, plans a future task and logs a past interval", async ({ page }) => {
+    await signIn(page, "yara", "2222");
+    await page.goto("/shift-start");
+    await expect(page.getByRole("heading", { name: /Start a shift|Bed board/ })).toBeVisible();
+
+    const startShift = page.getByRole("button", { name: /Start day shift/ });
+    if (await startShift.count()) {
+      await startShift.first().click();
+      await expect(page).toHaveURL(/\/beds/);
+    }
+
+    await page.goto("/plan");
+    await expect(page.getByRole("heading", { name: "Plan and log" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /To do/ })).toBeVisible();
+    await expect(page.getByText("Receive shift report").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Plan a task" }).first().click();
+    await page.fill("#plan-title", "E2E planned future task");
+    await page.getByRole("button", { name: /Add to To do/ }).click();
+    await expect(page.getByText("E2E planned future task").first()).toBeVisible();
+
+    const report = page.locator("article").filter({ hasText: "Receive shift report" }).first();
+    await report.getByRole("button", { name: "Log time" }).click();
+    const now = Date.now();
+    await page.fill("#log-start", clock(now - 20 * 60_000));
+    await page.fill("#log-end", clock(now - 10 * 60_000));
+    await page.getByRole("button", { name: "Save time log" }).click();
+    await expect(page.getByText(/Time log saved/).first()).toBeVisible();
+
+    await page.getByRole("button", { name: /Time log/ }).click();
+    await expect(page.getByText("Receive shift report").first()).toBeVisible();
+    await expect(page.getByText(/Logged/).first()).toBeVisible();
+
+    await page.goto("/summary");
+    await page.getByRole("button", { name: /End shift now/ }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "End shift" }).click();
+    await expect(page.getByText(/Shift ended/).first()).toBeVisible();
+  });
+
+  test("head nurse starts a head-nurse shift and sees the 14-task list", async ({ page }) => {
+    await signIn(page, "head", "9999");
+    await page.goto("/head/tasks");
+    await expect(page.getByRole("heading", { name: "My tasks" })).toBeVisible();
+
+    const start = page.getByRole("button", { name: /Start head-nurse shift/ });
+    if (await start.count()) {
+      await start.click();
+    }
+
+    await expect(page.getByText("Receive shift report from previous shift").first()).toBeVisible();
+    await expect(page.getByText("Hand over shift report to next shift").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Plan a task" }).first().click();
+    await page.fill("#plan-title", "E2E head-nurse future task");
+    await page.getByRole("button", { name: /Add to To do/ }).click();
+    await expect(page.getByText("E2E head-nurse future task").first()).toBeVisible();
+
+    const end = page.getByRole("button", { name: /End shift/ });
+    if (await end.count()) {
+      await end.click();
+      await expect(page.getByText(/Head-nurse shift ended/).first()).toBeVisible();
+    }
+  });
+});
