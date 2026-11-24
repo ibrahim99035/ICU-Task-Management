@@ -40,9 +40,9 @@
 - Added a 16-hour shift limit (two normal 8-hour shifts). A stale nurse shift auto-ends on app load; a stale head-nurse shift auto-ends before listing or starting a head shift. Open tasks are missed at the cap.
 - Evidence: TypeScript clean; product-rule lint passed 50 source files / 5 domain files; 33 domain tests; 56 API checks; 10 Playwright tests; web build; mobile static export (21 pages).
 - Vercel deploy of `2582d47`: `/plan` and `/head/tasks` returned `200`. Live head-nurse start returned `200`, 15 events and 14 shift tasks with 0 null IDs; live To Do creation and time log returned `200`; end returned a 15-task summary (1 done, 14 missed). Analytics stayed at 14 shifts before/after; nurse shift list and CSV excluded the head shift; sync pull returned 39 templates (14 head-nurse, 26 shift-scoped).
-- Android CI run `45412634264` succeeded for `5a55c86`; the `icu-tasklog-debug-apk` artifact exists (ZIP 4,882,454 bytes, digest `sha256:055fb6c6560f52cbd618b5f87b75ff79647e82c2bcf6830c3ec27c7ad2c5b8d1`).
+- Android CI run `45423196910` succeeded for `bd9e814`; the `icu-tasklog-debug-apk` artifact exists (ZIP 4,882,751 bytes, digest `sha256:4fbcd2651fb63109a383492eaf778db36a2710a1d82d06aa8980a974390f50e4`).
 - **NOT VERIFIED:** the APK file was not downloaded/inspected here, and on-device To Do/Time Log behaviour has not been tested.
-- **Live browser checkup (2026-11-24):** signed up `checknurse24`, signed in with `amina`, `yara`, `omar` and `head`, assigned the new nurse to Unit A, started a fresh 53-task nurse shift, added a To Do item, logged a past interval, and ended the shift. Observed 54 total tasks, 1 done and 53 missed. Started a 14-task head-nurse shift, added a To Do item, logged a past interval, and ended it; the API summary showed 15 total, 1 done and 14 missed. The head-nurse shift did not appear on the nurse-shifts page. Amina's stale 49-hour shift auto-ended at exactly 16 hours with 41 tasks missed and 960 total minutes.
+- **Live browser checkup (2026-11-24):** signed up `checknurse24`, signed in with `amina`, `yara`, `omar` and `head`, assigned the new nurse to Unit A, started a fresh 53-task nurse shift, added a To Do item, logged a past interval, and ended the shift. Observed 54 total tasks, 1 done and 53 missed. Started a 14-task head-nurse shift, added a To Do item, logged a past interval, and ended it; the API summary showed 15 total, 1 done and 14 missed. The head-nurse shift did not appear on the nurse-shifts page. Amina's stale 49-hour shift auto-ended at exactly 16 hours with 41 tasks missed and 960 total minutes. The live head-nurse sidebar showed `Open My tasks` and no nurse shift clock.
 
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.
@@ -53,7 +53,7 @@
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
 - `npm run build:mobile` verified locally: static export succeeds and `src/app/api` is restored.
 - GitHub Actions run `45031515210` succeeded for the null-ID fix commit `501b9af`: `app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`. That older artifact was downloaded and unpacked; its bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
-- GitHub Actions run `45412634264` succeeded for the shift-limit commit `5a55c86`. The new artifact ZIP is 4,882,454 bytes with digest `sha256:055fb6c6560f52cbd618b5f87b75ff79647e82c2bcf6830c3ec27c7ad2c5b8d1`.
+- GitHub Actions run `45423196910` succeeded for the shift-limit commit `bd9e814`. The new artifact ZIP is 4,882,751 bytes with digest `sha256:4fbcd2651fb63109a383492eaf778db36a2710a1d82d06aa8980a974390f50e4`.
 - Screenshots `02-shift-start.png`, `11-head-dashboard.png` and `17-head-units.png` were refreshed from the live deployment.
 - **NOT VERIFIED:** installation and opening of the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 

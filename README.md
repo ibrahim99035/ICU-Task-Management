@@ -141,7 +141,7 @@ The APK is built by `.github/workflows/android.yml`:
 
 The workflow installs dependencies, runs `npm run build:mobile`, adds the Android platform with Capacitor, generates icons/splash, and runs `./gradlew assembleDebug`.
 
-The workflow has produced the debug artifact successfully. Run `45412634264` built the APK from commit `5a55c86` for the 16-hour shift-limit release. GitHub reports the `icu-tasklog-debug-apk` ZIP artifact as 4,882,454 bytes with artifact digest `sha256:055fb6c6560f52cbd618b5f87b75ff79647e82c2bcf6830c3ec27c7ad2c5b8d1`. The APK file itself was not downloaded or inspected in this workspace, and installation/opening on a physical Android device is **NOT VERIFIED**.
+The workflow has produced the debug artifact successfully. Run `45423196910` built the APK from commit `bd9e814` for the 16-hour shift-limit release. GitHub reports the `icu-tasklog-debug-apk` ZIP artifact as 4,882,751 bytes with artifact digest `sha256:4fbcd2651fb63109a383492eaf778db36a2710a1d82d06aa8980a974390f50e4`. The APK file itself was not downloaded or inspected in this workspace, and installation/opening on a physical Android device is **NOT VERIFIED**.
 
 Debug signing is automatic. The APK is for demonstration, not Play Store distribution. `NEXT_PUBLIC_API_URL` is compiled into the bundle, so rebuild after changing the deployment URL.
 

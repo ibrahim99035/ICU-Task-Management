@@ -2,13 +2,13 @@
 
 This guide explains how to get the latest debug APK, share it with the group, install it on Android, and create accounts.
 
-> **Current status:** the latest APK was built from commit `5a55c86` (16-hour shift limit / stale-shift auto-end). The artifact exists, but the APK file was not downloaded or opened in this workspace, so on-device behaviour is **NOT VERIFIED**. The web app is verified at <https://icu-tasklog.vercel.app>.
+> **Current status:** the latest APK was built from commit `bd9e814` (16-hour shift limit / stale-shift auto-end). The artifact exists, but the APK file was not downloaded or opened in this workspace, so on-device behaviour is **NOT VERIFIED**. The web app is verified at <https://icu-tasklog.vercel.app>.
 
 ## 1. Get the APK file
 
 Download the latest artifact from GitHub Actions:
 
-<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/45412634264>
+<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/45423196910>
 
 At the bottom of that run page, under **Artifacts**, download:
 
@@ -24,8 +24,8 @@ app-debug.apk
 
 ### Artifact details
 
-- GitHub artifact ZIP: 4,882,454 bytes
-- GitHub artifact digest: `sha256:055fb6c6560f52cbd618b5f87b75ff79647e82c2bcf6830c3ec27c7ad2c5b8d1`
+- GitHub artifact ZIP: 4,882,751 bytes
+- GitHub artifact digest: `sha256:4fbcd2651fb63109a383492eaf778db36a2710a1d82d06aa8980a974390f50e4`
 - The APK file size/SHA-256 was not observed in this workspace. After downloading, you can compute it with `sha256sum app-debug.apk`.
 
 ## 2. Share it
