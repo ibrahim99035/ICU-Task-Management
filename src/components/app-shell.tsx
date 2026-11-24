@@ -176,17 +176,30 @@ export function AppShell({
           })}
         </nav>
         <div className="mt-auto space-y-3">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Shift clock</p>
-            <p className="mt-1 font-mono text-lg font-bold text-ink">
-              {shift ? formatElapsed(now - shift.startedAt) : "No active shift"}
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              {shift
-                ? `${shift.type} shift${shift.unitName ? ` · ${shift.unitName}` : ""} · started ${new Date(shift.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                : "Start a shift from Beds"}
-            </p>
-          </div>
+          {user.role === "head_nurse" ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Head-nurse tasks</p>
+              <p className="mt-1 text-sm font-bold text-ink">Separate from nurse shifts</p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Start, time and end the head-nurse shift from My tasks.
+              </p>
+              <Link href="/head/tasks" className="mt-2 inline-flex text-[11px] font-bold text-teal-700 hover:underline">
+                Open My tasks
+              </Link>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Shift clock</p>
+              <p className="mt-1 font-mono text-lg font-bold text-ink">
+                {shift ? formatElapsed(now - shift.startedAt) : "No active shift"}
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                {shift
+                  ? `${shift.type} shift${shift.unitName ? ` · ${shift.unitName}` : ""} · started ${new Date(shift.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : "Start a shift from Beds"}
+              </p>
+            </div>
+          )}
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
             <strong className="font-bold">Planning aid only.</strong> Not a bedside monitor, alarm or official
             order system. Practice data only.

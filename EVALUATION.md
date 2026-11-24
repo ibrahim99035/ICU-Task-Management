@@ -36,6 +36,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | To Do + Time Log | domain reducer, API checks, Playwright | observed: future To Do creation; time-only past interval resolves on the shift date; time log marks done and records duration; second log rejected; missed/live-timer logs rejected; tick-only task can receive a later log |
 | Shift tasks | domain reducer, API checks, Playwright | observed: nurse shift creates 12 shift-level tasks plus 41 bed tasks; head shift creates 14 tasks; shift tasks have no bed; head-nurse shifts excluded from nurse analytics/export |
 | Shift length limit | domain test, API checks, Playwright | observed: 16-hour cap; stale nurse shift auto-ends on `/beds` load and returns to `/shift-start`; stale head shift is capped before a new head shift starts; open tasks become missed |
+| Live browser checkup | production Vercel deployment | observed: signup lands on `/shift-start`; `amina`, `yara`, `omar` and `head` sign in; new nurse shift shows 53 tasks; nurse To Do + Time Log ends with 54 total / 1 done / 53 missed; head shift ends with 15 total / 1 done / 14 missed and is excluded from nurse shifts; Amina’s stale 49-hour shift auto-ended at 16 hours with 41 tasks missed |
 | Dynamic units | head `POST/PATCH/DELETE /api/units`, nurse assignment, `GET /api/units`, unit filters | observed: create 201, duplicate 409, nurse create 403, assignment 200, nurse sees assigned unit, shift carries `unitId` |
 | Nurse self-registration | `POST /api/auth/register` | **201**; role forced to `nurse`, PIN hashed, duplicate username 409, client role injection 400 |
 | Playwright auth/role/privacy/units/planning | `npm run test:e2e` | **10 passed** |
@@ -64,7 +65,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
 | Local browser task edit (both roles) | production web build + disposable Docker Postgres | nurse started a shift, added a note; note badge and task detail updated. Head nurse saw all 41 bed tasks and the note, edited the note; timeline showed two `TASK_EDITED` events. No page errors |
 | Local browser To Do/Time Log | production web build + disposable Docker Postgres + Playwright | nurse `yara` saw the 12 shift tasks, planned a future task, logged a past interval and ended the shift; head nurse started a head-nurse shift, saw the 14 tasks, planned a task and ended the shift. No page errors |
-| Android CI build | GitHub Actions run `45316708579` | **success** for `2582d47`; `icu-tasklog-debug-apk` artifact ZIP 4,882,615 bytes, digest `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`; APK not downloaded/inspected here |
+| Android CI build | GitHub Actions run `45412634264` | **success** for `5a55c86`; `icu-tasklog-debug-apk` artifact ZIP 4,882,454 bytes, digest `sha256:055fb6c6560f52cbd618b5f87b75ff79647e82c2bcf6830c3ec27c7ad2c5b8d1`; APK not downloaded/inspected here |
 
 ### Production deployment
 
@@ -75,7 +76,7 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 - Observed checks after the unit deployment: health 200, head login 200, units 200 (Unit A/Unit B), unit-filtered shifts 200 (7 Unit A shifts), unit analytics 200 (7 shifts, 81.0% completion), CORS `PATCH` preflight 204.
 - Nurse self-registration: live `POST /api/auth/register` returned 201, created a nurse account, and that account signed in successfully. Duplicate username returned 409 and a client-supplied `head_nurse` role returned 400. The verification accounts were removed after the checks.
 - Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors. The unit page was also opened live to capture `17-head-units.png`.
-- Android artifact: GitHub Actions run `45316708579` succeeded for `2582d47`. The `icu-tasklog-debug-apk` artifact exists (ZIP 4,882,615 bytes, digest `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`). The APK inside was not downloaded or inspected in this workspace. The earlier inspected artifact was run `45031515210` for `501b9af` (`app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`).
+- Android artifact: GitHub Actions run `45412634264` succeeded for `5a55c86`. The `icu-tasklog-debug-apk` artifact exists (ZIP 4,882,454 bytes, digest `sha256:055fb6c6560f52cbd618b5f87b75ff79647e82c2bcf6830c3ec27c7ad2c5b8d1`). The APK inside was not downloaded or inspected in this workspace. The earlier inspected artifact was run `45031515210` for `501b9af` (`app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`).
 - **NOT VERIFIED:** installing and opening the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 The simulation is deterministic and uses only bed labels and participant codes. It is demonstration data, not a study result.
@@ -139,7 +140,7 @@ Final captures are in `evaluation/screenshots/`:
 - **Nurse self-registration is open.** Anyone who can reach the deployment can create a nurse account; head-nurse accounts remain controlled. There is no email verification, rate limit or PIN recovery. Account creation requires connectivity, and this is acceptable only for the thesis demo.
 - **Small single-centre sample.** Results will not generalise.
 - **Neon/network variability.** Transient DNS/timeouts were observed locally; nurse actions remain in Dexie, but login and head screens need connectivity.
-- **On-device APK behaviour is not measured.** The Vercel deployment and the GitHub Actions APK build were observed, but the APK was not installed or opened on a physical Android device in this workspace. The new APK from run `45316708579` was not downloaded/inspected here, so To Do/Time Log on Android is **NOT VERIFIED**.
+- **On-device APK behaviour is not measured.** The Vercel deployment and the GitHub Actions APK build were observed, but the APK was not installed or opened on a physical Android device in this workspace. The new APK from run `45412634264` was not downloaded/inspected here, so To Do/Time Log and the 16-hour shift limit on Android are **NOT VERIFIED**.
 - **Demo backdating** makes overdue states visible immediately; it is not a real shift timestamp and is labelled in the UI.
 - **Head-nurse task list is online-only.** The 14 head-nurse tasks and To Do/Time Log actions need the API; the nurse offline Dexie/outbox flow is unchanged.
 

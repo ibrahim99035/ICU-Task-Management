@@ -2,13 +2,13 @@
 
 This guide explains how to get the latest debug APK, share it with the group, install it on Android, and create accounts.
 
-> **Current status:** the latest APK was built from commit `2582d47` (To Do / Time Log / head-nurse **My tasks**). The artifact exists, but the APK file was not downloaded or opened in this workspace, so on-device behaviour is **NOT VERIFIED**. The web app is verified at <https://icu-tasklog.vercel.app>.
+> **Current status:** the latest APK was built from commit `5a55c86` (16-hour shift limit / stale-shift auto-end). The artifact exists, but the APK file was not downloaded or opened in this workspace, so on-device behaviour is **NOT VERIFIED**. The web app is verified at <https://icu-tasklog.vercel.app>.
 
 ## 1. Get the APK file
 
 Download the latest artifact from GitHub Actions:
 
-<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/45316708579>
+<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/45412634264>
 
 At the bottom of that run page, under **Artifacts**, download:
 
@@ -24,8 +24,8 @@ app-debug.apk
 
 ### Artifact details
 
-- GitHub artifact ZIP: 4,882,615 bytes
-- GitHub artifact digest: `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`
+- GitHub artifact ZIP: 4,882,454 bytes
+- GitHub artifact digest: `sha256:055fb6c6560f52cbd618b5f87b75ff79647e82c2bcf6830c3ec27c7ad2c5b8d1`
 - The APK file size/SHA-256 was not observed in this workspace. After downloading, you can compute it with `sha256sum app-debug.apk`.
 
 ## 2. Share it
@@ -39,7 +39,7 @@ The file is about **5 MB**, so any of these work:
 
 For a group, Google Drive is usually easiest: upload once, share the link, and tell everyone to download it on their Android phone.
 
-Always share the APK from the run linked above. Do not share stale copies from earlier runs. The earlier inspected task-edit APK was run `45031515210`; it predates To Do/Time Log.
+Always share the APK from the run linked above. Do not share stale copies from earlier runs. The earlier inspected task-edit APK was run `45031515210`; it predates To Do/Time Log and the 16-hour shift limit.
 
 ## 3. Install on Android
 
