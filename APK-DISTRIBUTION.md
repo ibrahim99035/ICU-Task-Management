@@ -2,25 +2,13 @@
 
 This guide explains how to get the latest debug APK, share it with the group, install it on Android, and create accounts.
 
-> **Current status:** the APK linked below was built before the To Do / Time Log / head-nurse **My tasks** release. The new feature is verified on the web build but is **NOT VERIFIED** on Android until a fresh APK is built from the current commit. The steps below still work for the older APK; rebuild the artifact for the new feature.
+> **Current status:** the latest APK was built from commit `2582d47` (To Do / Time Log / head-nurse **My tasks**). The artifact exists, but the APK file was not downloaded or opened in this workspace, so on-device behaviour is **NOT VERIFIED**. The web app is verified at <https://icu-tasklog.vercel.app>.
 
 ## 1. Get the APK file
 
-The latest inspected APK (task-edit release, before To Do/Time Log) was downloaded to:
+Download the latest artifact from GitHub Actions:
 
-```text
-/tmp/icu-apk-final/app-debug.apk
-```
-
-Copy it somewhere easier to share:
-
-```bash
-cp /tmp/icu-apk-final/app-debug.apk ~/Desktop/icu-tasklog.apk
-```
-
-Or download it again from GitHub Actions:
-
-<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/45031515210>
+<https://github.com/ibrahim99035/ICU-Task-Management/actions/runs/45316708579>
 
 At the bottom of that run page, under **Artifacts**, download:
 
@@ -36,12 +24,13 @@ app-debug.apk
 
 ### Artifact details
 
-- Size: 5,622,705 bytes (5.4 MiB)
-- SHA-256: `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`
+- GitHub artifact ZIP: 4,882,615 bytes
+- GitHub artifact digest: `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`
+- The APK file size/SHA-256 was not observed in this workspace. After downloading, you can compute it with `sha256sum app-debug.apk`.
 
 ## 2. Share it
 
-The file is only about **5.4 MB**, so any of these work:
+The file is about **5 MB**, so any of these work:
 
 - WhatsApp / Telegram / Signal
 - Google Drive or OneDrive link
@@ -50,7 +39,7 @@ The file is only about **5.4 MB**, so any of these work:
 
 For a group, Google Drive is usually easiest: upload once, share the link, and tell everyone to download it on their Android phone.
 
-Always share the APK from the run linked above. Do not share stale copies from earlier runs.
+Always share the APK from the run linked above. Do not share stale copies from earlier runs. The earlier inspected task-edit APK was run `45031515210`; it predates To Do/Time Log.
 
 ## 3. Install on Android
 

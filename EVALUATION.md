@@ -59,20 +59,22 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 | Live unauth task edit | `PATCH /api/shifts/.../tasks/...` on Vercel without token | **401**; `{"error":"Missing bearer token"}` |
 | Live CORS preflight | `OPTIONS /api/auth/login`, `Origin: https://localhost` | **204**; `access-control-allow-origin: https://localhost` |
 | Live CORS unit update | `OPTIONS /api/units/unit-a`, requested `PATCH` | **204**; `access-control-allow-methods` includes `PATCH`, `DELETE` |
+| Live To Do/Time Log + head tasks | live API against Vercel after `2582d47` deploy | `/plan` and `/head/tasks` **200**; head start **200** with 15 events/14 tasks/0 null IDs; To Do **200**; time log **200**; end summary 15 total, 1 done, 14 missed; analytics unchanged 14→14; nurse list and CSV exclude head shift; sync pull 39 templates (14 head, 26 shift) |
 | Live browser smoke | Playwright against Vercel | nurse login reached `/shift-start`; head login reached `/head`; no page errors |
 | Local browser task edit (both roles) | production web build + disposable Docker Postgres | nurse started a shift, added a note; note badge and task detail updated. Head nurse saw all 41 bed tasks and the note, edited the note; timeline showed two `TASK_EDITED` events. No page errors |
 | Local browser To Do/Time Log | production web build + disposable Docker Postgres + Playwright | nurse `yara` saw the 12 shift tasks, planned a future task, logged a past interval and ended the shift; head nurse started a head-nurse shift, saw the 14 tasks, planned a task and ended the shift. No page errors |
-| Android CI build | GitHub Actions run `45031515210` | **success**; `app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`; bundled JS contains task-edit UI strings and the Vercel API URL |
+| Android CI build | GitHub Actions run `45316708579` | **success** for `2582d47`; `icu-tasklog-debug-apk` artifact ZIP 4,882,615 bytes, digest `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`; APK not downloaded/inspected here |
 
 ### Production deployment
 
 - Web/API: <https://icu-tasklog.vercel.app> — one Vercel Next.js project; `/api/*` is served by the mounted Hono app.
 - Task-edit deployment `e7cec95` succeeded on Vercel. Live checks after deploy: health 200, head login 200, unauthenticated task-edit `PATCH` 401, unknown shift 404 `Shift not found`, and a frozen production task 409 `Completed or missed tasks cannot be altered`. The successful edit/note path was verified against disposable Postgres, not written into the production demo dataset.
 - Null-ID fix deployment `501b9af` succeeded on Vercel. The live head shift detail now renders 36 tasks (previously 0) and shows the finished-task lock, so the `ZodError` path is gone.
+- To Do/Time Log deployment `2582d47` succeeded on Vercel. Live checks: `/plan` and `/head/tasks` 200; head-nurse start 200 with 15 events and 14 shift tasks; time log 200; To Do creation 200; end summary 15 tasks (1 done, 14 missed); analytics 14→14; nurse shift list/CSV exclude the head shift; sync pull has 39 templates.
 - Observed checks after the unit deployment: health 200, head login 200, units 200 (Unit A/Unit B), unit-filtered shifts 200 (7 Unit A shifts), unit analytics 200 (7 shifts, 81.0% completion), CORS `PATCH` preflight 204.
 - Nurse self-registration: live `POST /api/auth/register` returned 201, created a nurse account, and that account signed in successfully. Duplicate username returned 409 and a client-supplied `head_nurse` role returned 400. The verification accounts were removed after the checks.
 - Playwright smoke test: nurse login reached `/shift-start`, head login reached `/head`, no page errors. The unit page was also opened live to capture `17-head-units.png`.
-- Android artifact: GitHub Actions run `45031515210` succeeded for `501b9af`. The `icu-tasklog-debug-apk` artifact contains `app-debug.apk` (5,622,705 bytes, SHA-256 above), and its bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
+- Android artifact: GitHub Actions run `45316708579` succeeded for `2582d47`. The `icu-tasklog-debug-apk` artifact exists (ZIP 4,882,615 bytes, digest `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`). The APK inside was not downloaded or inspected in this workspace. The earlier inspected artifact was run `45031515210` for `501b9af` (`app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`).
 - **NOT VERIFIED:** installing and opening the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 
 The simulation is deterministic and uses only bed labels and participant codes. It is demonstration data, not a study result.
@@ -136,7 +138,7 @@ Final captures are in `evaluation/screenshots/`:
 - **Nurse self-registration is open.** Anyone who can reach the deployment can create a nurse account; head-nurse accounts remain controlled. There is no email verification, rate limit or PIN recovery. Account creation requires connectivity, and this is acceptable only for the thesis demo.
 - **Small single-centre sample.** Results will not generalise.
 - **Neon/network variability.** Transient DNS/timeouts were observed locally; nurse actions remain in Dexie, but login and head screens need connectivity.
-- **On-device APK behaviour is not measured.** The Vercel deployment and the GitHub Actions APK build were observed, but the APK was not installed or opened on a physical Android device in this workspace. The latest inspected APK predates the To Do/Time Log feature; that feature is **NOT VERIFIED** on Android.
+- **On-device APK behaviour is not measured.** The Vercel deployment and the GitHub Actions APK build were observed, but the APK was not installed or opened on a physical Android device in this workspace. The new APK from run `45316708579` was not downloaded/inspected here, so To Do/Time Log on Android is **NOT VERIFIED**.
 - **Demo backdating** makes overdue states visible immediately; it is not a real shift timestamp and is labelled in the UI.
 - **Head-nurse task list is online-only.** The 14 head-nurse tasks and To Do/Time Log actions need the API; the nurse offline Dexie/outbox flow is unchanged.
 

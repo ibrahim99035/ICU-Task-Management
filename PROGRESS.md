@@ -38,7 +38,9 @@
 - Head-nurse shifts are excluded from nurse analytics, reviews and CSV export. Head nurses still cannot execute nurse tasks.
 - Added `role`/`scope` to task templates, `kind` to shifts, schema SQL migration, seed updates and a local template version so Dexie refreshes templates without deleting task data.
 - Evidence: TypeScript clean; product-rule lint passed 50 source files / 5 domain files; 32 domain tests; 52 API checks; 9 Playwright tests; web build; mobile static export (21 pages).
-- **NOT VERIFIED:** the APK has not been rebuilt for this release and on-device To Do/Time Log behaviour has not been tested.
+- Vercel deploy of `2582d47`: `/plan` and `/head/tasks` returned `200`. Live head-nurse start returned `200`, 15 events and 14 shift tasks with 0 null IDs; live To Do creation and time log returned `200`; end returned a 15-task summary (1 done, 14 missed). Analytics stayed at 14 shifts before/after; nurse shift list and CSV excluded the head shift; sync pull returned 39 templates (14 head-nurse, 26 shift-scoped).
+- Android CI run `45316708579` succeeded for `2582d47`; the `icu-tasklog-debug-apk` artifact exists (ZIP 4,882,615 bytes, digest `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`).
+- **NOT VERIFIED:** the APK file was not downloaded/inspected here, and on-device To Do/Time Log behaviour has not been tested.
 
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.
@@ -48,7 +50,8 @@
 - Live self-registration observed earlier: `201` for a nurse account, login `200`, duplicate `409`, client role injection `400`; test accounts were removed.
 - Capacitor 8.6 config, icon/splash resources, GitHub Actions workflow.
 - `npm run build:mobile` verified locally: static export succeeds and `src/app/api` is restored.
-- GitHub Actions run `45031515210` succeeded for the null-ID fix commit `501b9af`: `app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`. The artifact was downloaded and unpacked; the bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
+- GitHub Actions run `45031515210` succeeded for the null-ID fix commit `501b9af`: `app-debug.apk`, 5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`. That older artifact was downloaded and unpacked; its bundled JavaScript contains the task-edit UI strings and `https://icu-tasklog.vercel.app`.
+- GitHub Actions run `45316708579` succeeded for the To Do/Time Log commit `2582d47`. The new artifact ZIP is 4,882,615 bytes with digest `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`.
 - Screenshots `02-shift-start.png`, `11-head-dashboard.png` and `17-head-units.png` were refreshed from the live deployment.
 - **NOT VERIFIED:** installation and opening of the APK on a physical Android device. No device or local Android SDK was available in this workspace.
 

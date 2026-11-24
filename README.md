@@ -140,7 +140,7 @@ The APK is built by `.github/workflows/android.yml`:
 
 The workflow installs dependencies, runs `npm run build:mobile`, adds the Android platform with Capacitor, generates icons/splash, and runs `./gradlew assembleDebug`.
 
-The workflow has produced the debug artifact successfully. Run `45031515210` built `app-debug.apk` for the task-edit release (5,622,705 bytes, SHA-256 `a5ff98ce34d3335ea706bd0e27ac7326d1128ed254ebeeded3a1c643687524a1`). The artifact was downloaded and inspected as a signed Android package; its bundled JavaScript contains the task-edit UI and the Vercel API URL. **The APK has not been rebuilt for the To Do/Time Log release yet**, so its on-device behaviour for this feature is **NOT VERIFIED**. Installation on a physical device is still unverified.
+The workflow has produced the debug artifact successfully. Run `45316708579` built the APK from commit `2582d47` for the To Do/Time Log release. GitHub reports the `icu-tasklog-debug-apk` ZIP artifact as 4,882,615 bytes with artifact digest `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`. The APK file itself was not downloaded or inspected in this workspace, and installation/opening on a physical Android device is **NOT VERIFIED**.
 
 Debug signing is automatic. The APK is for demonstration, not Play Store distribution. `NEXT_PUBLIC_API_URL` is compiled into the bundle, so rebuild after changing the deployment URL.
 
