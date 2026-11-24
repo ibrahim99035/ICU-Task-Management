@@ -16,6 +16,7 @@ The production deployment serves the Next.js app and the Hono API from the same 
 - **Nurse flow:** create an account or sign in, choose an assigned unit at shift start, work a tier-sorted task queue, start/pause/finish tasks, edit an unfinished task and add a note, log interruptions, quick-add a task, handle an emergency, review deferred work, finalize a handover, end the shift and read a timestamp-based summary. A nurse shift also creates 12 shift-level staff-nurse tasks alongside the bed tasks.
 - **Head-nurse flow:** unit management, unit-filtered dashboard, shift list, shift detail with event timeline, edit an unfinished task or add a note, five manual 1–5 ratings, CSV export, plus a separate head-nurse shift with 14 own tasks and its own To Do/Time Log. Head-nurse tasks are online-only and never appear in nurse analytics or exports.
 - **To Do vs Time Log:** To Do is a future planned start plus duration. Time Log is a past actual interval such as 07:00–07:30. Time-only input resolves on the shift date and supports overnight intervals. A time log marks the task done and records the duration; a tick-only completion can receive a time log later.
+- **Shift length limit:** a shift cannot stay open indefinitely. The limit is 16 hours (two normal 8-hour shifts). A stale nurse shift auto-ends when the app loads; a stale head-nurse shift auto-ends before the head-nurse list or a new head shift. Open tasks are marked missed at the 16-hour cap.
 - **Audited task alteration:** both roles can edit unfinished task fields and notes. Each change is a `TASK_EDITED` event; completed and missed tasks are frozen.
 - **Offline unit cache:** the nurse's assigned units are cached in Dexie after sync, so shift start still works offline.
 - **Offline-first nurse actions:** every action is written to Dexie first and pushed later through an outbox. Timers are computed from stored event timestamps, never from in-memory counters.
@@ -69,14 +70,14 @@ Useful commands:
 
 ```bash
 npm run typecheck         # tsc --noEmit
-npm test                  # 32 domain tests
+npm test                  # 33 domain tests
 npm run lint              # product-rule guard (no AI, no IDs, pure domain)
 npm run build             # web production build (webpack)
 npm run build:mobile      # static export for the APK
 npm run simulate:reset    # deterministic 14-shift demo dataset
 npm run db:reset-shifts -- --yes  # delete non-simulated UI-test shifts
 npm run test:api          # disposable Docker Postgres required
-npm run test:e2e          # Playwright auth, role, privacy, unit and To Do/Time Log checks
+npm run test:e2e          # Playwright auth, role, privacy, unit, To Do/Time Log and shift-limit checks
 ```
 
 ### API tests

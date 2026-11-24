@@ -20,3 +20,6 @@ ios/
 *.keystore
 *.jks
 .code-graph/
+
+# Browser tool snapshots
+.playwright-mcp/

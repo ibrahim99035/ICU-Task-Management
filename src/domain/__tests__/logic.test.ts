@@ -8,6 +8,8 @@ import {
   confirmReschedule,
   endEmergency,
   isMissed,
+  isShiftExpired,
+  MAX_SHIFT_MS,
   nextRecurringTask,
   proposeReschedule,
   reduce,
@@ -564,6 +566,15 @@ describe("missed tasks and recurring tasks", () => {
     expect((next as Extract<DomainEvent, { type: "TASK_CREATED" }>).payload.plannedTo).toBe(
       T0 + 85 * MIN,
     );
+  });
+});
+
+describe("shift duration limit", () => {
+  it("treats a shift as expired after two normal 8-hour shifts", () => {
+    expect(MAX_SHIFT_MS).toBe(16 * 60 * 60 * 1000);
+    expect(isShiftExpired(T0, T0 + MAX_SHIFT_MS - 1)).toBe(false);
+    expect(isShiftExpired(T0, T0 + MAX_SHIFT_MS)).toBe(true);
+    expect(isShiftExpired(T0, T0 + MAX_SHIFT_MS + 33 * 60 * 60 * 1000)).toBe(true);
   });
 });
 

@@ -10,6 +10,8 @@ import {
   buildShiftSummary,
   domainEventSchema,
   isTaskEditable,
+  MAX_SHIFT_HOURS,
+  MAX_SHIFT_MS,
   nextRecurringTask,
   reduce,
   scoreRawTLX,
@@ -49,6 +51,89 @@ async function loadShiftEvents(db: ReturnType<typeof dbOrThrow>, shiftId: string
     serverTs: row.serverTs,
     serverSeq: row.serverSeq,
   })) as DomainEvent[];
+}
+
+
+async function closeHeadShiftAt(
+  db: ReturnType<typeof dbOrThrow>,
+  shift: { id: string; startedAt: number },
+  actorId: string,
+  endedAt: number,
+  note: string,
+): Promise<ShiftSummary> {
+  const events = await loadShiftEvents(db, shift.id);
+  const state = reduce(events);
+  const newEvents: DomainEvent[] = [];
+  for (const task of Object.values(state.tasks)) {
+    if (["planned", "in_progress", "paused"].includes(task.status)) {
+      newEvents.push({
+        id: randomUUID(),
+        shiftId: shift.id,
+        bedId: task.bedId,
+        taskId: task.id,
+        actorId,
+        type: "TASK_MISSED",
+        clientTs: endedAt,
+        payload: { reason: "shift_end" },
+      });
+    }
+  }
+  newEvents.push({
+    id: randomUUID(),
+    shiftId: shift.id,
+    actorId,
+    type: "SHIFT_ENDED",
+    clientTs: endedAt,
+    payload: { note },
+  });
+  const summary = buildShiftSummary([...events, ...newEvents], endedAt);
+  const serverTs = Date.now();
+  await db.insert(schema.events).values(
+    newEvents.map((event) => ({
+      id: event.id,
+      shiftId: event.shiftId,
+      bedId: event.bedId ?? null,
+      taskId: event.taskId ?? null,
+      actorId: event.actorId,
+      type: event.type,
+      payload: event.payload,
+      clientTs: event.clientTs,
+      serverTs,
+    })),
+  );
+  await db
+    .update(schema.shifts)
+    .set({ endedAt: summary.endedAt ?? endedAt, summary })
+    .where(eq(schema.shifts.id, shift.id));
+  return summary;
+}
+
+async function autoEndExpiredHeadShifts(
+  db: ReturnType<typeof dbOrThrow>,
+  actorId: string,
+): Promise<void> {
+  const rows = await db
+    .select()
+    .from(schema.shifts)
+    .where(
+      and(
+        eq(schema.shifts.userId, actorId),
+        eq(schema.shifts.kind, "head_nurse"),
+        isNull(schema.shifts.endedAt),
+      ),
+    );
+  for (const row of rows) {
+    const limitEnd = row.startedAt + MAX_SHIFT_MS;
+    if (Date.now() >= limitEnd) {
+      await closeHeadShiftAt(
+        db,
+        row,
+        actorId,
+        limitEnd,
+        `Auto-ended: maximum shift length of ${MAX_SHIFT_HOURS} hours reached`,
+      );
+    }
+  }
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -613,6 +698,7 @@ app.get("/shifts", requireRole("head_nurse"), async (c) => {
   const to = c.req.query("to");
   const unitId = c.req.query("unitId");
   const kind = c.req.query("kind") ?? "nurse";
+  if (kind === "head_nurse") await autoEndExpiredHeadShifts(db, auth.id);
   const conditions = [];
   if (kind === "head_nurse") {
     conditions.push(eq(schema.shifts.kind, "head_nurse"), eq(schema.shifts.userId, auth.id));
@@ -651,6 +737,7 @@ app.get("/shifts", requireRole("head_nurse"), async (c) => {
 });
 
 app.get("/shifts/:id", requireRole("head_nurse"), async (c) => {
+  const auth = c.get("auth");
   const db = dbOrThrow();
   const id = c.req.param("id");
   const [shift] = await db
@@ -673,6 +760,22 @@ app.get("/shifts/:id", requireRole("head_nurse"), async (c) => {
     .where(eq(schema.shifts.id, id))
     .limit(1);
   if (!shift) return c.json({ error: "Shift not found" }, 404);
+  if (
+    shift.kind === "head_nurse" &&
+    shift.userId === auth.id &&
+    !shift.endedAt &&
+    Date.now() >= shift.startedAt + MAX_SHIFT_MS
+  ) {
+    const summary = await closeHeadShiftAt(
+      db,
+      shift,
+      auth.id,
+      shift.startedAt + MAX_SHIFT_MS,
+      `Auto-ended: maximum shift length of ${MAX_SHIFT_HOURS} hours reached`,
+    );
+    shift.endedAt = summary.endedAt ?? shift.startedAt + MAX_SHIFT_MS;
+    shift.summary = summary;
+  }
   const eventRows = await db
     .select()
     .from(schema.events)
@@ -808,6 +911,7 @@ app.post("/head-shifts", requireRole("head_nurse"), async (c) => {
     .parse(await c.req.json());
   const [unit] = await db.select().from(schema.units).where(eq(schema.units.id, body.unitId)).limit(1);
   if (!unit || unit.status !== "active") return c.json({ error: "Active unit not found" }, 404);
+  await autoEndExpiredHeadShifts(db, auth.id);
   const [existing] = await db
     .select()
     .from(schema.shifts)
@@ -905,51 +1009,8 @@ app.post("/head-shifts/:id/end", requireRole("head_nurse"), async (c) => {
     return c.json({ error: "Not your head-nurse shift" }, 403);
   }
   if (shift.endedAt) return c.json({ error: "Shift already ended" }, 409);
-  const events = await loadShiftEvents(db, id);
-  const state = reduce(events);
-  const now = Date.now();
-  const newEvents: DomainEvent[] = [];
-  for (const task of Object.values(state.tasks)) {
-    if (["planned", "in_progress", "paused"].includes(task.status)) {
-      newEvents.push({
-        id: randomUUID(),
-        shiftId: id,
-        bedId: task.bedId,
-        taskId: task.id,
-        actorId: auth.id,
-        type: "TASK_MISSED",
-        clientTs: now,
-        payload: { reason: "shift_end" },
-      });
-    }
-  }
   const note = z.object({ note: z.string().max(1000).optional() }).parse(await c.req.json().catch(() => ({})));
-  newEvents.push({
-    id: randomUUID(),
-    shiftId: id,
-    actorId: auth.id,
-    type: "SHIFT_ENDED",
-    clientTs: now,
-    payload: { note: note.note },
-  });
-  const summary = buildShiftSummary([...events, ...newEvents]);
-  await db.insert(schema.events).values(
-    newEvents.map((event) => ({
-      id: event.id,
-      shiftId: event.shiftId,
-      bedId: event.bedId ?? null,
-      taskId: event.taskId ?? null,
-      actorId: event.actorId,
-      type: event.type,
-      payload: event.payload,
-      clientTs: event.clientTs,
-      serverTs: now,
-    })),
-  );
-  await db
-    .update(schema.shifts)
-    .set({ endedAt: summary.endedAt ?? now, summary })
-    .where(eq(schema.shifts.id, id));
+  const summary = await closeHeadShiftAt(db, shift, auth.id, Date.now(), note.note ?? "");
   return c.json({ summary });
 });
 

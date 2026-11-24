@@ -2,7 +2,7 @@
 
 ## P1 — Domain core (done)
 - Pure TypeScript domain in `src/domain`: Zod event schema, reducer/state machine, emergency planning, rescheduling, timestamp durations, missed rule, recurring tasks, handover, shift summary, SUS/raw TLX.
-- `32` Vitest tests passing, including unit propagation, legacy no-unit events, audited task edits, time logs and shift-scoped tasks.
+- `33` Vitest tests passing, including unit propagation, legacy no-unit events, audited task edits, time logs, shift-scoped tasks and the 16-hour shift limit.
 - TypeScript clean.
 
 ## P2 — Offline nurse flow (done)
@@ -23,8 +23,8 @@
 
 ## P4 — Evaluation data and automation (done)
 - `scripts/simulate.ts` creates 14 deterministic finished shifts, 1,369 events, 28 handovers, 11 reviews and 9 surveys using bed labels and participant codes only.
-- `scripts/api-test.ts`: 52 checks against disposable Docker Postgres, including self-registration, PIN hashing, duplicate username, role injection, unit CRUD, assignment, unit filters, CSV unit columns, nurse/head task edits, frozen finished tasks, nullable event-id normalization, head-nurse shift start/end, 14 head tasks, To Do creation, time logging, completion, analytics/export exclusion.
-- Playwright auth/role/privacy/unit/planning suite: `9` passing, including account creation, assigned-unit selection, head-nurse unit management, nurse To Do/Time Log and head-nurse My tasks.
+- `scripts/api-test.ts`: 56 checks against disposable Docker Postgres, including self-registration, PIN hashing, duplicate username, role injection, unit CRUD, assignment, unit filters, CSV unit columns, nurse/head task edits, frozen finished tasks, nullable event-id normalization, head-nurse shift start/end, 14 head tasks, To Do creation, time logging, completion, analytics/export exclusion.
+- Playwright auth/role/privacy/unit/planning suite: `10` passing, including account creation, assigned-unit selection, head-nurse unit management, nurse To Do/Time Log, head-nurse My tasks and stale-shift auto-end.
 - Local browser task-edit check against the production web build and disposable Postgres: nurse started a shift and added a note; the note badge and task detail updated. Head nurse opened the same shift, saw all 41 tasks, the nurse note, and edited the note. The timeline then showed two `TASK_EDITED` events. No page errors.
 - `scripts/flow-check.mjs`: emergency → reschedule → timer → quick add → handover → shift end verified end to end.
 - Product-rule lint (`npm run lint`), typecheck, web build and mobile static export all pass.
@@ -37,7 +37,8 @@
 - Added a separate head-nurse shift and `/head/tasks` **My tasks** page with 14 head-nurse tasks, start/end, To Do, Time Log, complete and edit/note. Head-nurse task management is online-only.
 - Head-nurse shifts are excluded from nurse analytics, reviews and CSV export. Head nurses still cannot execute nurse tasks.
 - Added `role`/`scope` to task templates, `kind` to shifts, schema SQL migration, seed updates and a local template version so Dexie refreshes templates without deleting task data.
-- Evidence: TypeScript clean; product-rule lint passed 50 source files / 5 domain files; 32 domain tests; 52 API checks; 9 Playwright tests; web build; mobile static export (21 pages).
+- Added a 16-hour shift limit (two normal 8-hour shifts). A stale nurse shift auto-ends on app load; a stale head-nurse shift auto-ends before listing or starting a head shift. Open tasks are missed at the cap.
+- Evidence: TypeScript clean; product-rule lint passed 50 source files / 5 domain files; 33 domain tests; 56 API checks; 10 Playwright tests; web build; mobile static export (21 pages).
 - Vercel deploy of `2582d47`: `/plan` and `/head/tasks` returned `200`. Live head-nurse start returned `200`, 15 events and 14 shift tasks with 0 null IDs; live To Do creation and time log returned `200`; end returned a 15-task summary (1 done, 14 missed). Analytics stayed at 14 shifts before/after; nurse shift list and CSV excluded the head shift; sync pull returned 39 templates (14 head-nurse, 26 shift-scoped).
 - Android CI run `45316708579` succeeded for `2582d47`; the `icu-tasklog-debug-apk` artifact exists (ZIP 4,882,615 bytes, digest `sha256:940ba9b30cee1cf17b782823a6a5e268ce2cfcdaa6b2ca3b4e0474b9d3757a5b`).
 - **NOT VERIFIED:** the APK file was not downloaded/inspected here, and on-device To Do/Time Log behaviour has not been tested.

@@ -28,16 +28,17 @@ Environment: Linux workspace, Node 22, Next.js 16.3.1, local Neon database, Chro
 
 | Check | Command | Observed result |
 | --- | --- | --- |
-| Domain tests | `./node_modules/.bin/vitest run` | **32 passed** |
+| Domain tests | `./node_modules/.bin/vitest run` | **33 passed** |
 | TypeScript | `./node_modules/.bin/tsc --noEmit` | clean |
 | Product-rule lint | `npm run lint` | passed, 50 source files / 5 domain files |
-| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **52 checks passed** |
+| API integration | `npm run test:api` against Docker `postgres:16-alpine` | **56 checks passed** |
 | Task edit + note | domain reducer and API tests | observed: both roles edit an unfinished task; `TASK_EDITED` is appended; done task returns 409; note survives pull; handover projection carries note |
 | To Do + Time Log | domain reducer, API checks, Playwright | observed: future To Do creation; time-only past interval resolves on the shift date; time log marks done and records duration; second log rejected; missed/live-timer logs rejected; tick-only task can receive a later log |
 | Shift tasks | domain reducer, API checks, Playwright | observed: nurse shift creates 12 shift-level tasks plus 41 bed tasks; head shift creates 14 tasks; shift tasks have no bed; head-nurse shifts excluded from nurse analytics/export |
+| Shift length limit | domain test, API checks, Playwright | observed: 16-hour cap; stale nurse shift auto-ends on `/beds` load and returns to `/shift-start`; stale head shift is capped before a new head shift starts; open tasks become missed |
 | Dynamic units | head `POST/PATCH/DELETE /api/units`, nurse assignment, `GET /api/units`, unit filters | observed: create 201, duplicate 409, nurse create 403, assignment 200, nurse sees assigned unit, shift carries `unitId` |
 | Nurse self-registration | `POST /api/auth/register` | **201**; role forced to `nurse`, PIN hashed, duplicate username 409, client role injection 400 |
-| Playwright auth/role/privacy/units/planning | `npm run test:e2e` | **9 passed** |
+| Playwright auth/role/privacy/units/planning | `npm run test:e2e` | **10 passed** |
 | Web build | `npm run build` | success; all app routes + `ƒ /api/[[...route]]`, including `/plan` and `/head/tasks` |
 | Mobile build | `npm run build:mobile` | success; **21 static pages**, no API route; `src/app/api` restored |
 | Full nurse flow | `node scripts/flow-check.mjs` | emergency banner, 4 reschedule proposals confirmed, task timer/finish, quick add, handover finalized, shift ended, no active shift |

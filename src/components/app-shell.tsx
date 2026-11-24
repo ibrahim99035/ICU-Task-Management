@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   ArrowLeft,
   BarChart3,
@@ -17,6 +17,8 @@ import {
   RefreshCw,
   UserRound,
 } from "lucide-react";
+import { MAX_SHIFT_HOURS, MAX_SHIFT_MS } from "@/domain";
+import { endShift } from "@/lib/actions";
 import { activeShift } from "@/lib/db";
 import { cn, formatElapsed, initials } from "@/lib/format";
 import { useLive, useNow } from "@/lib/hooks";
@@ -105,6 +107,8 @@ export function AppShell({
   const pathname = usePathname();
   const user = useApp((s) => s.user);
   const hydrated = useApp((s) => s.hydrated);
+  const notify = useApp((s) => s.notify);
+  const expiredHandled = useRef(false);
   const now = useNow(1000);
   const shift = useLive(
     () => (user ? activeShift(user.id) : Promise.resolve(undefined)),
@@ -115,6 +119,31 @@ export function AppShell({
   useEffect(() => {
     if (hydrated && !user) router.replace("/login");
   }, [hydrated, user, router]);
+
+  useEffect(() => {
+    if (!shift) {
+      expiredHandled.current = false;
+      return;
+    }
+    if (user?.role !== "nurse" || expiredHandled.current) return;
+    if (now - shift.startedAt < MAX_SHIFT_MS) return;
+    expiredHandled.current = true;
+    void endShift(
+      shift.id,
+      `Auto-ended: maximum shift length of ${MAX_SHIFT_HOURS} hours reached`,
+      shift.startedAt + MAX_SHIFT_MS,
+    )
+      .then(() =>
+        notify(
+          `Shift auto-ended after ${MAX_SHIFT_HOURS} hours. Start a new shift when you are ready.`,
+          "info",
+        ),
+      )
+      .catch((error) => {
+        expiredHandled.current = false;
+        notify(error instanceof Error ? error.message : "Could not auto-end the shift", "error");
+      });
+  }, [shift, user?.role, now, notify]);
 
   if (!hydrated || !user) return null;
 

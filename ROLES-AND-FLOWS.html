@@ -1248,7 +1248,7 @@
               <li>Save. The task becomes done, the actual interval is stored and the duration summary uses the stored times.</li>
             </ol>
             <div class="result"><strong>Result:</strong> To Do is a future plan; Time Log is a past record. A second time log is rejected, and a task with a live/paused timer must be finished before a past interval can be logged.</div>
-            <div class="rule-note"><strong>Rule:</strong> manual To Do tasks must start in the future. A tick-only completed task can receive a time log later. Every edit and note remains an auditable event.</div>
+            <div class="rule-note"><strong>Rule:</strong> manual To Do tasks must start in the future. A tick-only completed task can receive a time log later. Every edit and note remains an auditable event. A shift is capped at 16 hours (two normal 8-hour shifts); a stale shift auto-ends and its open tasks become missed.</div>
           </div>
         </details>
 
@@ -1542,7 +1542,7 @@
               <li>Tap <strong>End shift</strong>. Unfinished tasks are marked missed and the head-nurse summary is stored.</li>
             </ol>
             <div class="result"><strong>Result:</strong> head-nurse work is recorded separately. It is excluded from nurse analytics, reviews and CSV export, and the head nurse still cannot execute nurse tasks.</div>
-            <div class="rule-note"><strong>Rule:</strong> head-nurse task management is online-only. The nurse offline Dexie/outbox flow is unchanged.</div>
+            <div class="rule-note"><strong>Rule:</strong> head-nurse task management is online-only. The nurse offline Dexie/outbox flow is unchanged. Head-nurse shifts also auto-end at the 16-hour cap.</div>
           </div>
         </details>
 
@@ -1966,11 +1966,11 @@
             <thead><tr><th>Check</th><th>Observed result</th></tr></thead>
             <tbody>
               <tr><td>TypeScript</td><td>clean</td></tr>
-              <tr><td>Domain tests</td><td><strong>32 passed</strong></td></tr>
+              <tr><td>Domain tests</td><td><strong>33 passed</strong></td></tr>
               <tr><td>Product-rule lint</td><td>passed, 47 source files</td></tr>
-              <tr><td>API integration</td><td><strong>52 checks passed</strong> against disposable Docker Postgres</td></tr>
+              <tr><td>API integration</td><td><strong>56 checks passed</strong> against disposable Docker Postgres</td></tr>
               <tr><td>Task edit + note</td><td>both roles edited unfinished tasks in a browser run; <code>TASK_EDITED</code> is appended; finished tasks return 409; note survives pull and handover</td></tr>
-              <tr><td>Playwright</td><td><strong>9 passed</strong>: auth, role routing, privacy, unit selection/management, nurse To Do/Time Log, head My tasks</td></tr>
+              <tr><td>Playwright</td><td><strong>10 passed</strong>: auth, role routing, privacy, unit selection/management, nurse To Do/Time Log, head My tasks, stale-shift auto-end</td></tr>
               <tr><td>Web build</td><td>success, all app routes plus <code>/api/[[...route]]</code></td></tr>
               <tr><td>Mobile export</td><td>success, 21 static pages, API route restored</td></tr>
               <tr><td>Live deployment</td><td>health 200; head login 200; live head shift detail renders 36 tasks; task-edit route 404 for unknown shift, 409 for frozen task, 401 without token</td></tr>

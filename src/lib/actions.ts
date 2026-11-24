@@ -5,7 +5,10 @@ import {
   buildShiftSummary,
   confirmReschedule as confirmRescheduleEvent,
   endEmergency as endEmergencyDomain,
+  isShiftExpired,
   isTaskEditable,
+  MAX_SHIFT_HOURS,
+  MAX_SHIFT_MS,
   newId,
   nextRecurringTask,
   reduce,
@@ -95,7 +98,17 @@ export async function startShift(
   if (!unit.id) throw new Error("Choose an assigned unit before starting a shift");
   await ensureTemplates();
   const existing = await activeShift(user.id);
-  if (existing) return existing;
+  if (existing) {
+    if (isShiftExpired(existing.startedAt)) {
+      await endShift(
+        existing.id,
+        `Auto-ended: maximum shift length of ${MAX_SHIFT_HOURS} hours reached`,
+        existing.startedAt + MAX_SHIFT_MS,
+      );
+    } else {
+      return existing;
+    }
+  }
   const now = Date.now();
   const startedAt = now - (options.backdateMin ?? 0) * MIN;
   const shiftId = newId();
@@ -576,11 +589,11 @@ export async function finalizeHandover(
   return event.id;
 }
 
-export async function endShift(shiftId: string, note = ""): Promise<ShiftSummary> {
+export async function endShift(shiftId: string, note = "", endedAt = Date.now()): Promise<ShiftSummary> {
   const shift = await db().shifts.get(shiftId);
   if (!shift) throw new Error("Shift not found");
   const tasks = await db().tasks.where("shiftId").equals(shiftId).toArray();
-  const now = Date.now();
+  const now = Math.min(Math.max(endedAt, shift.startedAt), Date.now());
   const events: DomainEvent[] = [];
   for (const task of tasks) {
     if (["planned", "in_progress", "paused"].includes(task.status)) {

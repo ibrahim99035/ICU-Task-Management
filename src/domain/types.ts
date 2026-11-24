@@ -65,6 +65,18 @@ export const CATEGORY_LABELS: Record<TaskCategory, string> = {
 export const SHIFT_TYPES = ["day", "night", "custom"] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
+/** A shift cannot stay open indefinitely. Two normal 8-hour shifts = 16 hours. */
+export const MAX_SHIFT_HOURS = 16;
+export const MAX_SHIFT_MS = MAX_SHIFT_HOURS * 60 * 60 * 1000;
+
+export function shiftLimitEnd(startedAt: number): number {
+  return startedAt + MAX_SHIFT_MS;
+}
+
+export function isShiftExpired(startedAt: number, now = Date.now()): boolean {
+  return now >= shiftLimitEnd(startedAt);
+}
+
 export const EVENT_TYPES = [
   "SHIFT_STARTED",
   "SHIFT_ENDED",

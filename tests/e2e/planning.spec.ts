@@ -69,4 +69,48 @@ test.describe("To Do and Time Log", () => {
       await expect(page.getByText(/Head-nurse shift ended/).first()).toBeVisible();
     }
   });
+
+  test("a shift older than 16 hours auto-ends and returns to shift start", async ({ page }) => {
+    await signIn(page, "omar", "3333");
+    await page.goto("/shift-start");
+    await expect(page.getByRole("heading", { name: /Start a shift|Bed board/ })).toBeVisible();
+
+    const startShift = page.getByRole("button", { name: /Start day shift/ });
+    if (await startShift.count()) {
+      await startShift.first().click();
+      await expect(page).toHaveURL(/\/beds/);
+    }
+
+    await page.evaluate(async () => {
+      const request = indexedDB.open("tasklog");
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const tx = db.transaction("shifts", "readwrite");
+      const store = tx.objectStore("shifts");
+      const rows = await new Promise<any[]>((resolve, reject) => {
+        const read = store.getAll();
+        read.onsuccess = () => resolve(read.result);
+        read.onerror = () => reject(read.error);
+      });
+      const active = rows.find((row) => !row.endedAt);
+      if (!active) throw new Error("No active shift to age");
+      active.startedAt = Date.now() - 17 * 60 * 60_000;
+      await new Promise<void>((resolve, reject) => {
+        const write = store.put(active);
+        write.onsuccess = () => resolve();
+        write.onerror = () => reject(write.error);
+      });
+      await new Promise<void>((resolve) => {
+        tx.oncomplete = () => resolve();
+      });
+      db.close();
+    });
+
+    await page.goto("/beds");
+    await expect(page).toHaveURL(/\/shift-start/, { timeout: 30_000 });
+    await expect(page.getByText(/auto-ended after 16 hours/i).first()).toBeVisible();
+  });
+
 });

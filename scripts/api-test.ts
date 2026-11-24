@@ -545,6 +545,43 @@ async function main() {
   const csvAfterHeadText = await csvAfterHead.text();
   check("head-nurse shifts are excluded from CSV export", csvAfterHead.status === 200 && !csvAfterHeadText.includes(headShiftId), csvAfterHeadText.slice(0, 200));
 
+  const staleStartAt = Date.now() - 17 * 60 * 60_000;
+  const staleHead = await req("/api/head-shifts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({ unitId, type: "day", startedAt: staleStartAt }),
+  });
+  const staleHeadBody = await json<{ shift: { id: string } }>(staleHead);
+  check("head can start a backdated shift for the limit check", staleHead.status === 200, staleHead.status);
+  const staleHeadId = staleHeadBody.shift.id;
+  const replacementHead = await req("/api/head-shifts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({ unitId, type: "day" }),
+  });
+  const replacementBody = await json<{ shift: { id: string } }>(replacementHead);
+  check(
+    "expired head shift is auto-ended before a new shift starts",
+    replacementHead.status === 200 && replacementBody.shift.id !== staleHeadId,
+    { status: replacementHead.status, id: replacementBody.shift.id },
+  );
+  const staleDetail = await req(`/api/shifts/${staleHeadId}`, { headers: { Authorization: `Bearer ${head.token}` } });
+  const staleDetailBody = await json<{ shift: { endedAt: number | null; summary: { tasksTotal: number; missedCount: number } | null } }>(staleDetail);
+  check(
+    "expired head shift is capped at 16 hours and its tasks are missed",
+    staleDetail.status === 200 &&
+      staleDetailBody.shift.endedAt !== null &&
+      staleDetailBody.shift.summary?.tasksTotal === 14 &&
+      staleDetailBody.shift.summary?.missedCount === 14,
+    staleDetailBody.shift,
+  );
+  const endReplacement = await req(`/api/head-shifts/${replacementBody.shift.id}/end`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
+    body: JSON.stringify({}),
+  });
+  check("replacement head shift can be ended", endReplacement.status === 200, endReplacement.status);
+
   await pool.query("TRUNCATE survey_responses, shift_reviews, handover_reports, events, beds, shifts, task_templates, config, users CASCADE");
   console.log(failures ? `\n${failures} API check(s) failed.` : "\nAll API checks passed.");
   await pool.end();
