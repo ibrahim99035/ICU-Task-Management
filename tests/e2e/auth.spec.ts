@@ -59,4 +59,14 @@ test.describe("authentication and role routing", () => {
     await expect(page.getByRole("heading", { name: "Privacy & data" })).toBeVisible();
     await expect(page.getByText("No patient identifiers").first()).toBeVisible();
   });
+
+  test("foreground alarm has a Test alarm button on Me", async ({ page }) => {
+    await signIn(page, "amina", "1111");
+    await page.goto("/me");
+    await expect(page.getByRole("heading", { name: /Me|Settings/ }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Test alarm" }).click();
+    await expect(
+      page.getByText(/Test alarm played|Alarm is off|audio is blocked/i).first(),
+    ).toBeVisible();
+  });
 });
