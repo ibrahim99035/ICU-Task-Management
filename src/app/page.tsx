@@ -12,7 +12,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!hydrated) return;
     if (!user) router.replace("/login");
-    else router.replace(user.role === "head_nurse" ? "/head" : "/beds");
+    else router.replace(user.role === "head_nurse" ? "/head" : "/tasks");
   }, [hydrated, user, router]);
 
   return (

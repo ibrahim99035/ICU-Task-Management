@@ -57,6 +57,8 @@ for (const membership of DEMO_UNIT_MEMBERSHIPS) {
     .onConflictDoNothing();
 }
 
+// Replace the whole template table so old bed tasks cannot survive a seed.
+await db.delete(schema.taskTemplates);
 for (const template of DEMO_TEMPLATES) {
   await db
     .insert(schema.taskTemplates)

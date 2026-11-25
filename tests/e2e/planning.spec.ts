@@ -9,16 +9,17 @@ test.describe("To Do and Time Log", () => {
   test("nurse sees shift tasks, plans a future task and logs a past interval", async ({ page }) => {
     await signIn(page, "yara", "2222");
     await page.goto("/shift-start");
-    await expect(page.getByRole("heading", { name: /Start a shift|Bed board/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Start a shift/ })).toBeVisible();
 
+    await expect(page.getByRole("button", { name: /Start day shift/ })).toBeVisible();
     const startShift = page.getByRole("button", { name: /Start day shift/ });
     if (await startShift.count()) {
       await startShift.first().click();
-      await expect(page).toHaveURL(/\/beds/);
+      await expect(page).toHaveURL(/\/tasks/);
     }
 
     await page.goto("/plan");
-    await expect(page.getByRole("heading", { name: "Plan and log" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "To Do / Time Log" })).toBeVisible();
     await expect(page.getByRole("button", { name: /To do/ })).toBeVisible();
     await expect(page.getByText("Receive shift report").first()).toBeVisible();
 
@@ -45,10 +46,33 @@ test.describe("To Do and Time Log", () => {
     await expect(page.getByText(/Shift ended/).first()).toBeVisible();
   });
 
+
+  test("nurse finalizes a shift-level handover", async ({ page }) => {
+    await signIn(page, "amina", "1111");
+    await page.goto("/shift-start");
+    await expect(page.getByRole("button", { name: /Start day shift/ })).toBeVisible();
+    const startShift = page.getByRole("button", { name: /Start day shift/ });
+    if (await startShift.count()) {
+      await startShift.first().click();
+      await expect(page).toHaveURL(/\/tasks/);
+    }
+
+    await page.goto("/handover");
+    await expect(page.getByRole("heading", { name: "Shift handover", level: 1 })).toBeVisible();
+    await expect(page.getByText("Handover snapshot")).toBeVisible();
+    await page.getByRole("button", { name: "Finalize handover" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Finalize handover" }).click();
+    await expect(page.getByText("Handover already finalized")).toBeVisible();
+  });
+
   test("head nurse starts a head-nurse shift and sees the 14-task list", async ({ page }) => {
     await signIn(page, "head", "9999");
     await page.goto("/head/tasks");
     await expect(page.getByRole("heading", { name: "My tasks" })).toBeVisible();
+
+    await expect(
+      page.getByText(/Start head-nurse shift|Receive shift report from previous shift/).first(),
+    ).toBeVisible();
 
     const start = page.getByRole("button", { name: /Start head-nurse shift/ });
     if (await start.count()) {
@@ -56,7 +80,7 @@ test.describe("To Do and Time Log", () => {
     }
 
     await expect(page.getByText("Receive shift report from previous shift").first()).toBeVisible();
-    await expect(page.getByText("Hand over shift report to next shift").first()).toBeVisible();
+    await expect(page.getByText("Hand over shift report to the next shift").first()).toBeVisible();
 
     await page.getByRole("button", { name: "Plan a task" }).first().click();
     await page.fill("#plan-title", "E2E head-nurse future task");
@@ -73,12 +97,13 @@ test.describe("To Do and Time Log", () => {
   test("a shift older than 16 hours auto-ends and returns to shift start", async ({ page }) => {
     await signIn(page, "omar", "3333");
     await page.goto("/shift-start");
-    await expect(page.getByRole("heading", { name: /Start a shift|Bed board/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Start a shift/ })).toBeVisible();
 
+    await expect(page.getByRole("button", { name: /Start day shift/ })).toBeVisible();
     const startShift = page.getByRole("button", { name: /Start day shift/ });
     if (await startShift.count()) {
       await startShift.first().click();
-      await expect(page).toHaveURL(/\/beds/);
+      await expect(page).toHaveURL(/\/tasks/);
     }
 
     await page.evaluate(async () => {
@@ -108,7 +133,7 @@ test.describe("To Do and Time Log", () => {
       db.close();
     });
 
-    await page.goto("/beds");
+    await page.goto("/tasks");
     await expect(page).toHaveURL(/\/shift-start/, { timeout: 30_000 });
     await expect(page.getByText(/auto-ended after 16 hours/i).first()).toBeVisible();
   });

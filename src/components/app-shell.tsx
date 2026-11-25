@@ -12,7 +12,6 @@ import {
   ClipboardCheck,
   CloudOff,
   Download,
-  LayoutGrid,
   ListChecks,
   RefreshCw,
   UserRound,
@@ -25,11 +24,11 @@ import { useLive, useNow } from "@/lib/hooks";
 import { useApp } from "@/lib/store";
 import { syncNow } from "@/lib/sync";
 import { Logo } from "./ui";
+import { AlarmWatcher } from "./alarm-watcher";
 
 const NURSE_NAV = [
-  { href: "/beds", label: "Beds", Icon: LayoutGrid },
   { href: "/tasks", label: "Tasks", Icon: ListChecks },
-  { href: "/plan", label: "Plan", Icon: CalendarDays },
+  { href: "/plan", label: "To Do / Time Log", Icon: CalendarDays },
   { href: "/handover", label: "Handover", Icon: ClipboardCheck },
   { href: "/me", label: "Me", Icon: UserRound },
 ];
@@ -149,8 +148,9 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh">
+      <AlarmWatcher />
       <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white/95 px-4 py-5 lg:flex">
-        <Link href={user.role === "head_nurse" ? "/head" : "/beds"} className="flex items-center gap-3 px-2">
+        <Link href={user.role === "head_nurse" ? "/head" : "/tasks"} className="flex items-center gap-3 px-2">
           <Logo size={40} />
           <div>
             <p className="text-[15px] font-extrabold tracking-tight text-ink">TaskLog</p>
@@ -196,7 +196,7 @@ export function AppShell({
               <p className="mt-0.5 text-[11px] text-slate-500">
                 {shift
                   ? `${shift.type} shift${shift.unitName ? ` · ${shift.unitName}` : ""} · started ${new Date(shift.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                  : "Start a shift from Beds"}
+                  : "Start a shift from Tasks"}
               </p>
             </div>
           )}

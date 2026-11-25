@@ -6,13 +6,14 @@ import {
   reduce,
   scoreRawTLX,
   scoreSUS,
+  SHIFT_HANDOVER_ID,
   type DomainEvent,
   type HandoverSnapshot,
   type ShiftSummary,
   type Tier,
 } from "../src/domain";
 import { getDb, getPool, schema } from "../src/db";
-import { DEMO_BEDS, DEMO_TEMPLATES, DEMO_UNIT_MEMBERSHIPS, DEMO_UNITS } from "../src/lib/demo-data";
+import { DEMO_TEMPLATES, DEMO_UNIT_MEMBERSHIPS, DEMO_UNITS } from "../src/lib/demo-data";
 
 const db = getDb();
 if (!db) throw new Error("DATABASE_URL is not configured");
@@ -130,7 +131,6 @@ async function main() {
   }
 
   const allEvents: (DomainEvent & { serverTs: number })[] = [];
-  const allBeds: { id: string; shiftId: string; label: string; alias: string }[] = [];
   const allHandovers: { id: string; shiftId: string; bedId: string; snapshot: HandoverSnapshot; createdAt: number }[] = [];
   const allReviews: {
     id: string;
@@ -176,140 +176,124 @@ async function main() {
         clientTs: roundMinute(at),
       }) as DomainEvent;
 
-    const bedChoices = [...DEMO_BEDS].sort(() => rng() - 0.5).slice(0, 4 + Math.floor(rng() * 3));
-    const beds = bedChoices.map((bed) => ({
-      ...bed,
-      id: `${shiftId}-${bed.id}`,
-    }));
-    for (const bed of beds) {
-      allBeds.push({ id: bed.id, shiftId, label: bed.label, alias: bed.alias });
-    }
-
     events.push(
       makeEvent("SHIFT_STARTED", draft.startedAt, {
         payload: {
           shiftType: draft.type,
           unitId: draft.unitId,
           unitName: DEMO_UNITS.find((unit) => unit.id === draft.unitId)?.name,
-          bedLabels: beds.map((bed) => bed.alias),
+          bedLabels: [],
           note: "Simulated teaching shift",
         },
       }),
     );
 
-    const emergencyBed = rng() < 0.45 ? pick(rng, beds) : undefined;
-    const emergencyStart = emergencyBed ? draft.startedAt + 2.5 * HOUR + rng() * 2 * HOUR : undefined;
+    const hasEmergency = rng() < 0.45;
+    const emergencyStart = hasEmergency ? draft.startedAt + 2.5 * HOUR + rng() * 2 * HOUR : undefined;
     const emergencyMinutes = 8 + Math.floor(rng() * 18);
     const emergencyEnd = emergencyStart ? emergencyStart + emergencyMinutes * MINUTE : undefined;
 
-    if (emergencyBed && emergencyStart !== undefined && emergencyEnd !== undefined) {
+    if (emergencyStart !== undefined && emergencyEnd !== undefined) {
       events.push(
         makeEvent("EMERGENCY_STARTED", emergencyStart, {
-          bedId: emergencyBed.id,
-          payload: { note: "Simulated rapid response / bedside emergency" },
+          bedId: SHIFT_HANDOVER_ID,
+          payload: { note: "Simulated shift-level emergency" },
         }),
       );
       events.push(
         makeEvent("EMERGENCY_ENDED", emergencyEnd, {
-          bedId: emergencyBed.id,
+          bedId: SHIFT_HANDOVER_ID,
           payload: { note: "Emergency resolved; deferred tasks need new times" },
         }),
       );
     }
 
-    for (const bed of beds) {
-      const templates = [...DEMO_TEMPLATES]
-        .filter((template) => bed.templateIds.includes(template.id))
-        .slice(0, 6);
+    const templates = DEMO_TEMPLATES.filter(
+      (template) => template.role === "nurse" && template.scope === "shift" && template.active,
+    );
 
-      for (const template of templates) {
-        const taskId = `${shiftId}-${bed.id}-${template.id}`;
-        const plannedTo = roundMinute(draft.startedAt + (template.offsetMin + 20) * MINUTE);
-        const plannedFrom = roundMinute(plannedTo - template.expectedMin * MINUTE);
+    for (const template of templates) {
+      const taskId = `${shiftId}-${template.id}`;
+      const plannedTo = roundMinute(draft.startedAt + (template.offsetMin + 20) * MINUTE);
+      const plannedFrom = roundMinute(plannedTo - template.expectedMin * MINUTE);
+      events.push(
+        makeEvent("TASK_CREATED", draft.startedAt + 2 * MINUTE, {
+          taskId,
+          payload: {
+            title: template.name,
+            category: template.category,
+            tier: template.tier,
+            plannedFrom,
+            plannedTo,
+            expectedMin: template.expectedMin,
+            intervalMin: template.intervalMin,
+            unitId: draft.unitId,
+            templateId: template.id,
+            scope: "shift",
+          },
+        }),
+      );
+
+      const roll = rng();
+      const tier = template.tier as Tier;
+      const duration = Math.max(3, Math.round(template.expectedMin * (0.75 + rng() * 0.9)));
+
+      if (roll < 0.07) {
         events.push(
-          makeEvent("TASK_CREATED", draft.startedAt + 2 * MINUTE, {
-            bedId: bed.id,
+          makeEvent("TASK_COMPLETED", roundMinute(plannedTo + rng() * 4 * MINUTE), {
             taskId,
-            payload: {
-              title: template.name,
-              category: template.category,
-              tier: template.tier,
-              plannedFrom,
-              plannedTo,
-              expectedMin: template.expectedMin,
-              intervalMin: template.intervalMin,
-              unitId: draft.unitId,
-              templateId: template.id,
-              bedLabel: bed.label,
-            },
+            payload: { tickOnly: true },
           }),
         );
-
-        const roll = rng();
-        const tier = template.tier as Tier;
-        const duration = Math.max(3, Math.round(template.expectedMin * (0.75 + rng() * 0.9)));
-
-        if (roll < 0.07) {
-          events.push(
-            makeEvent("TASK_COMPLETED", roundMinute(plannedTo + rng() * 4 * MINUTE), {
-              bedId: bed.id,
-              taskId,
-              payload: { tickOnly: true },
-            }),
-          );
-          continue;
-        }
-
-        if (roll < 0.16 && tier >= 3) {
-          const at = emergencyStart ?? plannedTo + 10 * MINUTE;
-          events.push(
-            makeEvent("TASK_DEFERRED", roundMinute(at), {
-              bedId: bed.id,
-              taskId,
-              payload: { reason: emergencyBed ? "emergency" : "other", note: "Simulated deferral" },
-            }),
-          );
-          continue;
-        }
-
-        if (roll < 0.28) {
-          events.push(
-            makeEvent("TASK_MISSED", draft.endedAt - 20 * MINUTE, {
-              bedId: bed.id,
-              taskId,
-              payload: { reason: "shift_end" },
-            }),
-          );
-          continue;
-        }
-
-        const onTime = rng() < (tier <= 2 ? 0.78 : 0.56);
-        let completedAt = onTime
-          ? roundMinute(plannedTo - rng() * 6 * MINUTE)
-          : roundMinute(plannedTo + (2 + rng() * 16) * MINUTE);
-        completedAt = Math.max(draft.startedAt + 10 * MINUTE, Math.min(draft.endedAt - 25 * MINUTE, completedAt));
-        let startedAt = roundMinute(completedAt - duration * MINUTE);
-        startedAt = Math.max(draft.startedAt + 5 * MINUTE, startedAt);
-
-        events.push(makeEvent("TASK_STARTED", startedAt, { bedId: bed.id, taskId, payload: {} }));
-
-        if (rng() < 0.18 && completedAt - startedAt > 14 * MINUTE) {
-          const pauseAt = roundMinute(startedAt + 3 * MINUTE);
-          const resumeAt = roundMinute(pauseAt + (3 + rng() * 4) * MINUTE);
-          if (resumeAt < completedAt - 2 * MINUTE) {
-            events.push(makeEvent("TASK_PAUSED", pauseAt, { bedId: bed.id, taskId, payload: { reason: "Interruption" } }));
-            events.push(makeEvent("TASK_RESUMED", resumeAt, { bedId: bed.id, taskId, payload: {} }));
-          }
-        }
-
-        events.push(
-          makeEvent("TASK_COMPLETED", Math.max(startedAt + MINUTE, completedAt), {
-            bedId: bed.id,
-            taskId,
-            payload: {},
-          }),
-        );
+        continue;
       }
+
+      if (roll < 0.16 && tier >= 3) {
+        const at = emergencyStart ?? plannedTo + 10 * MINUTE;
+        events.push(
+          makeEvent("TASK_DEFERRED", roundMinute(at), {
+            taskId,
+            payload: { reason: hasEmergency ? "emergency" : "other", note: "Simulated deferral" },
+          }),
+        );
+        continue;
+      }
+
+      if (roll < 0.28) {
+        events.push(
+          makeEvent("TASK_MISSED", draft.endedAt - 20 * MINUTE, {
+            taskId,
+            payload: { reason: "shift_end" },
+          }),
+        );
+        continue;
+      }
+
+      const onTime = rng() < (tier <= 2 ? 0.78 : 0.56);
+      let completedAt = onTime
+        ? roundMinute(plannedTo - rng() * 6 * MINUTE)
+        : roundMinute(plannedTo + (2 + rng() * 16) * MINUTE);
+      completedAt = Math.max(draft.startedAt + 10 * MINUTE, Math.min(draft.endedAt - 25 * MINUTE, completedAt));
+      let startedAt = roundMinute(completedAt - duration * MINUTE);
+      startedAt = Math.max(draft.startedAt + 5 * MINUTE, startedAt);
+
+      events.push(makeEvent("TASK_STARTED", startedAt, { taskId, payload: {} }));
+
+      if (rng() < 0.18 && completedAt - startedAt > 14 * MINUTE) {
+        const pauseAt = roundMinute(startedAt + 3 * MINUTE);
+        const resumeAt = roundMinute(pauseAt + (3 + rng() * 4) * MINUTE);
+        if (resumeAt < completedAt - 2 * MINUTE) {
+          events.push(makeEvent("TASK_PAUSED", pauseAt, { taskId, payload: { reason: "Interruption" } }));
+          events.push(makeEvent("TASK_RESUMED", resumeAt, { taskId, payload: {} }));
+        }
+      }
+
+      events.push(
+        makeEvent("TASK_COMPLETED", Math.max(startedAt + MINUTE, completedAt), {
+          taskId,
+          payload: {},
+        }),
+      );
     }
 
     const interruptionReasons = ["physician_request", "missing_equipment", "family_visitor", "alarm_device", "other_staff"] as const;
@@ -317,10 +301,8 @@ async function main() {
     for (let i = 0; i < interruptionCount; i += 1) {
       const at = draft.startedAt + (1 + rng() * 6) * HOUR;
       const minutes = 4 + Math.floor(rng() * 22);
-      const bed = pick(rng, beds);
       events.push(
         makeEvent("INTERRUPTION_LOGGED", at, {
-          bedId: bed.id,
           payload: {
             reason: pick(rng, [...interruptionReasons]),
             startedAt: roundMinute(at),
@@ -337,7 +319,6 @@ async function main() {
       if (task.status === "planned" || task.status === "in_progress" || task.status === "paused") {
         events.push(
           makeEvent("TASK_MISSED", draft.endedAt - 15 * MINUTE, {
-            bedId: task.bedId,
             taskId: task.id,
             payload: { reason: "shift_end" },
           }),
@@ -345,27 +326,30 @@ async function main() {
       }
     }
 
-    // Two finalized handovers per shift.
-    for (const bed of beds.slice(0, 2)) {
-      const snapshot = buildHandover(events, { id: bed.id, label: bed.alias }, "", draft.endedAt - 5 * MINUTE);
-      snapshot.note =
-        index % 2 === 0
-          ? "Watch the airway plan and family update. Deferred care still needs a new time."
-          : "Continue hourly checks. Handover note is simulated practice text.";
-      events.push(
-        makeEvent("HANDOVER_FINALIZED", draft.endedAt - 5 * MINUTE, {
-          bedId: bed.id,
-          payload: { note: snapshot.note, snapshot },
-        }),
-      );
-      allHandovers.push({
-        id: `sim-handover-${shiftId}-${bed.id}`,
-        shiftId,
-        bedId: bed.id,
-        snapshot,
-        createdAt: draft.endedAt - 5 * MINUTE,
-      });
-    }
+    // One finalized shift-level handover per shift.
+    const snapshot = buildHandover(
+      events,
+      { id: SHIFT_HANDOVER_ID, label: "Shift handover" },
+      "",
+      draft.endedAt - 5 * MINUTE,
+    );
+    snapshot.note =
+      index % 2 === 0
+        ? "Watch the airway plan and family update. Deferred care still needs a new time."
+        : "Continue hourly checks. Handover note is simulated practice text.";
+    events.push(
+      makeEvent("HANDOVER_FINALIZED", draft.endedAt - 5 * MINUTE, {
+        bedId: SHIFT_HANDOVER_ID,
+        payload: { note: snapshot.note, snapshot },
+      }),
+    );
+    allHandovers.push({
+      id: `sim-handover-${shiftId}`,
+      shiftId,
+      bedId: SHIFT_HANDOVER_ID,
+      snapshot,
+      createdAt: draft.endedAt - 5 * MINUTE,
+    });
 
     events.push(makeEvent("SHIFT_ENDED", draft.endedAt, { payload: { note: "Simulated shift end" } }));
 
@@ -399,7 +383,7 @@ async function main() {
     }
   }
 
-  // Insert shifts, beds, events, handovers and reviews.
+  // Insert shifts, events, handovers and reviews.
   for (const shift of shiftRows) {
     await db!
       .insert(schema.shifts)
@@ -408,9 +392,6 @@ async function main() {
         target: schema.shifts.id,
         set: { unitId: shift.unitId, endedAt: shift.endedAt, summary: shift.summary },
       });
-  }
-  for (const bed of allBeds) {
-    await db!.insert(schema.beds).values(bed).onConflictDoNothing();
   }
   for (let i = 0; i < allEvents.length; i += 200) {
     await db!.insert(schema.events).values(allEvents.slice(i, i + 200)).onConflictDoNothing();
@@ -456,7 +437,7 @@ async function main() {
   }
 
   console.log(`Simulated ${shiftRows.length} finished shifts, ${allEvents.length} events, ${allHandovers.length} handovers, ${allReviews.length} reviews, ${surveys.length} surveys.`);
-  console.log("All data uses participant codes and bed labels only. Simulation is deterministic.");
+  console.log("All data uses participant codes and shift-level tasks only. Simulation is deterministic.");
   await getPool().end();
 }
 

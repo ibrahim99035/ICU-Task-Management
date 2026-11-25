@@ -300,6 +300,9 @@ export type EmergencyRecord = {
   note?: string;
 };
 
+/** Synthetic handover id for a shift-level handover (there are no bed tasks). */
+export const SHIFT_HANDOVER_ID = "shift";
+
 export type HandoverSnapshot = {
   bedId: string;
   bedLabel: string;

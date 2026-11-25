@@ -10,6 +10,7 @@ import {
   MAX_SHIFT_HOURS,
   MAX_SHIFT_MS,
   newId,
+  SHIFT_HANDOVER_ID,
   nextRecurringTask,
   reduce,
   startEmergency as startEmergencyDomain,
@@ -32,7 +33,6 @@ import {
   setSessionValue,
   type ActiveInterruption,
   type AuthRecord,
-  type BedRow,
   type ShiftRow,
   type SessionUser,
 } from "./db";
@@ -92,7 +92,6 @@ export async function startShift(
   user: SessionUser,
   unit: { id: string; name: string },
   type: "day" | "night" | "custom",
-  beds: { id: string; label: string; alias: string; templateIds: string[] }[],
   options: { backdateMin?: number } = {},
 ): Promise<ShiftRow> {
   if (!unit.id) throw new Error("Choose an assigned unit before starting a shift");
@@ -113,10 +112,8 @@ export async function startShift(
   const startedAt = now - (options.backdateMin ?? 0) * MIN;
   const shiftId = newId();
   const templates = await db().templates.toArray();
-  const templateMap = new Map(templates.map((t) => [t.id, t]));
   const events: DomainEvent[] = [];
   const shift: ShiftRow = { id: shiftId, actorId: user.id, type, kind: "nurse", unitId: unit.id, unitName: unit.name, startedAt };
-  const bedRows: BedRow[] = [];
 
   events.push({
     id: newId(),
@@ -124,40 +121,8 @@ export async function startShift(
     actorId: user.id,
     type: "SHIFT_STARTED",
     clientTs: startedAt,
-    payload: { shiftType: type, kind: "nurse", unitId: unit.id, unitName: unit.name, bedLabels: beds.map((b) => b.alias) },
+    payload: { shiftType: type, kind: "nurse", unitId: unit.id, unitName: unit.name, bedLabels: [] },
   });
-
-  for (const bed of beds) {
-    bedRows.push({ id: newId(), shiftId, label: bed.label, alias: bed.alias, templateIds: bed.templateIds });
-    const bedId = bedRows[bedRows.length - 1].id;
-    for (const templateId of bed.templateIds) {
-      const template = templateMap.get(templateId);
-      if (!template || template.role !== "nurse" || template.scope !== "bed") continue;
-      const taskId = newId();
-      events.push({
-        id: newId(),
-        shiftId,
-        bedId,
-        taskId,
-        actorId: user.id,
-        type: "TASK_CREATED",
-        clientTs: startedAt,
-        payload: {
-          title: template.name,
-          category: template.category,
-          tier: template.tier,
-          plannedFrom: startedAt + template.offsetMin * MIN,
-          plannedTo: startedAt + template.offsetMin * MIN + template.expectedMin * MIN,
-          expectedMin: template.expectedMin,
-          intervalMin: template.intervalMin,
-          unitId: unit.id,
-          templateId: template.id,
-          bedLabel: bed.alias,
-          scope: "bed",
-        },
-      });
-    }
-  }
 
   for (const template of templates.filter((t) => t.role === "nurse" && t.scope === "shift" && t.active)) {
     events.push({
@@ -184,10 +149,9 @@ export async function startShift(
 
   await db().transaction(
     "rw",
-    [db().shifts, db().beds, db().events, db().tasks, db().outbox],
+    [db().shifts, db().events, db().tasks, db().outbox],
     async () => {
       await db().shifts.put(shift);
-      await db().beds.bulkPut(bedRows);
       await db().events.bulkPut(events);
       await rebuildTasks(shiftId);
       await db().outbox.bulkPut(
@@ -350,11 +314,15 @@ export async function confirmReschedule(
 
 export async function startInterruption(
   reason: string,
-  bedId: string,
+  bedId?: string,
   taskId?: string,
 ): Promise<void> {
   const task = taskId ? await getTask(taskId) : undefined;
-  const shiftId = task?.shiftId ?? (await db().beds.get(bedId))?.shiftId;
+  const user = useApp.getState().user;
+  const shiftId =
+    task?.shiftId ??
+    (bedId ? (await db().beds.get(bedId))?.shiftId : undefined) ??
+    (user ? (await activeShift(user.id))?.id : undefined);
   if (!shiftId) throw new Error("No active shift");
   const shift = await db().shifts.get(shiftId);
   if (!shift) throw new Error("Shift not found");
@@ -434,7 +402,6 @@ export async function correctEventTime(
 
 export async function addQuickTask(input: {
   shiftId: string;
-  bedId: string;
   title: string;
   tier: Tier;
   category: TaskCategory;
@@ -444,12 +411,10 @@ export async function addQuickTask(input: {
   const shift = await db().shifts.get(input.shiftId);
   if (!shift) throw new Error("Shift not found");
   if (input.category === "interruption") throw new Error("Unplanned tasks cannot be interruptions");
-  const bed = await db().beds.get(input.bedId);
   await appendEvents([
     {
       id: newId(),
       shiftId: input.shiftId,
-      bedId: input.bedId,
       taskId: newId(),
       actorId: shift.actorId,
       type: "TASK_CREATED",
@@ -462,8 +427,7 @@ export async function addQuickTask(input: {
         plannedTo: input.plannedTo,
         expectedMin: 10,
         unitId: shift.unitId,
-        bedLabel: bed?.alias,
-        scope: "bed",
+        scope: "shift",
       },
     },
   ]);
@@ -554,10 +518,11 @@ export async function finalizeHandover(
 ): Promise<string> {
   const shift = await db().shifts.get(shiftId);
   if (!shift) throw new Error("Shift not found");
-  const bed = await db().beds.get(bedId);
-  if (!bed) throw new Error("Bed not found");
+  const bed = bedId === SHIFT_HANDOVER_ID ? undefined : await db().beds.get(bedId);
+  if (bedId !== SHIFT_HANDOVER_ID && !bed) throw new Error("Bed not found");
   const events = await shiftEvents(shiftId);
-  const snapshot = buildHandover(events, { id: bedId, label: bed.alias }, note, Date.now());
+  const label = bedId === SHIFT_HANDOVER_ID ? "Shift handover" : (bed?.alias ?? "Bed");
+  const snapshot = buildHandover(events, { id: bedId, label }, note, Date.now());
   const now = Date.now();
   const event = base(
     "HANDOVER_FINALIZED",

@@ -88,12 +88,12 @@ function ReviewInner() {
 
   if (!stored) {
     return (
-      <AppShell title="Review deferrals" subtitle="No pending proposals" backHref="/beds">
+      <AppShell title="Review deferrals" subtitle="No pending proposals" backHref="/tasks">
         <EmptyState
           icon={<CalendarClock className="h-6 w-6" />}
           title="Nothing waiting for a new time"
           body="Deferred tier 3–4 tasks appear here after an emergency ends. Tier 1–2 tasks are never deferred."
-          action={<Link href="/beds" className="btn-primary">Back to beds</Link>}
+          action={<Link href="/tasks" className="btn-primary">Back to tasks</Link>}
         />
       </AppShell>
     );
@@ -105,7 +105,7 @@ function ReviewInner() {
     <AppShell
       title="Confirm new times"
       subtitle={`${bed?.alias ?? "Bed"} · emergency lasted ${formatElapsed(stored.durationMs)}`}
-      backHref="/beds"
+      backHref="/tasks"
     >
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-3">
@@ -179,7 +179,7 @@ function ReviewInner() {
             <button className="btn-primary" onClick={confirmAll} disabled={busy || proposals.length === 0}>
               <CheckCheck className="h-4 w-4" /> Confirm all
             </button>
-            <Link className="btn-secondary" href="/beds">Keep deferred for now</Link>
+            <Link className="btn-secondary" href="/tasks">Keep deferred for now</Link>
           </div>
         </div>
 

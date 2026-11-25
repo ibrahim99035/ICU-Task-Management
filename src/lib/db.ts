@@ -84,7 +84,7 @@ export type SessionRow = {
 
 export type ActiveInterruption = {
   taskId?: string;
-  bedId: string;
+  bedId?: string;
   shiftId: string;
   reason: string;
   startedAt: number;

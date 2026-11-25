@@ -19,9 +19,9 @@ const ROWS = [
   },
   {
     icon: <Smartphone className="h-4 w-4" />,
-    title: "Beds",
-    local: "Bed number and a short nickname you type. No name, MRN, date of birth, photo or hospital ID.",
-    server: "Bed label and nickname only. The nickname is free text, so the UI warns you not to type identifiers.",
+    title: "Shift tasks",
+    local: "The 12 agreed staff-nurse tasks, status, planned times, notes and time logs. No patient identifiers.",
+    server: "Task events, timestamps and notes after sync. The head nurse can see finished shift tasks.",
   },
   {
     icon: <Eye className="h-4 w-4" />,
@@ -32,7 +32,7 @@ const ROWS = [
   {
     icon: <Trash2 className="h-4 w-4" />,
     title: "Deletion",
-    local: "Signing out clears local events, tasks, handovers, shifts, beds and the session from this browser.",
+    local: "Signing out clears local events, tasks, handovers, shifts and the session from this browser.",
     server: "Server records remain for the thesis analysis. There is no self-service server deletion in this demo.",
   },
 ];
@@ -44,9 +44,9 @@ export default function PrivacyPage() {
         <div className="space-y-3">
           <InlineAlert tone="warning" title="No patient identifiers">
             <p>
-              Do not type patient names, MRNs, hospital numbers, dates of birth, phone numbers or photos. Beds are a
-              number plus a short nickname only. A free-text nickname cannot be reliably checked by rule-based code;
-              this remains a human-input risk.
+              Do not type patient names, MRNs, hospital numbers, dates of birth, phone numbers or photos. Task
+              notes and custom task titles are free text, so the UI warns you not to type identifiers. Rule-based
+              code cannot reliably detect a name; this remains a human-input risk.
             </p>
           </InlineAlert>
 
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
               <ShieldCheck className="h-4 w-4" /> Who sees what
             </h2>
             <ul className="mt-3 space-y-2 text-xs leading-relaxed text-slate-600">
-              <li>• <strong>Nurse:</strong> own beds, tasks, event log, handovers, summaries, surveys and own manual reviews.</li>
+              <li>• <strong>Nurse:</strong> own tasks, event log, handovers, summaries, surveys and own manual reviews.</li>
               <li>• <strong>Head nurse:</strong> finished shifts, event logs, timestamp summaries, handover snapshots and manual review screen.</li>
               <li>• <strong>No one:</strong> patient identifiers, a computed nurse score or a leaderboard — those are out of scope.</li>
             </ul>

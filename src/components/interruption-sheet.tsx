@@ -44,10 +44,9 @@ export function InterruptionSheet({
   const [selectedBed, setSelectedBed] = useState(bedId ?? beds[0]?.id ?? "");
 
   async function choose(reason: InterruptionReason) {
-    if (!task && !selectedBed) return;
     setBusy(true);
     try {
-      await startInterruption(reason, task?.bedId ?? selectedBed, task?.id);
+      await startInterruption(reason, task?.bedId ?? (selectedBed || undefined), task?.id);
       notify("Interruption started. The timer is paused until you end it.", "warning");
       onClose();
     } catch (error) {

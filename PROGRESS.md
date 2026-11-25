@@ -32,7 +32,7 @@
 
 ## P6 — To Do, Time Log and head-nurse own shift (done)
 - Added task `scope` (`bed` or `shift`), optional `bedId`, `TASK_TIME_LOGGED` event, task `timeLogs`, and shift `kind` (`nurse` or `head_nurse`).
-- Added 12 staff-nurse shift tasks alongside the existing 41 bed tasks; a nurse shift now creates 53 tasks. Shift tasks have no bed and appear in the queue, plan board and handover data.
+- (Superseded by P7.) Added 12 staff-nurse shift tasks alongside the then-existing 41 bed tasks; a nurse shift then created 53 tasks.
 - Added a nurse **Plan** page with To do and Time log tabs, future-only manual planning, time-only past intervals resolved on the shift date, overnight support, tick-only completion and audited edit/note reuse.
 - Added a separate head-nurse shift and `/head/tasks` **My tasks** page with 14 head-nurse tasks, start/end, To Do, Time Log, complete and edit/note. Head-nurse task management is online-only.
 - Head-nurse shifts are excluded from nurse analytics, reviews and CSV export. Head nurses still cannot execute nurse tasks.
@@ -43,6 +43,16 @@
 - Android CI run `45423196910` succeeded for `bd9e814`; the `icu-tasklog-debug-apk` artifact exists (ZIP 4,882,751 bytes, digest `sha256:4fbcd2651fb63109a383492eaf778db36a2710a1d82d06aa8980a974390f50e4`).
 - **NOT VERIFIED:** the APK file was not downloaded/inspected here, and on-device To Do/Time Log behaviour has not been tested.
 - **Live browser checkup (2026-11-24):** signed up `checknurse24`, signed in with `amina`, `yara`, `omar` and `head`, assigned the new nurse to Unit A, started a fresh 53-task nurse shift, added a To Do item, logged a past interval, and ended the shift. Observed 54 total tasks, 1 done and 53 missed. Started a 14-task head-nurse shift, added a To Do item, logged a past interval, and ended it; the API summary showed 15 total, 1 done and 14 missed. The head-nurse shift did not appear on the nurse-shifts page. Amina's stale 49-hour shift auto-ended at exactly 16 hours with 41 tasks missed and 960 total minutes. The live head-nurse sidebar showed `Open My tasks` and no nurse shift clock.
+
+## P7 — Shift-only demo release (done)
+- Replaced the task templates with exactly the agreed lists: 12 staff-nurse tasks and 14 head-nurse tasks, all shift-scoped. `DEMO_TEMPLATES_VERSION = 3`. No bed templates remain.
+- Removed the bed board, bed selection at shift start, bed filters/quick-add and bed-based handover. `/beds` is now a redirect to `/tasks`. Handover uses one shift-level snapshot with id `shift`.
+- Added one-tap **Enter as Nurse** (`amina/1111`) and **Enter as Head nurse** (`head/9999`) demo buttons. Manual login and self-registration remain.
+- Added a foreground task alarm: Web Audio beep + vibration where supported, one ring per task when an open task reaches `plannedTo`, persistent overdue badge, on/off setting and **Test alarm** on **Me**. Background push remains out of scope.
+- Rebuilt the simulation for 12 shift tasks, no beds, shift-level interruptions and `shift` handovers.
+- Reset production demo data: **26 templates** (12 nurse, 14 head), **0 beds**, **14 simulated shifts**, **604 events**, **14 handovers**, **11 reviews**, **9 surveys**.
+- Evidence this release: `npx tsc --noEmit` clean; `npm run lint` passed 52 source files / 5 domain files; `npm test` 33/33; `npx playwright test` **13/13** in 1.9m; `npm run build` 21 routes including `ƒ /api/[[...route]]`; `npm run build:mobile` 21 static pages and `src/app/api` restored.
+- **NOT VERIFIED:** a new APK for this release; physical Android install/opening. The web deployment is the demo target.
 
 ## P5 — Deployment and APK packaging (done)
 - Live deployment: <https://icu-tasklog.vercel.app> — one Next.js project with the Hono API at `/api`.

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, ListChecks, Loader2, Pencil, Plus, TimerReset } from "lucide-react";
 import type { Task, TaskCategory, Tier } from "@/domain";
-import type { BedRow } from "@/lib/db";
 import { cn, formatDateTime, formatMinutes, formatTime, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
 import { Modal } from "./modal";
 import { EmptyState, InlineAlert, TierBadge } from "./ui";
@@ -12,8 +11,6 @@ export type PlannedTaskInput = {
   title: string;
   tier: Tier;
   category: Exclude<TaskCategory, "interruption">;
-  scope: "bed" | "shift";
-  bedId?: string;
   plannedFrom: number;
   plannedTo: number;
   expectedMin: number;
@@ -23,7 +20,6 @@ export type PlannedTaskInput = {
 export function PlanningBoard({
   role,
   tasks,
-  beds = [],
   shiftStartedAt,
   now,
   onCreate,
@@ -33,7 +29,6 @@ export function PlanningBoard({
 }: {
   role: "nurse" | "head_nurse";
   tasks: Task[];
-  beds?: BedRow[];
   shiftStartedAt: number;
   now: number;
   onCreate: (input: PlannedTaskInput) => Promise<void>;
@@ -102,7 +97,10 @@ export function PlanningBoard({
         </button>
       </div>
 
-      <InlineAlert tone="info" title="Future plan vs past record">
+      <InlineAlert
+        tone="info"
+        title={role === "head_nurse" ? "Head-nurse To Do / Time Log" : "Nurse To Do / Time Log"}
+      >
         <p>
           <strong>To do</strong> is a future planned window with a duration. <strong>Time log</strong> records a
           past interval such as 07:00–07:30. Durations are always calculated from the stored times.
@@ -117,15 +115,11 @@ export function PlanningBoard({
         <div className="space-y-2">
           {todo.length ? (
             todo.map((task) => {
-              const bed = beds.find((b) => b.id === task.bedId);
               return (
                 <article key={task.id} className="card flex items-start gap-3 p-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <TierBadge tier={task.tier} compact />
-                      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                        {bed?.alias ?? "Shift task"}
-                      </span>
                       <span className="pill bg-slate-100 text-slate-600">
                         <Clock3 className="h-3 w-3" /> {formatTime(task.plannedFrom)}–{formatTime(task.plannedTo)}
                       </span>
@@ -174,7 +168,6 @@ export function PlanningBoard({
         <div className="space-y-2">
           {logged.length ? (
             logged.map((task) => {
-              const bed = beds.find((b) => b.id === task.bedId);
               const actual = task.timeLogs?.[0];
               const from = actual?.startedAt ?? task.startedAt;
               const to = actual?.endedAt ?? task.completedAt;
@@ -182,9 +175,6 @@ export function PlanningBoard({
                 <article key={task.id} className="card p-3">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <TierBadge tier={task.tier} compact />
-                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                      {bed?.alias ?? "Shift task"}
-                    </span>
                     <span className={cn("pill", task.durationRecorded ? "bg-teal-50 text-teal-800" : "bg-amber-50 text-amber-800")}>
                       {task.durationRecorded ? "Timed" : "Tick-only"}
                     </span>
@@ -214,8 +204,6 @@ export function PlanningBoard({
 
       <PlanTaskModal
         open={createOpen}
-        role={role}
-        beds={beds}
         onClose={() => setCreateOpen(false)}
         onSubmit={async (input) => {
           await onCreate(input);
@@ -240,22 +228,16 @@ export function PlanningBoard({
 
 function PlanTaskModal({
   open,
-  role,
-  beds,
   onClose,
   onSubmit,
 }: {
   open: boolean;
-  role: "nurse" | "head_nurse";
-  beds: BedRow[];
   onClose: () => void;
   onSubmit: (input: PlannedTaskInput) => Promise<void>;
 }) {
   const [title, setTitle] = useState("");
   const [tier, setTier] = useState<Tier>(3);
   const [category, setCategory] = useState<Exclude<TaskCategory, "interruption">>("direct_care");
-  const [scope, setScope] = useState<"bed" | "shift">(role === "head_nurse" ? "shift" : "bed");
-  const [bedId, setBedId] = useState(beds[0]?.id ?? "");
   const [when, setWhen] = useState(toDateTimeLocal(Date.now() + 15 * 60_000));
   const [minutes, setMinutes] = useState(30);
   const [note, setNote] = useState("");
@@ -265,9 +247,8 @@ function PlanTaskModal({
   useEffect(() => {
     if (!open) return;
     setWhen(toDateTimeLocal(Date.now() + 15 * 60_000));
-    setBedId((current) => current || beds[0]?.id || "");
     setError("");
-  }, [open, beds]);
+  }, [open]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -279,8 +260,6 @@ function PlanTaskModal({
         title: title.trim(),
         tier,
         category,
-        scope,
-        bedId: scope === "bed" ? bedId : undefined,
         plannedFrom,
         plannedTo: plannedFrom + Math.max(1, minutes) * 60_000,
         expectedMin: Math.max(1, minutes),
@@ -320,23 +299,6 @@ function PlanTaskModal({
             </select>
           </div>
         </div>
-        {role === "nurse" ? (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="label" htmlFor="plan-scope">Applies to</label>
-              <select id="plan-scope" className="input" value={scope} onChange={(e) => setScope(e.target.value as "bed" | "shift")}>
-                <option value="bed">A bed</option>
-                <option value="shift">Whole shift</option>
-              </select>
-            </div>
-            <div>
-              <label className="label" htmlFor="plan-bed">Bed</label>
-              <select id="plan-bed" className="input" value={bedId} onChange={(e) => setBedId(e.target.value)} disabled={scope === "shift"}>
-                {beds.map((bed) => <option key={bed.id} value={bed.id}>{bed.alias}</option>)}
-              </select>
-            </div>
-          </div>
-        ) : null}
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="label" htmlFor="plan-when">Planned start</label>
@@ -352,7 +314,7 @@ function PlanTaskModal({
           <textarea id="plan-note" className="input min-h-20" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
         </div>
         {error ? <p className="text-xs text-danger-700">{error}</p> : null}
-        <button className="btn-primary w-full" disabled={busy || !title.trim() || (scope === "bed" && !bedId)}>
+        <button className="btn-primary w-full" disabled={busy || !title.trim()}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add to To do
         </button>
         <p className="text-[11px] text-slate-500">Do not enter patient names, MRNs or other identifiers.</p>

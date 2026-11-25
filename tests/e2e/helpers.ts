@@ -14,17 +14,13 @@ export async function signIn(page: Page, username: string, pin: string) {
   await waitForHydration(page);
   await page.fill("#username", username);
   await page.fill("#pin", pin);
+  await page.getByRole("button", { name: "Sign in" }).click();
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const submit = page.getByRole("button", { name: "Sign in" });
-    if (await submit.count()) {
-      await expect(submit).toBeEnabled();
-      await submit.click();
-    }
-    await page.waitForTimeout(3000);
-    if (!page.url().includes("/login")) return;
-    await page.waitForTimeout(1000);
+  await page
+    .waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 20_000 })
+    .catch(() => undefined);
+
+  if (page.url().includes("/login")) {
+    throw new Error(`Login failed for ${username}`);
   }
-
-  throw new Error(`Login failed for ${username}`);
 }

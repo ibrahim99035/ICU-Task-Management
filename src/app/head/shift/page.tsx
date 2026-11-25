@@ -54,7 +54,7 @@ function ShiftInner() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   useEffect(() => {
-    if (user && user.role !== "head_nurse") router.replace("/beds");
+    if (user && user.role !== "head_nurse") router.replace("/tasks");
     if (!user) router.replace("/login");
   }, [user, router]);
 
@@ -194,7 +194,7 @@ function ShiftInner() {
                     <span className="min-w-0 flex-1">
                       <span className="block text-xs font-medium leading-snug text-slate-700">{label}</span>
                       <span className="block text-[10px] text-slate-400">
-                        {formatDateTime(event.clientTs)} · {event.bedId ? bedMap.get(event.bedId) ?? "Bed" : "Shift"} · {event.type}
+                        {formatDateTime(event.clientTs)} · {event.bedId === "shift" ? "Shift" : event.bedId ? bedMap.get(event.bedId) ?? "Bed" : "Shift"} · {event.type}
                       </span>
                     </span>
                   </li>

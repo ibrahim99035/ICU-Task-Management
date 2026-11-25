@@ -16,6 +16,7 @@ import {
   Star,
   Timer,
   UserRound,
+  Volume2,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ConfirmDialog } from "@/components/modal";
@@ -23,6 +24,13 @@ import { InlineAlert, StatCard } from "@/components/ui";
 import type { ShiftSummary } from "@/domain";
 import { activeShift, db, type ReviewRow, type ShiftRow } from "@/lib/db";
 import { endShift } from "@/lib/actions";
+import {
+  alarmEnabled,
+  clearAlarmMarks,
+  playAlarm,
+  setAlarmEnabled,
+  unlockAlarm,
+} from "@/lib/alarm";
 import { formatDate, formatElapsed, formatMinutes, formatPercent, initials } from "@/lib/format";
 import { useLive, useNow } from "@/lib/hooks";
 import { useApp } from "@/lib/store";
@@ -37,6 +45,7 @@ export default function MePage() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [alarmOn, setAlarmOn] = useState(() => alarmEnabled());
 
   const active = useLive(
     async () => (user ? await activeShift(user.id) : undefined),
@@ -82,6 +91,7 @@ export default function MePage() {
       await db().shifts.clear();
       await db().beds.clear();
       await db().session.clear();
+      clearAlarmMarks();
       await logout();
       router.replace("/login");
     } finally {
@@ -135,7 +145,7 @@ export default function MePage() {
                 <span className="pill bg-teal-50 text-teal-800"><Timer className="h-3.5 w-3.5" /> {formatElapsed(now - active.startedAt)}</span>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link href="/beds" className="btn-primary">Open beds <ArrowRight className="h-4 w-4" /></Link>
+                <Link href="/tasks" className="btn-primary">Open tasks <ArrowRight className="h-4 w-4" /></Link>
                 <Link href={`/summary?shift=${active.id}`} className="btn-secondary">Preview summary</Link>
                 <button className="btn-danger" onClick={() => setEndOpen(true)}>End shift</button>
               </div>
@@ -217,8 +227,43 @@ export default function MePage() {
               ) : (
                 <ToolLink href="/head/export" icon={<Download className="h-4 w-4" />} title="Export data" subtitle="CSV for analysis" />
               )}
-              <ToolLink href="/shift-start" icon={<CalendarDays className="h-4 w-4" />} title="Shift setup" subtitle="Shift type and demo beds" />
+              <ToolLink href="/shift-start" icon={<CalendarDays className="h-4 w-4" />} title="Shift setup" subtitle="Shift type and the agreed task list" />
             </div>
+          </section>
+
+          <section className="card p-5">
+            <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+              <Volume2 className="h-4 w-4 text-teal-600" /> Task alarm
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Rings once when an open task reaches its planned end time. Foreground only; no background push
+              notification.
+            </p>
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3">
+              <input
+                type="checkbox"
+                checked={alarmOn}
+                onChange={(e) => {
+                  setAlarmOn(e.target.checked);
+                  setAlarmEnabled(e.target.checked);
+                }}
+                className="mt-0.5 h-5 w-5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-slate-800">Alarm when time is up</span>
+                <span className="block text-[11px] text-slate-500">Sound and vibration where supported.</span>
+              </span>
+            </label>
+            <button
+              className="btn-secondary mt-3 w-full"
+              onClick={() => {
+                unlockAlarm();
+                if (playAlarm()) notify("Test alarm played.", "success");
+                else notify("Alarm is off or audio is blocked by the browser.", "warning");
+              }}
+            >
+              <Volume2 className="h-4 w-4" /> Test alarm
+            </button>
           </section>
 
           <section className="card border-amber-200 bg-amber-50/50 p-4 text-xs leading-relaxed text-amber-900">

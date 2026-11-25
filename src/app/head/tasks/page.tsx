@@ -51,7 +51,7 @@ export default function HeadTasksPage() {
   }, [token, user]);
 
   useEffect(() => {
-    if (user && user.role !== "head_nurse") router.replace("/beds");
+    if (user && user.role !== "head_nurse") router.replace("/tasks");
   }, [user, router]);
 
   useEffect(() => {

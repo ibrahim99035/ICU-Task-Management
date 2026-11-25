@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Activity,
+  CalendarDays,
   CheckCircle2,
-  ChevronDown,
+  ChevronRight,
   Clock3,
   ListChecks,
   Loader2,
@@ -14,10 +15,8 @@ import {
   Plus,
   Radio,
   Search,
-  SlidersHorizontal,
   Star,
   TimerReset,
-  X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ActiveTaskBar } from "@/components/active-bar";
@@ -46,28 +45,12 @@ import {
   resumeTask,
   startTask,
 } from "@/lib/actions";
-import { activeShift, db, type BedRow, type ShiftRow } from "@/lib/db";
+import { activeShift, db, type ShiftRow } from "@/lib/db";
 import { cn, windowLabel, formatDateTime, formatElapsed, formatMinutes, formatTime, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
 import { useLive, useNow } from "@/lib/hooks";
 import { useApp } from "@/lib/store";
 
 type Filter = "open" | "overdue" | "deferred" | "done";
-
-const PRESETS: {
-  title: string;
-  tier: Tier;
-  category: TaskCategory;
-  offsetMin: number;
-  expectedMin: number;
-  hint: string;
-}[] = [
-  { title: "Reposition / pressure care", tier: 3, category: "direct_care", offsetMin: 0, expectedMin: 10, hint: "T3 · direct" },
-  { title: "Oral care", tier: 3, category: "direct_care", offsetMin: 15, expectedMin: 10, hint: "T3 · direct" },
-  { title: "Vital signs", tier: 2, category: "direct_care", offsetMin: 0, expectedMin: 5, hint: "T2 · direct" },
-  { title: "Charting / documentation", tier: 4, category: "indirect_care", offsetMin: 15, expectedMin: 10, hint: "T4 · indirect" },
-  { title: "Supplies restock", tier: 4, category: "indirect_care", offsetMin: 30, expectedMin: 10, hint: "T4 · indirect" },
-  { title: "Family update", tier: 4, category: "indirect_care", offsetMin: 20, expectedMin: 5, hint: "T4 · indirect" },
-];
 
 function runningElapsed(events: DomainEvent[], task: Task, now: number): number | undefined {
   if (task.status !== "in_progress" && task.status !== "paused") return undefined;
@@ -83,7 +66,6 @@ function runningElapsed(events: DomainEvent[], task: Task, now: number): number 
 function TasksInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const bedFilter = params.get("bed") ?? undefined;
   const filterParam = params.get("filter");
   const user = useApp((s) => s.user);
   const notify = useApp((s) => s.notify);
@@ -110,15 +92,14 @@ function TasksInner() {
   }, [shiftBox, user, router]);
 
   const data = useLive(
-    async (): Promise<{ shift?: ShiftRow; tasks: Task[]; events: DomainEvent[]; beds: BedRow[] }> => {
+    async (): Promise<{ shift?: ShiftRow; tasks: Task[]; events: DomainEvent[] }> => {
       const shift = shiftBox?.shift;
-      if (!shift) return { shift, tasks: [], events: [], beds: [] };
-      const [tasks, events, beds] = await Promise.all([
+      if (!shift) return { shift, tasks: [], events: [] };
+      const [tasks, events] = await Promise.all([
         db().tasks.where("shiftId").equals(shift.id).toArray(),
         db().events.where("shiftId").equals(shift.id).toArray(),
-        db().beds.where("shiftId").equals(shift.id).toArray(),
       ]);
-      return { shift, tasks, events, beds };
+      return { shift, tasks, events };
     },
     [shiftBox?.shift?.id],
   );
@@ -126,32 +107,24 @@ function TasksInner() {
   const shift = shiftBox?.shift;
   const tasks = data?.tasks ?? [];
   const events = data?.events ?? [];
-  const beds = data?.beds ?? [];
-  const bedMap = useMemo(() => new Map(beds.map((b) => [b.id, b.alias])), [beds]);
-  const bed = bedFilter ? beds.find((b) => b.id === bedFilter) : undefined;
   const durations = useMemo(() => computeDurations(events, now), [events, now]);
 
   const filtered = useMemo(() => {
-    const scoped = bedFilter ? tasks.filter((t) => t.bedId === bedFilter) : tasks;
-    const sorted = sortTasks(scoped, now);
+    const sorted = sortTasks(tasks, now);
     if (filter === "overdue") return sorted.filter((t) => isOverdue(t, now));
     if (filter === "deferred") return sorted.filter((t) => t.status === "deferred");
     if (filter === "done") return sorted.filter((t) => t.status === "done" || t.status === "missed");
     return sorted.filter((t) => ["planned", "in_progress", "paused"].includes(t.status));
-  }, [tasks, bedFilter, filter, now]);
+  }, [tasks, filter, now]);
 
   const counts = useMemo(
     () => ({
-      open: tasks
-        .filter((t) => !bedFilter || t.bedId === bedFilter)
-        .filter((t) => ["planned", "in_progress", "paused"].includes(t.status)).length,
-      overdue: tasks.filter((t) => !bedFilter || t.bedId === bedFilter).filter((t) => isOverdue(t, now)).length,
-      deferred: tasks.filter((t) => !bedFilter || t.bedId === bedFilter).filter((t) => t.status === "deferred").length,
-      done: tasks
-        .filter((t) => !bedFilter || t.bedId === bedFilter)
-        .filter((t) => t.status === "done" || t.status === "missed").length,
+      open: tasks.filter((t) => ["planned", "in_progress", "paused"].includes(t.status)).length,
+      overdue: tasks.filter((t) => isOverdue(t, now)).length,
+      deferred: tasks.filter((t) => t.status === "deferred").length,
+      done: tasks.filter((t) => t.status === "done" || t.status === "missed").length,
     }),
-    [tasks, bedFilter, now],
+    [tasks, now],
   );
 
   const detail = detailId ? tasks.find((t) => t.id === detailId) : undefined;
@@ -177,11 +150,7 @@ function TasksInner() {
   return (
     <AppShell
       title="Task queue"
-      subtitle={
-        bed
-          ? `${bed.alias} · ${shift.unitName ?? "Unassigned"} · ${counts.open} open · ${counts.overdue} overdue`
-          : `${shift.unitName ?? "Unassigned"} · ${counts.open} open · ${counts.overdue} overdue · sorted by tier then due time`
-      }
+      subtitle={`${shift.unitName ?? "Unassigned"} · ${counts.open} open · ${counts.overdue} overdue · sorted by tier then due time`}
       activeOverride="/tasks"
       actions={
         <>
@@ -205,14 +174,21 @@ function TasksInner() {
         </>
       }
     >
-      {bed ? (
-        <div className="mb-3 flex items-center gap-2">
-          <Link href="/tasks" className="inline-flex min-h-10 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700">
-            <X className="h-3.5 w-3.5" /> Clear bed filter
-          </Link>
-          <span className="text-xs text-slate-500">{bed.alias}</span>
-        </div>
-      ) : null}
+      <Link
+        href="/plan"
+        className="mb-3 flex min-h-16 items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50/70 px-4 py-3 hover:border-teal-400 hover:bg-teal-50"
+      >
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-teal-600 text-white">
+          <CalendarDays className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-extrabold text-teal-950">To Do / Time Log</span>
+          <span className="block text-[11px] text-teal-800/70">
+            {counts.open} open task{counts.open === 1 ? "" : "s"} · plan future work and record past time
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-teal-700" />
+      </Link>
 
       <div className="hide-scrollbar -mx-1 mb-3 flex gap-1 overflow-x-auto px-1">
         {(
@@ -256,7 +232,6 @@ function TasksInner() {
               key={task.id}
               task={task}
               now={now}
-              bedLabel={bedFilter || !task.bedId ? undefined : bedMap.get(task.bedId)}
               elapsedMs={runningElapsed(events, task, now)}
               onStart={() => guard(() => startTask(task.id))}
               onPause={() => guard(() => pauseTask(task.id))}
@@ -298,18 +273,9 @@ function TasksInner() {
         open={interruptOpen}
         onClose={() => setInterruptOpen(false)}
         task={interruptTask}
-        bedId={bedFilter ?? beds[0]?.id}
-        beds={beds}
       />
 
-      <QuickAddSheet
-        open={quickOpen}
-        onClose={() => setQuickOpen(false)}
-        shift={shift}
-        beds={beds}
-        defaultBedId={bedFilter ?? beds[0]?.id ?? ""}
-        now={now}
-      />
+      <QuickAddSheet open={quickOpen} onClose={() => setQuickOpen(false)} shift={shift} />
 
       <ConfirmDialog
         open={Boolean(tickTarget)}
@@ -335,7 +301,6 @@ function TasksInner() {
 
       <TaskDetail
         task={detail}
-        bedLabel={detail?.bedId ? bedMap.get(detail.bedId) : undefined}
         events={detailEvents}
         payableEvents={payableEvents}
         durations={durations.byTask[detail?.id ?? ""]}
@@ -378,66 +343,32 @@ function QuickAddSheet({
   open,
   onClose,
   shift,
-  beds,
-  defaultBedId,
-  now,
 }: {
   open: boolean;
   onClose: () => void;
   shift: ShiftRow;
-  beds: BedRow[];
-  defaultBedId: string;
-  now: number;
 }) {
   const notify = useApp((s) => s.notify);
-  const [bedId, setBedId] = useState(defaultBedId);
   const [title, setTitle] = useState("");
   const [tier, setTier] = useState<Tier>(3);
   const [category, setCategory] = useState<TaskCategory>("direct_care");
   const [minutes, setMinutes] = useState(15);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (open) setBedId(defaultBedId);
-  }, [open, defaultBedId]);
-
-  async function addPreset(preset: (typeof PRESETS)[number]) {
-    if (!bedId) return;
-    setBusy(true);
-    try {
-      await addQuickTask({
-        shiftId: shift.id,
-        bedId,
-        title: preset.title,
-        tier: preset.tier,
-        category: preset.category,
-        plannedFrom: Date.now() + preset.offsetMin * 60_000,
-        plannedTo: Date.now() + preset.offsetMin * 60_000 + preset.expectedMin * 60_000,
-      });
-      notify(`Added “${preset.title}” to ${beds.find((b) => b.id === bedId)?.alias ?? "bed"}.`, "success");
-      onClose();
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "Could not add task", "error");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function addCustom(event: React.FormEvent) {
     event.preventDefault();
-    if (!bedId || !title.trim()) return;
+    if (!title.trim()) return;
     setBusy(true);
     try {
       await addQuickTask({
         shiftId: shift.id,
-        bedId,
         title: title.trim(),
         tier,
         category,
         plannedFrom: Date.now(),
         plannedTo: Date.now() + minutes * 60_000,
       });
-      notify("Task added to the queue.", "success");
+      notify("Task added to the shift queue.", "success");
       setTitle("");
       onClose();
     } catch (error) {
@@ -448,98 +379,68 @@ function QuickAddSheet({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Quick add task" description="Two taps for a preset. Edit the bed or due time if needed.">
-      <div className="space-y-4">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Add a shift task"
+      description="Optional extra task. The agreed 12 tasks are created automatically."
+    >
+      <form onSubmit={addCustom} className="space-y-3">
         <div>
-          <label className="label" htmlFor="quick-bed">Bed</label>
-          <select id="quick-bed" className="input" value={bedId} onChange={(e) => setBedId(e.target.value)}>
-            {beds.map((b) => (
-              <option key={b.id} value={b.id}>{b.alias}</option>
-            ))}
-          </select>
+          <label className="label" htmlFor="quick-title">Title</label>
+          <input
+            id="quick-title"
+            className="input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Check infusion site"
+            maxLength={100}
+          />
         </div>
-
-        <div>
-          <p className="label">Presets</p>
-          <div className="grid grid-cols-2 gap-2">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.title}
-                onClick={() => void addPreset(preset)}
-                disabled={busy || !bedId}
-                className="min-h-[64px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-left hover:border-teal-300 hover:bg-teal-50/50 disabled:opacity-50"
-              >
-                <span className="block text-xs font-bold leading-tight text-slate-800">{preset.title}</span>
-                <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-slate-400">{preset.hint}</span>
-              </button>
-            ))}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="label" htmlFor="quick-tier">Priority tier</label>
+            <select id="quick-tier" className="input" value={tier} onChange={(e) => setTier(Number(e.target.value) as Tier)}>
+              <option value={1}>T1 · Life support</option>
+              <option value={2}>T2 · Time-critical</option>
+              <option value={3}>T3 · Scheduled</option>
+              <option value={4}>T4 · Indirect</option>
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="quick-cat">Category</label>
+            <select id="quick-cat" className="input" value={category} onChange={(e) => setCategory(e.target.value as TaskCategory)}>
+              <option value="direct_care">Direct care</option>
+              <option value="indirect_care">Indirect care</option>
+            </select>
           </div>
         </div>
-
-        <details className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-slate-700">
-            <SlidersHorizontal className="h-4 w-4" /> Custom task
-            <ChevronDown className="ml-auto h-4 w-4" />
-          </summary>
-          <form onSubmit={addCustom} className="mt-3 space-y-3">
-            <div>
-              <label className="label" htmlFor="quick-title">Title</label>
-              <input
-                id="quick-title"
-                className="input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Check infusion site"
-                maxLength={100}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="label" htmlFor="quick-tier">Priority tier</label>
-                <select id="quick-tier" className="input" value={tier} onChange={(e) => setTier(Number(e.target.value) as Tier)}>
-                  <option value={1}>T1 · Life support</option>
-                  <option value={2}>T2 · Time-critical</option>
-                  <option value={3}>T3 · Scheduled</option>
-                  <option value={4}>T4 · Indirect</option>
-                </select>
-              </div>
-              <div>
-                <label className="label" htmlFor="quick-cat">Category</label>
-                <select id="quick-cat" className="input" value={category} onChange={(e) => setCategory(e.target.value as TaskCategory)}>
-                  <option value="direct_care">Direct care</option>
-                  <option value="indirect_care">Indirect care</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="label" htmlFor="quick-due">Window end (minutes from now)</label>
-              <input
-                id="quick-due"
-                type="number"
-                min={0}
-                max={720}
-                className="input"
-                value={minutes}
-                onChange={(e) => setMinutes(Math.max(0, Number(e.target.value)))}
-              />
-            </div>
-            <button className="btn-primary w-full" disabled={busy || !title.trim() || !bedId}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Add custom task
-            </button>
-          </form>
-        </details>
+        <div>
+          <label className="label" htmlFor="quick-due">Window end (minutes from now)</label>
+          <input
+            id="quick-due"
+            type="number"
+            min={0}
+            max={720}
+            className="input"
+            value={minutes}
+            onChange={(e) => setMinutes(Math.max(0, Number(e.target.value)))}
+          />
+        </div>
+        <button className="btn-primary w-full" disabled={busy || !title.trim()}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          Add task
+        </button>
         <p className="text-[11px] leading-relaxed text-slate-500">
-          Do not enter patient names, MRNs or other identifiers in a task title. Use the bed nickname only.
+          Do not enter patient names, MRNs or other identifiers in a task title.
         </p>
-      </div>
+      </form>
     </Modal>
   );
 }
 
 function TaskDetail({
   task,
-  bedLabel,
   events,
   payableEvents,
   durations,
@@ -556,7 +457,6 @@ function TaskDetail({
   onCorrect,
 }: {
   task?: Task;
-  bedLabel?: string;
   events: DomainEvent[];
   payableEvents: DomainEvent[];
   durations?: { minutes: number; category: TaskCategory };
@@ -594,7 +494,7 @@ function TaskDetail({
       onClose={onClose}
       wide
       title={task.title}
-      description={`${bedLabel ?? (task.bedId ? "Bed" : "Shift task")} · ${task.category === "direct_care" ? "Direct care" : "Indirect care"} · ${formatTime(task.plannedFrom)} – ${formatTime(task.plannedTo)}`}
+      description={`Shift task · ${task.category === "direct_care" ? "Direct care" : "Indirect care"} · ${formatTime(task.plannedFrom)} – ${formatTime(task.plannedTo)}`}
     >
       <div className="flex flex-wrap items-center gap-2">
         <TierBadge tier={task.tier} />

@@ -56,16 +56,15 @@ function SummaryInner() {
 
   const shift = shiftBox?.shift;
   const data = useLive(
-    async (): Promise<{ events: DomainEvent[]; tasks: Task[]; handovers: HandoverRow[]; reviews: ReviewRow[]; beds: { id: string; alias: string }[] }> => {
-      if (!shift) return { events: [], tasks: [], handovers: [], reviews: [], beds: [] };
-      const [events, tasks, handovers, reviews, beds] = await Promise.all([
+    async (): Promise<{ events: DomainEvent[]; tasks: Task[]; handovers: HandoverRow[]; reviews: ReviewRow[] }> => {
+      if (!shift) return { events: [], tasks: [], handovers: [], reviews: [] };
+      const [events, tasks, handovers, reviews] = await Promise.all([
         db().events.where("shiftId").equals(shift.id).toArray(),
         db().tasks.where("shiftId").equals(shift.id).toArray(),
         db().handovers.where("shiftId").equals(shift.id).toArray(),
         db().reviews.where("shiftId").equals(shift.id).toArray(),
-        db().beds.where("shiftId").equals(shift.id).toArray(),
       ]);
-      return { events, tasks, handovers, reviews, beds };
+      return { events, tasks, handovers, reviews };
     },
     [shift?.id],
   );
@@ -116,7 +115,7 @@ function SummaryInner() {
     <AppShell
       title="Shift summary"
       subtitle={`${shift.type} shift${shift.unitName ? ` · ${shift.unitName}` : ""} · ${formatDateTime(shift.startedAt)}${shift.endedAt ? ` → ${formatTime(shift.endedAt)}` : " · still open"}`}
-      backHref={shift.endedAt ? "/me" : "/beds"}
+      backHref={shift.endedAt ? "/me" : "/tasks"}
       actions={
         <button className="btn-ghost hidden h-9 px-2 text-xs sm:inline-flex" onClick={() => window.print()}>
           <Printer className="h-4 w-4" /> Print
@@ -138,7 +137,7 @@ function SummaryInner() {
         <StatCard label="Direct care" value={formatMinutes(summary.directCareMin)} hint="Timed task minutes" tone="teal" icon={<Timer className="h-4 w-4" />} />
         <StatCard label="Indirect care" value={formatMinutes(summary.indirectCareMin)} hint="Charting, family, supplies" icon={<ClipboardCheck className="h-4 w-4" />} />
         <StatCard label="Interruptions" value={formatMinutes(summary.interruptionMin)} hint={`${summary.interruptionsByReason.reduce((s, i) => s + i.count, 0)} logged`} tone="amber" icon={<XCircle className="h-4 w-4" />} />
-        <StatCard label="Emergency" value={formatMinutes(summary.emergencyMin)} hint="On affected beds" tone="danger" icon={<Siren className="h-4 w-4" />} />
+        <StatCard label="Emergency" value={formatMinutes(summary.emergencyMin)} hint="Recorded emergency time" tone="danger" icon={<Siren className="h-4 w-4" />} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
@@ -291,7 +290,7 @@ function SummaryInner() {
               </>
             ) : (
               <>
-                <Link className="btn-secondary" href="/beds">Back to beds</Link>
+                <Link className="btn-secondary" href="/tasks">Back to tasks</Link>
                 <button className="btn-danger" onClick={() => setConfirmEnd(true)}>End shift</button>
               </>
             )}

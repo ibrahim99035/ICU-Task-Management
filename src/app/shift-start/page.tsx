@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BedDouble, Building2, Clock3, Loader2, Moon, Play, Sun, TriangleAlert } from "lucide-react";
+import {
+  ArrowRight,
+  Building2,
+  Clock3,
+  ListChecks,
+  Loader2,
+  Moon,
+  Play,
+  Sun,
+  TriangleAlert,
+} from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { InlineAlert } from "@/components/ui";
+import { InlineAlert, TierBadge } from "@/components/ui";
 import { fetchUnits } from "@/lib/api";
 import { activeShift, cachedUnits, setCachedUnits, type ShiftRow } from "@/lib/db";
-import { DEMO_BEDS, DEMO_TEMPLATES } from "@/lib/demo-data";
-import { cn } from "@/lib/format";
+import { NURSE_TEMPLATES } from "@/lib/demo-data";
+import { cn, formatMinutes } from "@/lib/format";
 import { useLive } from "@/lib/hooks";
 import { endShift, startShift } from "@/lib/actions";
 import { useApp } from "@/lib/store";
@@ -25,7 +35,6 @@ export default function ShiftStartPage() {
     [user?.id],
   );
   const [type, setType] = useState<"day" | "night" | "custom">("day");
-  const [selected, setSelected] = useState<string[]>(DEMO_BEDS.map((b) => b.id));
   const [backdate, setBackdate] = useState(true);
   const [busy, setBusy] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -75,16 +84,8 @@ export default function ShiftStartPage() {
     };
   }, [user, online, token]);
 
-  const selectedBeds = useMemo(
-    () => DEMO_BEDS.filter((b) => selected.includes(b.id)),
-    [selected],
-  );
   const selectedUnit = units.find((unit) => unit.id === unitId);
-  const bedTaskCount = selectedBeds.reduce((sum, bed) => sum + bed.templateIds.length, 0);
-  const shiftTaskCount = DEMO_TEMPLATES.filter(
-    (template) => template.role === "nurse" && template.scope === "shift" && template.active,
-  ).length;
-  const taskCount = bedTaskCount + shiftTaskCount;
+  const taskCount = NURSE_TEMPLATES.length;
 
   async function begin() {
     if (!user) return;
@@ -94,20 +95,16 @@ export default function ShiftStartPage() {
     }
     setBusy(true);
     try {
-      await startShift(
-        user,
-        { id: selectedUnit.id, name: selectedUnit.name },
-        type,
-        selectedBeds.map((b) => ({ id: b.id, label: b.label, alias: b.alias, templateIds: b.templateIds })),
-        { backdateMin: backdate ? 120 : 0 },
-      );
+      await startShift(user, { id: selectedUnit.id, name: selectedUnit.name }, type, {
+        backdateMin: backdate ? 120 : 0,
+      });
       notify(
         backdate
           ? "Demo shift started 2 hours ago so overdue and priority states are visible."
-          : "Shift started. Tasks are loaded from demo orders.",
+          : `Shift started. ${taskCount} staff-nurse tasks are ready in To Do.`,
         "success",
       );
-      router.push("/beds");
+      router.push("/tasks");
     } catch (error) {
       notify(error instanceof Error ? error.message : "Could not start shift", "error");
     } finally {
@@ -129,7 +126,11 @@ export default function ShiftStartPage() {
   }
 
   return (
-    <AppShell title="Start a shift" subtitle="Choose shift type and beds. Demo orders replace EHR sync." backHref="/beds">
+    <AppShell
+      title="Start a shift"
+      subtitle="Choose your unit and shift type. The agreed task list loads automatically."
+      backHref="/tasks"
+    >
       <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
         <div className="space-y-4">
           {existing ? (
@@ -140,7 +141,7 @@ export default function ShiftStartPage() {
                 {new Date(existing.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button className="btn-primary" onClick={() => router.push("/beds")}>
+                <button className="btn-primary" onClick={() => router.push("/tasks")}>
                   Continue shift <ArrowRight className="h-4 w-4" />
                 </button>
                 <button className="btn-secondary" onClick={finishExisting} disabled={ending}>
@@ -217,55 +218,6 @@ export default function ShiftStartPage() {
             </div>
           </section>
 
-          <section className="card p-5">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-base font-bold text-ink">Beds</h2>
-                <p className="text-xs text-slate-500">Demo bed nicknames. No patient names or identifiers.</p>
-              </div>
-              <button
-                className="btn-ghost h-9 px-2 text-xs"
-                onClick={() =>
-                  setSelected(selected.length === DEMO_BEDS.length ? [] : DEMO_BEDS.map((b) => b.id))
-                }
-              >
-                {selected.length === DEMO_BEDS.length ? "Clear" : "Select all"}
-              </button>
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {DEMO_BEDS.map((bed) => {
-                const checked = selected.includes(bed.id);
-                return (
-                  <button
-                    key={bed.id}
-                    onClick={() =>
-                      setSelected((prev) => (checked ? prev.filter((id) => id !== bed.id) : [...prev, bed.id]))
-                    }
-                    className={cn(
-                      "flex min-h-[58px] items-center gap-3 rounded-xl border px-3 text-left",
-                      checked ? "border-teal-400 bg-teal-50/60" : "border-slate-200 bg-white hover:bg-slate-50",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "grid h-5 w-5 place-items-center rounded-md border text-white",
-                        checked ? "border-teal-600 bg-teal-600" : "border-slate-300 bg-white",
-                      )}
-                      aria-hidden
-                    >
-                      {checked ? "✓" : ""}
-                    </span>
-                    <BedDouble className={cn("h-4 w-4", checked ? "text-teal-600" : "text-slate-400")} aria-hidden />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-slate-800">{bed.alias}</span>
-                      <span className="text-[11px] text-slate-500">{bed.templateIds.length} demo tasks</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
           <label className="card flex cursor-pointer items-start gap-3 p-4">
             <input
               type="checkbox"
@@ -285,29 +237,56 @@ export default function ShiftStartPage() {
           <button
             className="btn-primary w-full text-base"
             onClick={begin}
-            disabled={busy || existing !== null || selectedBeds.length === 0 || !selectedUnit}
+            disabled={busy || existing !== null || !selectedUnit}
           >
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
             {existing === undefined
               ? "Checking active shift…"
-              : `Start ${type} shift · ${selectedUnit?.name ?? "choose a unit"} · ${selectedBeds.length} beds · ${taskCount} tasks`}
+              : `Start ${type} shift · ${selectedUnit?.name ?? "choose a unit"} · ${taskCount} tasks`}
           </button>
         </div>
 
         <div className="space-y-4">
           <InlineAlert tone="warning" title="Demo content needs clinical review">
-            Task names, intervals, expected minutes and priority tiers are illustrative. An nurse must
-            review them before this is used in teaching or simulation.
+            Task names, intervals, expected minutes and priority tiers are illustrative. A nurse must review
+            them before this is used in teaching or simulation.
           </InlineAlert>
+
+          <section className="card p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
+                <ListChecks className="h-4 w-4" /> Your {taskCount} tasks
+              </h3>
+              <span className="pill bg-teal-50 text-teal-800">To Do</span>
+            </div>
+            <ol className="mt-3 space-y-2">
+              {NURSE_TEMPLATES.map((template, index) => (
+                <li key={template.id} className="flex items-start gap-2 text-sm text-slate-700">
+                  <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block leading-snug">{template.name}</span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-400">
+                      <TierBadge tier={template.tier} compact />
+                      {formatMinutes(template.expectedMin)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+
           <div className="card p-5">
             <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">How this demo works</h3>
             <ul className="mt-3 space-y-2 text-sm text-slate-600">
-              <li>• Tasks enter the queue at their due time from demo orders.</li>
-              <li>• Tier 1–2 are never auto-deferred. Tier 3–4 can be deferred by an emergency.</li>
+              <li>• The 12 agreed staff-nurse tasks are created automatically.</li>
+              <li>• Tier 1–2 are never auto-deferred.</li>
               <li>• Every tap is stored on this device first. The sync chip shows pending work.</li>
               <li>• Ratings are written by the head nurse; the app never computes a nurse score.</li>
             </ul>
           </div>
+
           <div className="card border-danger-100 bg-danger-50/40 p-5">
             <p className="flex items-center gap-2 text-sm font-bold text-danger-800">
               <TriangleAlert className="h-4 w-4" /> Safety boundary

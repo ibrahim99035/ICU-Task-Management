@@ -17,6 +17,7 @@ import {
   type Tier,
   DEFAULT_CONFIG,
   INTERRUPTION_LABELS,
+  SHIFT_HANDOVER_ID,
   domainEventSchema,
 } from "./types";
 
@@ -740,15 +741,18 @@ export function buildHandover(
 ): HandoverSnapshot {
   const state = reduce(events);
   const durations = computeDurations(events, now);
+  const shiftLevel = bed.id === SHIFT_HANDOVER_ID;
+  const allTasks = Object.values(state.tasks);
   const tasks = sortTasks(
-    Object.values(state.tasks).filter((t) => t.bedId === bed.id),
+    shiftLevel ? allTasks : allTasks.filter((t) => t.bedId === bed.id),
     now,
   );
-  const shiftTasks = sortTasks(
-    Object.values(state.tasks).filter((t) => t.scope === "shift"),
-    now,
-  );
-  const interruptions = state.interruptions.filter((i) => i.bedId === bed.id);
+  const shiftTasks = shiftLevel
+    ? []
+    : sortTasks(allTasks.filter((t) => t.scope === "shift"), now);
+  const interruptions = shiftLevel
+    ? state.interruptions
+    : state.interruptions.filter((i) => i.bedId === bed.id);
   const grouped = new Map<InterruptionReason, { count: number; minutes: number }>();
   for (const item of interruptions) {
     const prev = grouped.get(item.reason) ?? { count: 0, minutes: 0 };
@@ -758,7 +762,7 @@ export function buildHandover(
     });
   }
   const emergencyMin = state.emergencies
-    .filter((e) => e.bedId === bed.id)
+    .filter((e) => shiftLevel || e.bedId === bed.id)
     .reduce((sum, e) => sum + Math.max(0, (e.endedAt ?? now) - e.startedAt) / MINUTE, 0);
   const range = (statuses: TaskStatus[]) =>
     tasks.filter((t) => statuses.includes(t.status)).map(toHandoverTask);

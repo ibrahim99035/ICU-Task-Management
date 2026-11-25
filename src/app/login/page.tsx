@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
+  ClipboardCheck,
   KeyRound,
   Loader2,
   ShieldCheck,
@@ -42,7 +43,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (hydrated && user) {
       router.replace(
-        mode === "register" ? "/shift-start" : user.role === "head_nurse" ? "/head" : "/beds",
+        mode === "register" ? "/shift-start" : user.role === "head_nurse" ? "/head" : "/tasks",
       );
     }
   }, [hydrated, user, router, mode]);
@@ -74,10 +75,23 @@ export default function LoginPage() {
       } else {
         await login(username.trim().toLowerCase(), pin);
         const next = useApp.getState().user;
-        router.replace(next?.role === "head_nurse" ? "/head" : "/beds");
+        router.replace(next?.role === "head_nurse" ? "/head" : "/tasks");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not continue");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function quickLogin(demoUsername: string, pin: string, role: "nurse" | "head_nurse") {
+    setBusy(true);
+    setError("");
+    try {
+      await login(demoUsername, pin);
+      router.replace(role === "head_nurse" ? "/head" : "/tasks");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign in");
     } finally {
       setBusy(false);
     }
@@ -89,7 +103,7 @@ export default function LoginPage() {
     try {
       if (await resumeOffline()) {
         const next = useApp.getState().user;
-        router.replace(next?.role === "head_nurse" ? "/head" : "/beds");
+        router.replace(next?.role === "head_nurse" ? "/head" : "/tasks");
       } else {
         setError("No saved session on this device.");
       }
@@ -148,6 +162,43 @@ export default function LoginPage() {
             </h2>
           </div>
           <div className="card p-5 sm:p-7">
+            <div className="mb-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700">Fast demo login</p>
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => void quickLogin("amina", "1111", "nurse")}
+                  disabled={busy}
+                  className="flex min-h-[72px] items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50/70 px-3 text-left transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-60"
+                >
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-teal-600 text-white">
+                    <UserRound className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-extrabold text-teal-950">Enter as Nurse</span>
+                    <span className="block text-[11px] text-teal-800/70">Amina · one tap</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void quickLogin("head", "9999", "head_nurse")}
+                  disabled={busy}
+                  className="flex min-h-[72px] items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50/70 px-3 text-left transition hover:border-violet-400 hover:bg-violet-50 disabled:opacity-60"
+                >
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
+                    <ClipboardCheck className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-extrabold text-violet-950">Enter as Head nurse</span>
+                    <span className="block text-[11px] text-violet-800/70">Layla · one tap</span>
+                  </span>
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                Demo only. Use the form below for another account or to create a nurse account.
+              </p>
+            </div>
+
             <div
               role="tablist"
               aria-label="Account access"
@@ -333,9 +384,9 @@ export default function LoginPage() {
 
             {mode === "login" ? (
               <div className="mt-6 border-t border-slate-100 pt-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Demo accounts</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Other demo accounts</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {DEMO_ACCOUNTS.map((account) => (
+                  {DEMO_ACCOUNTS.filter((account) => account.username === "yara" || account.username === "omar").map((account) => (
                     <button
                       key={account.username}
                       type="button"

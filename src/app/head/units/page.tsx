@@ -53,7 +53,7 @@ export default function HeadUnitsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user && user.role !== "head_nurse") router.replace("/beds");
+    if (user && user.role !== "head_nurse") router.replace("/tasks");
     if (!user) router.replace("/login");
   }, [user, router]);
 

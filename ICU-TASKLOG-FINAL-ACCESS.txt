@@ -1,0 +1,68 @@
+ICU TASKLOG — FINAL LINKS AND ACCOUNTS
+Last updated: 2026-11-26
+
+============================================================
+LIVE APP
+============================================================
+App:       https://icu-tasklog.vercel.app
+Login:     https://icu-tasklog.vercel.app/login
+Tasks:     https://icu-tasklog.vercel.app/tasks
+Plan:      https://icu-tasklog.vercel.app/plan
+Handover:  https://icu-tasklog.vercel.app/handover
+Me:        https://icu-tasklog.vercel.app/me
+Head:      https://icu-tasklog.vercel.app/head
+Head tasks: https://icu-tasklog.vercel.app/head/tasks
+Health:    https://icu-tasklog.vercel.app/api/health
+
+============================================================
+DEMO ACCOUNTS
+============================================================
+Role          Username   PIN    Assigned unit   Fast-login button
+-------------------------------------------------------------
+Nurse         amina      1111   Unit A          Enter as Nurse
+Head nurse    head       9999   All units       Enter as Head nurse
+Nurse         yara       2222   Unit A + Unit B —
+Nurse         omar       3333   Unit B          —
+
+Extra browser-check account:
+  checknurse24 / 2468  (Unit A; test-only, safe to ignore)
+
+Head-nurse screens are online-only.
+Nurse actions are saved on the device first and synced later.
+There are no bed tasks, bed screens, or patient-identifier fields.
+
+============================================================
+EVIDENCE THIS RELEASE
+============================================================
+- TypeScript clean (npx tsc --noEmit)
+- Product-rule lint passed: 52 source files / 5 domain files
+- Domain tests: 33/33 passed (npm test)
+- API integration checks: 56/56 passed (npm run test:api, local Docker Postgres)
+- Playwright end-to-end: 13/13 passed in 1.9m (fast login, role routing,
+  privacy, 12-task queue, To Do/Time Log, shift-level handover, 14-task head
+  list, 16-hour auto-end, units)
+- Web build: success, 21 routes including the /api/[[...route]] route
+- Mobile static export: success, 21 pages; src/app/api restored
+- Production demo DB reset and re-seeded: 26 templates (12 nurse / 14 head),
+  0 beds, 14 simulated shifts, 604 events, 14 shift handovers
+
+============================================================
+APK
+============================================================
+The demo target for this release is the web app at https://icu-tasklog.vercel.app.
+A new Android APK for this shift-task/alarm release has NOT been produced or
+verified in this workspace. The older artifact from GitHub Actions run
+45423196910 (commit bd9e814) still exists but predates this release:
+  Artifact name: icu-tasklog-debug-apk
+  ZIP: 4,882,751 bytes
+  SHA-256: sha256:4fbcd2651fb63109a383492eaf778db36a2710a1d82d06aa8980a974390f50e4
+  Expires: 2026-12-24
+Physical Android installation/opening remains NOT VERIFIED.
+
+============================================================
+SCOPE
+============================================================
+Not a medical device. Rule-based logic only. No AI/ML. No computed score,
+ranking or leaderboard. Tier 1–2 tasks are never auto-deferred. The foreground
+alarm rings only while the app is open; background notifications/push are out of
+scope. Foreground alarm settings and a Test alarm button are on the Me screen.

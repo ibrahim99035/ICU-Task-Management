@@ -7,7 +7,7 @@ import { PlanningBoard } from "@/components/planning-board";
 import { TaskEditModal } from "@/components/task-edit-modal";
 import type { Task } from "@/domain";
 import { addPlannedTask, completeTask, editTask, logTaskTime } from "@/lib/actions";
-import { activeShift, db, type BedRow } from "@/lib/db";
+import { activeShift, db } from "@/lib/db";
 import { useLive, useNow } from "@/lib/hooks";
 import { useApp } from "@/lib/store";
 
@@ -22,12 +22,9 @@ export default function PlanPage() {
     async () => {
       if (!user) return undefined;
       const shift = await activeShift(user.id);
-      if (!shift) return { shift: null, tasks: [] as Task[], beds: [] as BedRow[] };
-      const [tasks, beds] = await Promise.all([
-        db().tasks.where("shiftId").equals(shift.id).toArray(),
-        db().beds.where("shiftId").equals(shift.id).toArray(),
-      ]);
-      return { shift, tasks, beds };
+      if (!shift) return { shift: null, tasks: [] as Task[] };
+      const tasks = await db().tasks.where("shiftId").equals(shift.id).toArray();
+      return { shift, tasks };
     },
     [user?.id],
   );
@@ -40,23 +37,22 @@ export default function PlanPage() {
     if (data && data.shift === null) router.replace("/shift-start");
   }, [data, router]);
 
-  if (!data) return <AppShell title="Plan and log"><div /></AppShell>;
-  if (!data.shift) return <AppShell title="Plan and log" subtitle="No active shift"><div /></AppShell>;
+  if (!data) return <AppShell title="To Do / Time Log"><div /></AppShell>;
+  if (!data.shift) return <AppShell title="To Do / Time Log" subtitle="No active shift"><div /></AppShell>;
 
   return (
     <AppShell
-      title="Plan and log"
+      title="To Do / Time Log"
       subtitle={`${data.shift.unitName ?? "Unassigned"} · To do is future · Time log is past`}
       activeOverride="/plan"
     >
       <PlanningBoard
         role="nurse"
         tasks={data.tasks}
-        beds={data.beds}
         shiftStartedAt={data.shift.startedAt}
         now={now}
         onCreate={async (input) => {
-          await addPlannedTask({ shiftId: data.shift!.id, ...input });
+          await addPlannedTask({ shiftId: data.shift!.id, scope: "shift", ...input });
           notify("Task added to the To do list.", "success");
         }}
         onLogTime={async (task, startedAt, endedAt, note) => {
