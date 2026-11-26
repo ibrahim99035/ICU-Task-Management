@@ -10,10 +10,11 @@ import {
   MessageSquare,
   Pause,
   Play,
+  Pencil,
   Star,
   TimerReset,
 } from "lucide-react";
-import type { Task } from "@/domain";
+import { isTaskEditable, type Task } from "@/domain";
 import { cn, windowLabel, formatElapsed, formatTime, tierStyle } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { TierBadge } from "./ui";
@@ -30,6 +31,7 @@ export function TaskCard({
   onTickDone,
   onPin,
   onOpen,
+  onEdit,
 }: {
   task: Task;
   now: number;
@@ -42,6 +44,7 @@ export function TaskCard({
   onTickDone?: () => void;
   onPin?: () => void;
   onOpen?: () => void;
+  onEdit?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const due = windowLabel(task.plannedFrom, task.plannedTo, now);
@@ -194,6 +197,17 @@ export function TaskCard({
             aria-label={task.pinned ? "Unpin task" : "Pin task"}
           >
             <Star className={cn("h-3.5 w-3.5", task.pinned && "fill-amber-400 text-amber-500")} />
+          </button>
+        ) : null}
+        {onEdit ? (
+          <button
+            onClick={() => void run(onEdit)}
+            className="grid h-7 w-7 place-items-center rounded-lg text-slate-300 hover:bg-teal-50 hover:text-teal-600"
+            aria-label={`Edit ${task.title}`}
+            title="Edit task"
+            disabled={busy || !isTaskEditable(task.status)}
+          >
+            <Pencil className={cn("h-3.5 w-3.5", !isTaskEditable(task.status) && "text-slate-400")} />
           </button>
         ) : null}
         {onOpen ? <ChevronRight className="h-4 w-4 text-slate-300" aria-hidden /> : null}

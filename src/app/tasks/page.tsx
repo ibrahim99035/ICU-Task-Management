@@ -240,6 +240,7 @@ function TasksInner() {
               onTickDone={task.status === "planned" ? () => setTickTarget(task) : undefined}
               onPin={() => guard(() => pinTask(task.id, !task.pinned))}
               onOpen={() => setDetailId(task.id)}
+              onEdit={() => setEditTarget(task)}
             />
           ))
         ) : (
