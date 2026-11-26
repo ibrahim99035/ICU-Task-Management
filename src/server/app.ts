@@ -811,10 +811,9 @@ app.patch("/shifts/:shiftId/tasks/:taskId", async (c) => {
     .where(eq(schema.shifts.id, shiftId))
     .limit(1);
   if (!shift) return c.json({ error: "Shift not found" }, 404);
-  if (auth.role === "nurse" && shift.userId !== auth.id) {
-    return c.json({ error: "A nurse cannot alter another nurse's task" }, 403);
-  }
 
+  // Any authenticated user can alter any unfinished task in any shift,
+  // regardless of who created or owns it.
   const rows = await db
     .select()
     .from(schema.events)

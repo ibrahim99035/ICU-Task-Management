@@ -431,6 +431,21 @@ async function main() {
   });
   check("head can alter an unfinished task", headPatch.status === 200, headPatch.status);
 
+  // Cross-nurse: a different nurse can alter a task in another nurse's shift
+  const otherNursePatch = await req(`/api/shifts/${editShiftId}/tasks/${editTaskId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${newSession.token}`,
+    },
+    body: JSON.stringify({ note: "Edited by a different nurse" }),
+  });
+  check(
+    "nurse can alter another nurse's unfinished task",
+    otherNursePatch.status === 200,
+    otherNursePatch.status,
+  );
+
   const finishedPatch = await req(`/api/shifts/api-test-shift/tasks/api-task-1`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${head.token}` },
@@ -446,8 +461,8 @@ async function main() {
     (event) => event.type === "TASK_EDITED" && event.taskId === editTaskId,
   );
   check(
-    "nurse pull includes edits made by both roles",
-    editPull.status === 200 && editEventsPulled.length === 2,
+    "nurse pull includes edits made by multiple roles",
+    editPull.status === 200 && editEventsPulled.length === 3,
     editEventsPulled.length,
   );
 
