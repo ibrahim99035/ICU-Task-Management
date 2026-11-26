@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICU TaskLog — Visual Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.5; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  header { background: #0f172a; color: #fff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; }
+  header h1 { font-size: 1.5rem; margin-bottom: 8px; }
+  header p { font-size: 0.9rem; opacity: 0.9; }
+
+  nav.toc { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 24px; }
+  nav.toc h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 12px; }
+  nav.toc ol { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+  nav.toc li { margin: 0; }
+  nav.toc a { text-decoration: none; color: #2563eb; font-size: 0.85rem; padding: 6px 10px; border: 1px solid #bfdbfe; border-radius: 6px; background: #eff6ff; }
+  nav.toc a:hover { background: #dbeafe; }
+
+  section { margin-bottom: 32px; }
+  section h2 { font-size: 1.1rem; color: #0f172a; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #cbd5e1; }
+  section h3 { font-size: 0.95rem; color: #334155; margin: 16px 0 8px; }
+
+  .step { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; page-break-inside: avoid; }
+  .step .step-meta { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .step .badge { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+  .badge-nurse { background: #dcfce7; color: #166534; }
+  .badge-head { background: #dbeafe; color: #1e40af; }
+  .badge-public { background: #f1f5f9; color: #334155; }
+
+  .step-img { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; margin-top: 10px; }
+  .step-img img { width: 100%; height: auto; display: block; border-radius: 6px; }
+  .step-desc { font-size: 0.85rem; color: #475569; margin-top: 8px; }
+  .step-desc b { color: #1e293b; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+  .callout { background: #fef3c7; border-left: 4px solid #d97706; padding: 12px 16px; border-radius: 6px; margin: 16px 0; font-size: 0.85rem; }
+  .callout-blue { background: #dbeafe; border-left-color: #2563eb; }
+  .footer { margin-top: 32px; padding: 24px; background: #0f172a; color: #94a3b8; border-radius: 10px; text-align: center; font-size: 0.8rem; }
+  .footer a { color: #60a5fa; text-decoration: none; }
+
+  @media print { body { background: #fff; } .step { border: none; box-shadow: none; break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>ICU TaskLog — Visual Guide</h1>
+    <p>Step-by-step screenshots of every screen, branch, and scenario &bull; Nurse flow + Head-nurse flow + Public pages</p>
+  </header>
+
+  <nav class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#login">Login &amp; Auth</a></li>
+      <li><a href="#nurse-shift-start">Nurse: Shift Start</a></li>
+      <li><a href="#nurse-tasks">Nurse: Tasks Queue</a></li>
+      <li><a href="#nurse-plan">Nurse: Plan / To Do &amp; Time Log</a></li>
+      <li><a href="#nurse-handover">Nurse: Handover</a></li>
+      <li><a href="#nurse-me">Nurse: Me / Alarm Settings</a></li>
+      <li><a href="#nurse-summary">Nurse: Summary &amp; Shift End</a></li>
+      <li><a href="#head">Head Nurse</a></li>
+      <li><a href="#public">Public</a></li>
+    </ol>
+  </nav>
+
+  <!-- LOGIN -->
+  <section id="login">
+    <h2>1. Login &amp; Authentication</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-public">Public</span></div>
+      <h3>Login page — fast demo buttons</h3>
+      <div class="step-img"><img src="screenshots/01-00-login-fast-buttons.png" alt="Login page with fast demo buttons"></div>
+      <p class="step-desc">One-tap <b>Enter as Nurse</b> (Amina · 1111) and <b>Enter as Head nurse</b> (Layla · 9999) buttons for the demo. Manual username/PIN form and self-registration are also available.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Fast nurse login redirect</h3>
+      <div class="step-img"><img src="screenshots/02-01-login-fast-nurse-redirect.png" alt="Fast nurse login redirect"></div>
+      <p class="step-desc">One-tap nurse login lands the user directly on the shift-start screen with the active session.</p>
+    </div>
+  </section>
+
+  <!-- NURSE SHIFT START -->
+  <section id="nurse-shift-start">
+    <h2>2. Nurse: Shift Start</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Unit selection</h3>
+      <div class="step-img"><img src="screenshots/03-02-shift-start-unit-selection.png" alt="Shift start unit selection"></div>
+      <p class="step-desc">The nurse chooses their assigned head-nurse unit. Tasks created in this shift belong to the selected unit. If no unit is assigned, the nurse is asked to contact the head nurse.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Unit selected + backdate option</h3>
+      <div class="step-img"><img src="screenshots/04-03-shift-start-unit-selected.png" alt="Unit selected, backdate option visible"></div>
+      <p class="step-desc">Unit A is selected, enabling the start button. The <b>Demo: start 2 hours ago</b> checkbox backdates the shift so overdue states and tier ordering are visible immediately for teaching/demo. Turn it off for a live shift.</p>
+    </div>
+  </section>
+
+  <!-- NURSE TASKS -->
+  <section id="nurse-tasks">
+    <h2>3. Nurse: Tasks Queue (/tasks)</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Task queue — open filter</h3>
+      <div class="step-img"><img src="screenshots/05-04-tasks-to-do-tab.png" alt="Task queue open filter"></div>
+      <p class="step-desc">Tier-sorted task queue (T1/T2 first). Each task shows title, tier, expected minutes, and planned window computed from shift start. Filter buttons: Open, Overdue, Deferred, Done.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Active timer (task in progress)</h3>
+      <div class="step-img"><img src="screenshots/06-05-tasks-active-timer.png" alt="Active task timer"></div>
+      <p class="step-desc">Starting a task shows a sticky active timer bar. Duration is computed from stored timestamps, not in-memory counters.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Task finished</h3>
+      <div class="step-img"><img src="screenshots/07-06-tasks-task-finished.png" alt="Task finished state"></div>
+      <p class="step-desc">Finishing a task records completion time from the stored timestamp and moves it to Done.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Quick add task</h3>
+      <div class="step-img"><img src="screenshots/08-07-tasks-quick-add-open.png" alt="Quick add task sheet open"></div>
+      <p class="step-desc">Quick-add sheet creates a custom shift-level task. The title is free text — the UI warns against entering patient names or identifiers.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Filter: Overdue</h3>
+      <div class="step-img"><img src="screenshots/09-08-tasks-filter-overdue.png" alt="Overdue filter"></div>
+      <p class="step-desc">Overdue view shows tasks whose planned end has passed while still not done. Tier 1–2 tasks are never auto-deferred.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Filter: Done</h3>
+      <div class="step-img"><img src="screenshots/10-09-tasks-filter-done.png" alt="Done filter"></div>
+      <p class="step-desc">Done view shows completed and missed tasks with timestamps.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Filter: Open (back to default)</h3>
+      <div class="step-img"><img src="screenshots/11-10-tasks-filter-open.png" alt="Open filter"></div>
+      <p class="step-desc">Returning to the Open filter shows only planned/in-progress/paused tasks — the active work queue.</p>
+    </div>
+  </section>
+
+  <!-- NURSE PLAN -->
+  <section id="nurse-plan">
+    <h2>4. Nurse: Plan — To Do / Time Log (/plan)</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>To Do / Time Log board</h3>
+      <div class="step-img"><img src="screenshots/12-11-plan-to-do-time-log.png" alt="Plan board with To Do and Time Log"></div>
+      <p class="step-desc"><b>To Do</b> is future work (create planned tasks). <b>Time Log</b> is past work (record time intervals from stored start/end times). Duration is computed from stored timestamps.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Edit task / add note modal</h3>
+      <div class="step-img"><img src="screenshots/13-12-plan-task-edit-modal.png" alt="Task edit modal with note field"></div>
+      <p class="step-desc">Editing an unfinished task or adding a note appends a <b>TASK_EDITED</b> audit event. Done/missed tasks are locked (409). The note carries through to handover and the head-nurse timeline.</p>
+    </div>
+  </section>
+
+  <!-- NURSE HANDOVER -->
+  <section id="nurse-handover">
+    <h2>5. Nurse: Shift-Level Handover (/handover)</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Handover draft (no prior shift)</h3>
+      <div class="step-img"><img src="screenshots/14-13-handover-draft.png" alt="Handover draft page"></div>
+      <p class="step-desc">One shift-level handover covering all tasks (synthetic id <code>shift</code>). Built from the stored event log — nothing is invented.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Finalize handover dialog</h3>
+      <div class="step-img"><img src="screenshots/15-14-handover-finalize-dialog.png" alt="Confirm finalize handover dialog"></div>
+      <p class="step-desc">Confirmation dialog before finalizing. The snapshot becomes immutable — it cannot be overwritten, only copied or printed.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Handover finalized</h3>
+      <div class="step-img"><img src="screenshots/16-15-handover-finalized.png" alt="Finalized handover page"></div>
+      <p class="step-desc">Finalized handover shows a timestamp, copy/share/print options, and a disclaimer that it does not replace the official clinical handover.</p>
+    </div>
+  </section>
+
+  <!-- NURSE ME -->
+  <section id="nurse-me">
+    <h2>6. Nurse: Me / Alarm Settings (/me)</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Alarm settings</h3>
+      <div class="step-img"><img src="screenshots/17-16-me-alarm-settings.png" alt="Me page with alarm settings"></div>
+      <p class="step-desc">Foreground task alarm: on/off toggle, <b>Test alarm</b> button. When an open task reaches its planned end, the app beeps (Web Audio) and vibrates where supported, with a persistent overdue badge. Foreground only — background push is out of scope.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Test alarm feedback</h3>
+      <div class="step-img"><img src="screenshots/18-17-me-test-alarm-feedback.png" alt="Test alarm feedback toast"></div>
+      <p class="step-desc">Test alarm plays the beep and shows confirmation feedback. Audio is unlocked by the first user gesture (tap/key press).</p>
+    </div>
+  </section>
+
+  <!-- NURSE SUMMARY -->
+  <section id="nurse-summary">
+    <h2>7. Nurse: Summary &amp; Shift End (/summary)</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Summary — no active shift</h3>
+      <div class="step-img"><img src="screenshots/19-18-summary-no-active-shift.png" alt="Summary page with no active shift"></div>
+      <p class="step-desc">When no shift is active, the summary page prompts the user to start a shift.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>End shift confirmation</h3>
+      <div class="step-img"><img src="screenshots/20-19-summary-end-shift-confirm.png" alt="End shift confirmation dialog"></div>
+      <p class="step-desc">Confirming shift end marks all remaining planned/in-progress/paused tasks as <b>missed</b> and freezes the timestamp-based summary.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-nurse">Nurse</span></div>
+      <h3>Shift ended</h3>
+      <div class="step-img"><img src="screenshots/21-20-summary-finished.png" alt="Finished shift summary"></div>
+      <p class="step-desc">Final summary shows done/missed counts, durations computed from stored timestamps, and the shift is preserved as read-only history. The next shift starts with a fresh 12-task plan.</p>
+    </div>
+  </section>
+
+  <!-- HEAD NURSE -->
+  <section id="head">
+    <h2>8. Head Nurse</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>Fast head-nurse login redirect</h3>
+      <div class="step-img"><img src="screenshots/22-21-login-fast-head-buttons.png" alt="Head nurse login page"></div>
+      <p class="step-desc">One-tap <b>Enter as Head nurse</b> (Layla · 9999) redirects to the head-nurse unit dashboard.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>Unit dashboard</h3>
+      <div class="step-img"><img src="screenshots/23-22-login-fast-head-redirect.png" alt="Head nurse unit dashboard"></div>
+      <p class="step-desc">Head-nurse dashboard showing unit-level metrics, tier 1–2 on-time rate, completion rate, and direct/indirect care minutes.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>Shift list</h3>
+      <div class="step-img"><img src="screenshots/24-23-head-dashboard.png" alt="Head nurse shift list"></div>
+      <p class="step-desc">List of all shifts with unit, status, and review state. Head-nurse shifts are excluded from nurse analytics and CSV export.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>My tasks — head-nurse own shift</h3>
+      <div class="step-img"><img src="screenshots/25-24-head-shift-list.png" alt="Head nurse tasks page"></div>
+      <p class="step-desc">Separate head-nurse shift with the exact 14-task list. Online-only — head-nurse task management requires the API.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>Units management</h3>
+      <div class="step-img"><img src="screenshots/26-25-head-tasks-my-tasks.png" alt="Head nurse units management"></div>
+      <p class="step-desc">Create units, assign nurses to units, and manage unit status. Nurse assignment determines which shifts a nurse can start.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>Five manual 1–5 ratings</h3>
+      <div class="step-img"><img src="screenshots/27-26-head-units-management.png" alt="Head nurse review ratings form"></div>
+      <p class="step-desc">Head-nurse ratings are five manual 1–5 criteria. No computed performance score, ranking, or leaderboard.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>CSV export</h3>
+      <div class="step-img"><img src="screenshots/28-27-head-review-ratings.png" alt="CSV export page"></div>
+      <p class="step-desc">Export shift data to CSV with unit columns. Can filter by unit. Nurse shifts and head-nurse shifts are separate exports.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>Shift detail &amp; event timeline</h3>
+      <div class="step-img"><img src="screenshots/29-28-head-export-csv.png" alt="Head nurse shift detail with event timeline"></div>
+      <p class="step-desc">Shift detail shows the full event timeline (shift started, tasks created, tasks edited, time logged, shift ended). Null event IDs are normalized for reduction.</p>
+    </div>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-head">Head Nurse</span></div>
+      <h3>Shift detail &amp; event timeline (continued)</h3>
+      <div class="step-img"><img src="screenshots/30-29-head-shift-detail-timeline.png" alt="Head nurse shift detail timeline"></div>
+      <p class="step-desc">Head-nurse shift detail page showing the shift's full event timeline and task states.</p>
+    </div>
+  </section>
+
+  <!-- PUBLIC -->
+  <section id="public">
+    <h2>9. Public</h2>
+    <div class="step">
+      <div class="step-meta"><span class="badge badge-public">Public</span></div>
+      <h3>Privacy &amp; data notice</h3>
+      <div class="step-img"><img src="screenshots/31-30-privacy-notice.png" alt="Privacy notice page"></div>
+      <p class="step-desc">Persistent disclaimer visible throughout: not a medical device, no patient identifiers (names, MRNs, DOB, photos), beds are number + nickname only, rule-based logic only, no AI/ML.</p>
+    </div>
+  </section>
+
+  <div class="callout callout-blue">
+    <b>Scope notes:</b> Roles: nurse and head-nurse only. No patient identifiers. Rule-based logic only — no AI/ML. Tier 1–2 tasks never auto-deferred. No computed score/ranking/leaderboard. Durations computed from stored timestamps. Foreground alarm only — background push is out of scope. Demo data is illustrative and needs ICU clinical review.
+  </div>
+
+  <div class="footer">
+    ICU TaskLog — Thesis demo. Not a medical device. <br>
+    Live app: <a href="https://icu-tasklog.vercel.app">https://icu-tasklog.vercel.app</a> &bull;
+    Demo accounts: amina/1111 (nurse), head/9999 (head nurse)
+  </div>
+</div>
+
+</body>
+</html>
