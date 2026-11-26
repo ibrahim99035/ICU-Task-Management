@@ -72,31 +72,36 @@ const TRANSITIONS: Record<string, Partial<Record<DomainEvent["type"], TaskStatus
     TASK_COMPLETED: "done", // tick-only completion
     TASK_TIME_LOGGED: "done",
     TASK_MISSED: "missed",
+    TASK_REMOVED: "removed",
   },
   in_progress: {
     TASK_PAUSED: "paused",
     TASK_COMPLETED: "done",
     TASK_MISSED: "missed",
+    TASK_REMOVED: "removed",
   },
   paused: {
     TASK_RESUMED: "in_progress",
     TASK_MISSED: "missed",
+    TASK_REMOVED: "removed",
   },
   deferred: {
     TASK_RESCHEDULED: "planned",
     TASK_TIME_LOGGED: "done",
+    TASK_REMOVED: "removed",
   },
   done: {
     TASK_TIME_LOGGED: "done",
   },
   missed: {},
+  removed: {},
 };
 
 export function canTransition(status: TaskStatus, event: DomainEvent["type"]): boolean {
   return Boolean(TRANSITIONS[status]?.[event]);
 }
 
-/** A task can be altered only while it is still open. Done and missed tasks are frozen. */
+/** A task can be altered only while it is still open. Done, missed and removed tasks are frozen. */
 export function isTaskEditable(status: TaskStatus): boolean {
   return status === "planned" || status === "in_progress" || status === "paused" || status === "deferred";
 }
@@ -142,6 +147,7 @@ const EVENT_PRIORITY: Record<DomainEvent["type"], number> = {
   TASK_DEFERRED: 4,
   TASK_COMPLETED: 5,
   TASK_MISSED: 5,
+  TASK_REMOVED: 5,
   INTERRUPTION_LOGGED: 6,
   EMERGENCY_ENDED: 7,
   HANDOVER_FINALIZED: 8,
@@ -177,7 +183,7 @@ function markAttention(state: ReducedState): void {
   for (const task of Object.values(state.tasks)) {
     const emergency = activeEmergencyFor(state, task.bedId);
     task.needsAttention =
-      Boolean(emergency) && task.tier <= 2 && !["done", "missed", "deferred"].includes(task.status);
+      Boolean(emergency) && task.tier <= 2 && !["done", "missed", "deferred", "removed"].includes(task.status);
   }
 }
 
@@ -251,7 +257,8 @@ export function reduce(input: DomainEvent[]): ReducedState {
       case "TASK_COMPLETED":
       case "TASK_DEFERRED":
       case "TASK_RESCHEDULED":
-      case "TASK_MISSED": {
+      case "TASK_MISSED":
+      case "TASK_REMOVED": {
         const task = event.taskId ? state.tasks[event.taskId] : undefined;
         if (!task) throw new DomainError(`Unknown task ${event.taskId ?? "(none)"}`);
         assertTransition(task, event);
@@ -286,6 +293,10 @@ export function reduce(input: DomainEvent[]): ReducedState {
           case "TASK_MISSED":
             task.status = "missed";
             task.missedAt = ts;
+            break;
+          case "TASK_REMOVED":
+            task.status = "removed";
+            task.removedAt = ts;
             break;
         }
         break;
@@ -393,7 +404,7 @@ export function reduce(input: DomainEvent[]): ReducedState {
 
 export function isOverdue(task: Task, now: number): boolean {
   return (
-    !["done", "deferred", "missed"].includes(task.status) && task.plannedTo < now
+    !["done", "deferred", "missed", "removed"].includes(task.status) && task.plannedTo < now
   );
 }
 
@@ -417,7 +428,7 @@ export function isMissed(
   config: AppConfig = DEFAULT_CONFIG,
   shiftEndedAt?: number,
 ): boolean {
-  if (["done", "deferred", "missed"].includes(task.status)) return false;
+  if (["done", "deferred", "missed", "removed"].includes(task.status)) return false;
   if (shiftEndedAt) return true;
   if (task.status !== "planned") return false;
   return now > task.plannedTo + config.missedTimeoutMin * MINUTE;
@@ -483,7 +494,7 @@ export function startEmergency(
   });
 
   for (const task of bed.tasks) {
-    if (task.status === "done" || task.status === "missed" || task.status === "deferred") continue;
+    if (["done", "missed", "deferred", "removed"].includes(task.status)) continue;
     if (task.tier <= 2) {
       // Tier 1-2 work is never deferred. It is surfaced to the nurse instead.
       if (task.status === "in_progress" || task.status === "paused" || task.status === "planned") {

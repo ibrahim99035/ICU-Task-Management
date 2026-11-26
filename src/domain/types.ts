@@ -3,7 +3,7 @@ import { z } from "zod";
 export type Role = "nurse" | "head_nurse";
 export type Tier = 1 | 2 | 3 | 4;
 export type TaskCategory = "direct_care" | "indirect_care" | "interruption";
-export type TaskStatus = "planned" | "in_progress" | "paused" | "done" | "deferred" | "missed";
+export type TaskStatus = "planned" | "in_progress" | "paused" | "done" | "deferred" | "missed" | "removed";
 export type TaskScope = "bed" | "shift";
 export type ShiftKind = "nurse" | "head_nurse";
 
@@ -90,6 +90,7 @@ export const EVENT_TYPES = [
   "TASK_EDITED",
   "TASK_TIME_LOGGED",
   "TASK_MISSED",
+  "TASK_REMOVED",
   "TIME_CORRECTED",
   "INTERRUPTION_LOGGED",
   "EMERGENCY_STARTED",
@@ -172,6 +173,7 @@ export const taskTimeLoggedPayload = z
     path: ["endedAt"],
   });
 export const taskMissedPayload = z.object({ reason: z.enum(["timeout", "shift_end"]) });
+export const taskRemovedPayload = z.object({ reason: z.string().max(200).optional() });
 export const timeCorrectedPayload = z.object({
   targetEventId: z.string().min(1),
   newTs: iso,
@@ -224,6 +226,7 @@ export const domainEventSchema = z.discriminatedUnion("type", [
     taskId: z.string().min(1),
   }),
   z.object({ ...base, type: z.literal("TASK_MISSED"), payload: taskMissedPayload }),
+  z.object({ ...base, type: z.literal("TASK_REMOVED"), payload: taskRemovedPayload }),
   z.object({ ...base, type: z.literal("TIME_CORRECTED"), payload: timeCorrectedPayload }),
   z.object({ ...base, type: z.literal("INTERRUPTION_LOGGED"), payload: interruptionPayload }),
   z.object({ ...base, type: z.literal("EMERGENCY_STARTED"), payload: emergencyStartedPayload, bedId: z.string().min(1) }),
@@ -260,6 +263,7 @@ export type Task = {
   pausedAt?: number;
   completedAt?: number;
   missedAt?: number;
+  removedAt?: number;
   rescheduledAt?: number;
   durationRecorded: boolean;
   timeLogs?: TaskTimeLog[];

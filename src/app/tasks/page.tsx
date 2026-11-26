@@ -42,6 +42,7 @@ import {
   editTask,
   pauseTask,
   pinTask,
+  removeTask,
   resumeTask,
   startTask,
 } from "@/lib/actions";
@@ -78,6 +79,8 @@ function TasksInner() {
   const [interruptTask, setInterruptTask] = useState<Task | undefined>();
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Task | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<Task | null>(null);
+  const [removeOpen, setRemoveOpen] = useState(false);
   const [tickTarget, setTickTarget] = useState<Task | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -241,6 +244,10 @@ function TasksInner() {
               onPin={() => guard(() => pinTask(task.id, !task.pinned))}
               onOpen={() => setDetailId(task.id)}
               onEdit={() => setEditTarget(task)}
+              onRemove={() => {
+                setRemoveTarget(task);
+                setRemoveOpen(true);
+              }}
             />
           ))
         ) : (
@@ -296,6 +303,30 @@ function TasksInner() {
           <div className="space-y-2">
             <p>This records completion but <strong>no duration</strong>. Use it only when the task was already done and you did not use the timer.</p>
             <p className="text-xs text-slate-500">For timed care, press play when you start and finish when you are done.</p>
+          </div>
+        }
+      />
+
+      <ConfirmDialog
+        open={removeOpen}
+        onClose={() => setRemoveOpen(false)}
+        onConfirm={() =>
+          removeTarget
+            ? guard(async () => {
+                await removeTask(removeTarget.id);
+                setRemoveTarget(null);
+                setRemoveOpen(false);
+                notify("Task removed from this shift.", "info");
+              })
+            : undefined
+        }
+        busy={busy}
+        confirmLabel="Remove task"
+        title={`Remove “${removeTarget?.title ?? "task"}”?`}
+        body={
+          <div className="space-y-2">
+            <p>This removes the task from the shift. The change is recorded in the event log and cannot be undone.</p>
+            <p className="text-xs text-slate-500">Finished or missed tasks cannot be removed.</p>
           </div>
         }
       />

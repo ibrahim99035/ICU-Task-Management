@@ -11,6 +11,7 @@ import {
   PauseCircle,
   Sparkles,
   TriangleAlert,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import type { TaskStatus, Tier } from "@/domain";
@@ -57,6 +58,7 @@ export function StatusBadge({ status }: { status: TaskStatus }) {
     done: { label: "Done", className: "bg-teal-50 text-teal-800", Icon: CheckCircle2 },
     deferred: { label: "Deferred", className: "bg-violet-50 text-violet-700", Icon: Clock },
     missed: { label: "Missed", className: "bg-danger-50 text-danger-700", Icon: XCircle },
+    removed: { label: "Removed", className: "bg-slate-50 text-slate-500", Icon: Trash2 },
   };
   const item = map[status];
   return (

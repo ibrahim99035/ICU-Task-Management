@@ -182,6 +182,17 @@ export async function editTask(taskId: string, patch: TaskEditPatch): Promise<vo
   ]);
 }
 
+export async function removeTask(taskId: string, reason = ""): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task) throw new Error("Task not found");
+  if (!isTaskEditable(task.status)) throw new Error("Completed or missed tasks cannot be removed");
+  const shift = await db().shifts.get(task.shiftId);
+  if (!shift) throw new Error("Shift not found");
+  await appendEvents([
+    base("TASK_REMOVED", shift, Date.now(), { reason }, { bedId: task.bedId, taskId: task.id }),
+  ]);
+}
+
 export async function startTask(taskId: string): Promise<void> {
   const task = await getTask(taskId);
   if (!task) throw new Error("Task not found");

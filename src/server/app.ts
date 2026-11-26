@@ -17,6 +17,7 @@ import {
   scoreRawTLX,
   scoreSUS,
   taskEditedPayload,
+  taskRemovedPayload,
   taskTimeLoggedPayload,
   type DomainEvent,
   type ShiftSummary,
@@ -890,6 +891,87 @@ app.patch("/shifts/:shiftId/tasks/:taskId", async (c) => {
   return c.json({
     event: { ...event, serverTs: now },
     summary: shift.endedAt ? summary : null,
+  });
+});
+
+app.delete("/shifts/:shiftId/tasks/:taskId", async (c) => {
+  const auth = c.get("auth");
+  const db = dbOrThrow();
+  const shiftId = c.req.param("shiftId");
+  const taskId = c.req.param("taskId");
+  const body = z.object({ reason: z.string().max(200).optional() }).parse(await c.req.json());
+  const [shift] = await db
+    .select()
+    .from(schema.shifts)
+    .where(eq(schema.shifts.id, shiftId))
+    .limit(1);
+  if (!shift) return c.json({ error: "Shift not found" }, 404);
+
+  // Any authenticated user can remove any unfinished task in any shift,
+  // regardless of who created or owns it.
+  const rows = await db
+    .select()
+    .from(schema.events)
+    .where(eq(schema.events.shiftId, shiftId))
+    .orderBy(asc(schema.events.serverSeq));
+  const events = rows.map((row) => ({
+    id: row.id,
+    shiftId: row.shiftId,
+    bedId: row.bedId ?? undefined,
+    taskId: row.taskId ?? undefined,
+    actorId: row.actorId,
+    type: row.type,
+    payload: row.payload,
+    clientTs: row.clientTs,
+    serverTs: row.serverTs,
+    serverSeq: row.serverSeq,
+  })) as DomainEvent[];
+
+  let task;
+  try {
+    task = reduce(events).tasks[taskId];
+  } catch {
+    return c.json({ error: "This shift's event log could not be reduced" }, 409);
+  }
+  if (!task) return c.json({ error: "Task not found" }, 404);
+  if (!isTaskEditable(task.status)) {
+    return c.json({ error: "Completed or missed tasks cannot be removed" }, 409);
+  }
+
+  const now = Date.now();
+  const event: DomainEvent = {
+    id: randomUUID(),
+    shiftId,
+    bedId: task.bedId,
+    taskId,
+    actorId: auth.id,
+    type: "TASK_REMOVED" as const,
+    clientTs: now,
+    payload: body,
+  };
+
+  await db.insert(schema.events).values({
+    id: event.id,
+    shiftId,
+    bedId: task.bedId,
+    taskId,
+    actorId: auth.id,
+    type: event.type,
+    payload: event.payload,
+    clientTs: now,
+    serverTs: now,
+  });
+
+  if (shift.endedAt) {
+    const summary = buildShiftSummary([...events, event]);
+    await db
+      .update(schema.shifts)
+      .set({ summary })
+      .where(eq(schema.shifts.id, shiftId));
+  }
+
+  return c.json({
+    event: { ...event, serverTs: now },
   });
 });
 

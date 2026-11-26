@@ -453,6 +453,72 @@ async function main() {
   });
   check("finished tasks reject edits", finishedPatch.status === 409, finishedPatch.status);
 
+  // Remove an unfinished task
+  const removeTaskId = "api-remove-task";
+  const removeShiftId = "api-remove-shift";
+  const removeStart = now - 3_600_000;
+  const removeEvents: DomainEvent[] = [
+    {
+      ...base,
+      shiftId: removeShiftId,
+      id: "api-remove-e1",
+      type: "SHIFT_STARTED",
+      payload: { shiftType: "day", kind: "nurse", unitId, unitName: "API Unit", bedLabels: ["Bed 1"] },
+      clientTs: removeStart,
+    },
+    {
+      ...base,
+      shiftId: removeShiftId,
+      id: "api-remove-e2",
+      type: "TASK_CREATED",
+      taskId: removeTaskId,
+      payload: {
+        title: "Task to remove",
+        category: "direct_care",
+        tier: 3,
+        plannedFrom: removeStart + 5 * 60_000,
+        plannedTo: removeStart + 15 * 60_000,
+        expectedMin: 10,
+        unitId,
+        scope: "shift",
+      },
+      clientTs: removeStart + 60_000,
+    },
+  ];
+  const removePush = await req("/api/sync/push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nurse.token}` },
+    body: JSON.stringify({ events: removeEvents }),
+  });
+  check("push accepts a removable shift", removePush.status === 200, removePush.status);
+
+  const removeResponse = await req(`/api/shifts/${removeShiftId}/tasks/${removeTaskId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nurse.token}` },
+    body: JSON.stringify({ reason: "No longer needed" }),
+  });
+  check("nurse can remove an unfinished task", removeResponse.status === 200, removeResponse.status);
+
+  // Try to remove the same task again (now removed)
+  const removeAgain = await req(`/api/shifts/${removeShiftId}/tasks/${removeTaskId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nurse.token}` },
+    body: JSON.stringify({ reason: "Again" }),
+  });
+  check("removed task cannot be removed again", removeAgain.status === 409, removeAgain.status);
+
+  // Another nurse can remove a task in this shift
+  const otherRemove = await req(`/api/shifts/${removeShiftId}/tasks/${removeTaskId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${newSession.token}` },
+    body: JSON.stringify({ reason: "Cross-nurse remove" }),
+  });
+  check(
+    "another nurse cannot remove an already-removed task",
+    otherRemove.status === 409,
+    otherRemove.status,
+  );
+
   const editPull = await req("/api/sync/pull?cursor=0", {
     headers: { Authorization: `Bearer ${nurse.token}` },
   });

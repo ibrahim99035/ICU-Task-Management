@@ -13,6 +13,7 @@ import {
   Pencil,
   Star,
   TimerReset,
+  Trash2,
 } from "lucide-react";
 import { isTaskEditable, type Task } from "@/domain";
 import { cn, windowLabel, formatElapsed, formatTime, tierStyle } from "@/lib/format";
@@ -32,6 +33,7 @@ export function TaskCard({
   onPin,
   onOpen,
   onEdit,
+  onRemove,
 }: {
   task: Task;
   now: number;
@@ -45,6 +47,7 @@ export function TaskCard({
   onPin?: () => void;
   onOpen?: () => void;
   onEdit?: () => void;
+  onRemove?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const due = windowLabel(task.plannedFrom, task.plannedTo, now);
@@ -208,6 +211,17 @@ export function TaskCard({
             disabled={busy || !isTaskEditable(task.status)}
           >
             <Pencil className={cn("h-3.5 w-3.5", !isTaskEditable(task.status) && "text-slate-400")} />
+          </button>
+        ) : null}
+        {onRemove ? (
+          <button
+            onClick={() => void run(onRemove)}
+            className="grid h-7 w-7 place-items-center rounded-lg text-slate-300 hover:bg-danger-50 hover:text-danger-600"
+            aria-label={`Remove ${task.title}`}
+            title="Remove task"
+            disabled={busy || !isTaskEditable(task.status)}
+          >
+            <Trash2 className={cn("h-3.5 w-3.5", !isTaskEditable(task.status) && "text-slate-400")} />
           </button>
         ) : null}
         {onOpen ? <ChevronRight className="h-4 w-4 text-slate-300" aria-hidden /> : null}
